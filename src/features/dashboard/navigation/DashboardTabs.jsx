@@ -6,6 +6,7 @@ import { useTheme } from "react-native-paper";
 import InicioScreen from "../screens/InicioScreen";
 import PerfilScreen from "../screens/PerfilScreen";
 import CarrerasScreen from "../screens/CarrerasScreen";
+
 const Tab = createBottomTabNavigator();
 
 export default function DashboardTabs() {

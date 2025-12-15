@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { PaperDarkTheme, PaperLightTheme } from "../theme/PaperTheme";
+import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
 
 const AppContext = createContext();
 

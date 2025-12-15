@@ -1,6 +1,6 @@
 import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { TextInput, Button, Text, Snackbar, Card, useTheme } from "react-native-paper";
-import { useAppContext } from "../context/AppContext";
+import { useAppContext } from "../../../shared/contexts/AppContext";
 import { useState } from "react";
 
 export default function LoginScreen({ navigation }) {
@@ -22,8 +22,6 @@ export default function LoginScreen({ navigation }) {
         setTimeout(() => {
             setLoading(false);
             login();
-
-            navigation.replace("Dashboard");
         }, 800);
     };
 
@@ -78,6 +76,11 @@ export default function LoginScreen({ navigation }) {
                                 Registrarse
                             </Button>
                         </View>
+                            <View style={styles.backFooter}>
+                                <Button mode="text" compact onPress={() => navigation.navigate('Welcome')}>
+                                    ← Volver a Inicio
+                                </Button>
+                            </View>
                     </Card.Content>
                 </Card>
             </ScrollView>
@@ -129,4 +132,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: 24,
     },
+    backFooter: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 12,
+    }
 });

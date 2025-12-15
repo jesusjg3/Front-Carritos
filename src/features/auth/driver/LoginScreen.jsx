@@ -1,16 +1,17 @@
 import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { TextInput, Button, Text, Snackbar, Card, useTheme } from "react-native-paper";
-import { useAppContext } from "../../../shared/contexts/AppContext";
+import { FontAwesome } from "@expo/vector-icons";
 import { useState } from "react";
+import { useAppContext } from "../../../shared/contexts/AppContext";
+import { ROUTES } from "../../../core/constants/routes";
 
-export default function LoginScreen({ navigation }) {
+export default function DriverLoginScreen({ navigation }) {
     const { login } = useAppContext();
     const theme = useTheme();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
     const handleLogin = () => {
@@ -21,7 +22,7 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         setTimeout(() => {
             setLoading(false);
-            login();
+            login("Conductor");
         }, 800);
     };
 
@@ -32,7 +33,11 @@ export default function LoginScreen({ navigation }) {
         >
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
-                    <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Iniciar sesión</Text>
+                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.secondaryContainer }]}>
+                        <FontAwesome name="id-badge" size={40} color={theme.colors.secondary} />
+                    </View>
+                    <Text variant="displaySmall" style={{ color: theme.colors.secondary, fontWeight: 'bold', marginTop: 16 }}>Iniciar sesión</Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Acceso para conductores</Text>
                 </View>
 
                 <Card style={styles.card}>
@@ -58,8 +63,7 @@ export default function LoginScreen({ navigation }) {
                             right={<TextInput.Icon
                                 icon={secureTextEntry ? 'eye' : 'eye-off'}
                                 onPress={() => setSecureTextEntry(!secureTextEntry)}
-                            />
-                            }
+                            />}
                         />
                         <Button
                             mode="contained"
@@ -72,15 +76,15 @@ export default function LoginScreen({ navigation }) {
 
                         <View style={styles.registerFooter}>
                             <Text variant="bodyMedium">¿No tienes una cuenta?</Text>
-                            <Button mode="text" compact onPress={() => navigation.navigate('Register')}>
+                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.DRIVER_REGISTER)}>
                                 Registrarse
                             </Button>
                         </View>
-                            <View style={styles.backFooter}>
-                                <Button mode="text" compact onPress={() => navigation.navigate('Welcome')}>
-                                    ← Volver a Inicio
-                                </Button>
-                            </View>
+                        <View style={styles.backFooter}>
+                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.WELCOME)}>
+                                ← Volver a Inicio
+                            </Button>
+                        </View>
                     </Card.Content>
                 </Card>
             </ScrollView>
@@ -94,6 +98,7 @@ export default function LoginScreen({ navigation }) {
         </KeyboardAvoidingView>
     );
 }
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -107,12 +112,12 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         alignItems: 'center',
     },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginBottom: 24,
-        textAlign: 'center',
-        color: '#144985',
+    iconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     card: {
         elevation: 4,

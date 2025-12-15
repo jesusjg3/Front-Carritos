@@ -1,15 +1,23 @@
 import { useState } from "react";
-import { View, StyleSheet } from "react-native";
-import { Card, Text, Avatar, Divider, Switch, List, useTheme } from "react-native-paper";
+import { View, StyleSheet, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 
 export default function PerfilScreen() {
-    const { user, isDarkTheme, toggleTheme } = useAppContext();
+    const { user, isDarkTheme, toggleTheme, logout } = useAppContext();
     const theme = useTheme();
+    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+    const handleLogout = () => {
+        setShowLogoutDialog(false);
+        logout();
+    };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <Card style={styles.card}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                <Card style={styles.card}>
 
                 <Card.Content>
                     <List.Item
@@ -38,16 +46,40 @@ export default function PerfilScreen() {
                 </Card.Content>
             </Card>
 
+            <Button
+                mode="contained"
+                onPress={() => setShowLogoutDialog(true)}
+                icon="logout"
+                buttonColor={theme.colors.error}
+                style={styles.logoutButton}
+            >
+                Cerrar Sesión
+            </Button>
 
-        </View>
+            <Portal>
+                <Dialog visible={showLogoutDialog} onDismiss={() => setShowLogoutDialog(false)}>
+                    <Dialog.Icon icon="alert-circle-outline" />
+                    <Dialog.Title>Cerrar Sesión</Dialog.Title>
+                    <Dialog.Content>
+                        <Paragraph>¿Estás seguro de que deseas cerrar sesión?</Paragraph>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button onPress={() => setShowLogoutDialog(false)}>Cancelar</Button>
+                        <Button onPress={handleLogout} textColor={theme.colors.error}>Cerrar Sesión</Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    scrollContent: {
         padding: 16,
-        justifyContent: 'center',
     },
     card: {
         borderRadius: 10,
@@ -57,5 +89,9 @@ const styles = StyleSheet.create({
     label: {
         fontWeight: "bold",
         marginTop: 8,
+    },
+    logoutButton: {
+        marginTop: 8,
+        marginBottom: 16,
     },
 });

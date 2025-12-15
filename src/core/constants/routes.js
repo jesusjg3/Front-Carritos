@@ -6,8 +6,10 @@
 export const ROUTES = {
   // Auth Routes
   WELCOME: 'Welcome',
-  LOGIN: 'Login',
-  REGISTER: 'Register',
+  STUDENT_LOGIN: 'StudentLogin',
+  STUDENT_REGISTER: 'StudentRegister',
+  DRIVER_LOGIN: 'DriverLogin',
+  DRIVER_REGISTER: 'DriverRegister',
   
   // Dashboard Routes
   DASHBOARD: 'Dashboard',

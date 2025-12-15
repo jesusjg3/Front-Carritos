@@ -13,11 +13,11 @@ export function AppContextProvider({ children }) {
         setIsDarkTheme(!isDarkTheme);
     };
 
-    const login = () => {
+    const login = (rol = "Estudiante") => {
         setUser({
             nombre: "Sujeto de pruebas",
             correo: "prueba@correo.com",
-            rol: "Estudiante",
+            rol,
             ingreso: "10/12/2025",
             bio: "Este es un usuario de prueba del sistema.",
         });

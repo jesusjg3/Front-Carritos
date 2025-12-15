@@ -1,4 +1,5 @@
 import { View, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, useTheme } from "react-native-paper";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 
@@ -7,7 +8,7 @@ export default function CarrerasScreen() {
     const theme = useTheme();
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <Card style={styles.card}>
                 <Card.Title title="Carreras" />
                 <Card.Content>
@@ -16,7 +17,7 @@ export default function CarrerasScreen() {
                     </Text>
                 </Card.Content>
             </Card>
-        </View>
+        </SafeAreaView>
     );
 }
 

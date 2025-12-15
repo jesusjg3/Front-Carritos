@@ -2,12 +2,16 @@ import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
+import { ROUTES } from "./src/core/constants/routes";
 
 import WelcomeScreen from "./src/features/auth/screens/WelcomeScreen";
-import LoginScreen from "./src/features/auth/screens/LoginScreen";
-import RegisterScreen from "./src/features/auth/screens/RegisterScreen";
+import StudentLoginScreen from "./src/features/auth/student/LoginScreen";
+import StudentRegisterScreen from "./src/features/auth/student/RegisterScreen";
+import DriverLoginScreen from "./src/features/auth/driver/LoginScreen";
+import DriverRegisterScreen from "./src/features/auth/driver/RegisterScreen";
 import DashboardTabs from "./src/features/dashboard/navigation/DashboardTabs";
 
 const Stack = createNativeStackNavigator();
@@ -21,12 +25,14 @@ function AppContent() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!user ? (
             <>
-              <Stack.Screen name="Welcome" component={WelcomeScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name={ROUTES.WELCOME} component={WelcomeScreen} />
+              <Stack.Screen name={ROUTES.STUDENT_LOGIN} component={StudentLoginScreen} />
+              <Stack.Screen name={ROUTES.STUDENT_REGISTER} component={StudentRegisterScreen} />
+              <Stack.Screen name={ROUTES.DRIVER_LOGIN} component={DriverLoginScreen} />
+              <Stack.Screen name={ROUTES.DRIVER_REGISTER} component={DriverRegisterScreen} />
             </>
           ) : (
-            <Stack.Screen name="Dashboard" component={DashboardTabs} />
+            <Stack.Screen name={ROUTES.DASHBOARD} component={DashboardTabs} />
           )}
         </Stack.Navigator>
       </NavigationContainer>
@@ -37,8 +43,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppContextProvider>
-      <AppContent />
-    </AppContextProvider>
+    <SafeAreaProvider>
+      <AppContextProvider>
+        <AppContent />
+      </AppContextProvider>
+    </SafeAreaProvider>
   );
 }

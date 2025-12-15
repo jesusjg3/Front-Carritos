@@ -2,6 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { FontAwesome } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import InicioScreen from "../screens/InicioScreen";
 import PerfilScreen from "../screens/PerfilScreen";
@@ -11,6 +12,7 @@ const Tab = createBottomTabNavigator();
 
 export default function DashboardTabs() {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
 
     return (
         <Tab.Navigator
@@ -23,8 +25,8 @@ export default function DashboardTabs() {
                     marginBottom: 4,
                 },
                 tabBarStyle: {
-                    height: 60,
-                    paddingBottom: 6,
+                    height: 60 + insets.bottom,
+                    paddingBottom: insets.bottom + 6,
                     backgroundColor: theme.colors.elevation.level2,
                     borderTopWidth: 0,
                     elevation: 5,

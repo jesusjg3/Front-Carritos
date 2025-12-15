@@ -1,6 +1,7 @@
 
 import { View, StyleSheet, Platform } from "react-native";
 import { Card, Text } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from 'react-native-webview';
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { useTheme } from "react-native-paper";
@@ -11,7 +12,7 @@ export default function InicioScreen() {
     const theme = useTheme();
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <View style={styles.mapContainer}>
                 {Platform.OS === 'web' ? (
                     <iframe
@@ -27,7 +28,7 @@ export default function InicioScreen() {
                     />
                 )}
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 

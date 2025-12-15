@@ -101,6 +101,11 @@ export default function RegisterScreen({ navigation }) {
                         </View>
                     </Card.Content>
                 </Card>
+                    <View style={styles.backFooter}>
+                        <Button mode="text" compact onPress={() => navigation.navigate('Welcome')}>
+                            ← Volver a Inicio
+                        </Button>
+                    </View>
             </ScrollView>
 
             <Snackbar
@@ -153,5 +158,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 24,
+    },
+    backFooter: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 12,
     }
 });

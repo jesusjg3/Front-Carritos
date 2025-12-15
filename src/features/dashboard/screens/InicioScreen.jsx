@@ -2,9 +2,9 @@
 import { View, StyleSheet, Platform } from "react-native";
 import { Card, Text } from "react-native-paper";
 import { WebView } from 'react-native-webview';
-import { useAppContext } from "../context/AppContext";
+import { useAppContext } from "../../../shared/contexts/AppContext";
 import { useTheme } from "react-native-paper";
-import { mapaHtml } from "../Web/mapaCode";
+import { mapaHtml } from "../../../Web/mapaCode";
 
 export default function InicioScreen() {
     const { user } = useAppContext();

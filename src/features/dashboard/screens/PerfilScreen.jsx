@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { Card, Text, Avatar, Divider, Switch, List, useTheme } from "react-native-paper";
-import { useAppContext } from "../context/AppContext";
+import { useAppContext } from "../../../shared/contexts/AppContext";
 
 export default function PerfilScreen() {
     const { user, isDarkTheme, toggleTheme } = useAppContext();

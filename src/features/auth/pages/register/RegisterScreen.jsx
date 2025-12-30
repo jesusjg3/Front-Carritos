@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { Button, Card, Snackbar, TextInput, Text, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
-import { ROUTES } from "../../../core/constants/routes";
+import { ROUTES } from "../../../../core/constants/routes";
 
-export default function DriverRegisterScreen({ navigation }) {
+export default function RegisterScreen({ navigation }) {
     const theme = useTheme();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -12,6 +12,7 @@ export default function DriverRegisterScreen({ navigation }) {
     const [confirmpassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [confirmSecureTextEntry, setConfirmSecureTextEntry] = useState(true);
 
@@ -22,13 +23,13 @@ export default function DriverRegisterScreen({ navigation }) {
         >
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
-                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.secondaryContainer }]}>
-                        <FontAwesome name="id-card" size={40} color={theme.colors.secondary} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+                        <FontAwesome name="user-plus" size={40} color={theme.colors.primary} />
                     </View>
-                    <Text variant="displaySmall" style={{ color: theme.colors.secondary, fontWeight: 'bold', marginTop: 16 }}>
+                    <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold', marginTop: 16 }}>
                         Registrarse
                     </Text>
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Crear cuenta de conductor</Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Crear cuenta de estudiante</Text>
                 </View>
 
                 <Card style={styles.card}>
@@ -62,10 +63,12 @@ export default function DriverRegisterScreen({ navigation }) {
                             style={styles.input}
                             secureTextEntry={secureTextEntry}
                             left={<TextInput.Icon icon="lock" />}
-                            right={<TextInput.Icon
-                                icon={secureTextEntry ? "eye" : "eye-off"}
-                                onPress={() => setSecureTextEntry(!secureTextEntry)}
-                            />}
+                            right={
+                                <TextInput.Icon
+                                    icon={secureTextEntry ? "eye" : "eye-off"}
+                                    onPress={() => setSecureTextEntry(!secureTextEntry)}
+                                />
+                            }
                         />
 
                         <TextInput
@@ -76,10 +79,12 @@ export default function DriverRegisterScreen({ navigation }) {
                             style={styles.input}
                             secureTextEntry={confirmSecureTextEntry}
                             left={<TextInput.Icon icon="lock-check" />}
-                            right={<TextInput.Icon
-                                icon={confirmSecureTextEntry ? "eye" : "eye-off"}
-                                onPress={() => setConfirmSecureTextEntry(!confirmSecureTextEntry)}
-                            />}
+                            right={
+                                <TextInput.Icon
+                                    icon={confirmSecureTextEntry ? "eye" : "eye-off"}
+                                    onPress={() => setConfirmSecureTextEntry(!confirmSecureTextEntry)}
+                                />
+                            }
                         />
 
                         <Button
@@ -94,17 +99,17 @@ export default function DriverRegisterScreen({ navigation }) {
 
                         <View style={styles.loginFooter}>
                             <Text variant="bodyMedium">¿Ya tienes una cuenta?</Text>
-                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.DRIVER_LOGIN)}>
+                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.LOGIN)}>
                                 Iniciar Sesión
                             </Button>
                         </View>
                     </Card.Content>
                 </Card>
-                <View style={styles.backFooter}>
-                    <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.WELCOME)}>
-                        ← Volver a Inicio
-                    </Button>
-                </View>
+                    <View style={styles.backFooter}>
+                        <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.WELCOME)}>
+                            ← Volver a Inicio
+                        </Button>
+                    </View>
             </ScrollView>
 
             <Snackbar

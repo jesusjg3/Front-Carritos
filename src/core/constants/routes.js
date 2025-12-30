@@ -6,10 +6,11 @@
 export const ROUTES = {
   // Auth Routes
   WELCOME: 'Welcome',
-  STUDENT_LOGIN: 'StudentLogin',
-  STUDENT_REGISTER: 'StudentRegister',
-  DRIVER_LOGIN: 'DriverLogin',
-  DRIVER_REGISTER: 'DriverRegister',
+  LOGIN: 'Login',
+  REGISTER: 'Register',
+
+  // Admin
+  ADMIN_DASHBOARD: 'AdminDashboard',
   
   // Dashboard Routes
   DASHBOARD: 'Dashboard',

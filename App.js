@@ -7,12 +7,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
 import { ROUTES } from "./src/core/constants/routes";
 
-import WelcomeScreen from "./src/features/auth/screens/WelcomeScreen";
-import StudentLoginScreen from "./src/features/auth/student/LoginScreen";
-import StudentRegisterScreen from "./src/features/auth/student/RegisterScreen";
-import DriverLoginScreen from "./src/features/auth/driver/LoginScreen";
-import DriverRegisterScreen from "./src/features/auth/driver/RegisterScreen";
+import WelcomeScreen from "./src/features/auth/pages/welcome/WelcomeScreen";
+import LoginScreen from "./src/features/auth/pages/login/LoginScreen";
+import RegisterScreen from "./src/features/auth/pages/register/RegisterScreen";
 import DashboardTabs from "./src/features/dashboard/navigation/DashboardTabs";
+import AdminDashboard from "./src/features/admin/pages/AdminDashboard";
+import UserManagement from "./src/features/admin/pages/UserManagement";
 
 const Stack = createNativeStackNavigator();
 
@@ -26,13 +26,18 @@ function AppContent() {
           {!user ? (
             <>
               <Stack.Screen name={ROUTES.WELCOME} component={WelcomeScreen} />
-              <Stack.Screen name={ROUTES.STUDENT_LOGIN} component={StudentLoginScreen} />
-              <Stack.Screen name={ROUTES.STUDENT_REGISTER} component={StudentRegisterScreen} />
-              <Stack.Screen name={ROUTES.DRIVER_LOGIN} component={DriverLoginScreen} />
-              <Stack.Screen name={ROUTES.DRIVER_REGISTER} component={DriverRegisterScreen} />
+              <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
+              <Stack.Screen name={ROUTES.REGISTER} component={RegisterScreen} />
             </>
           ) : (
-            <Stack.Screen name={ROUTES.DASHBOARD} component={DashboardTabs} />
+            user.rol === "admin" ? (
+              <>
+                <Stack.Screen name={ROUTES.ADMIN_DASHBOARD} component={AdminDashboard} />
+                <Stack.Screen name="UserManagement" component={UserManagement} />
+              </>
+            ) : (
+              <Stack.Screen name={ROUTES.DASHBOARD} component={DashboardTabs} />
+            )
           )}
         </Stack.Navigator>
       </NavigationContainer>

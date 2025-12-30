@@ -1,29 +1,38 @@
 import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { TextInput, Button, Text, Snackbar, Card, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
+import { useAppContext } from "../../../../shared/contexts/AppContext";
 import { useState } from "react";
-import { useAppContext } from "../../../shared/contexts/AppContext";
-import { ROUTES } from "../../../core/constants/routes";
+import { ROUTES } from "../../../../core/constants/routes";
 
-export default function DriverLoginScreen({ navigation }) {
-    const { login } = useAppContext();
+export default function LoginScreen({ navigation }) {
+    const { login, user } = useAppContext();
     const theme = useTheme();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!email || !password) {
             setError("Todos los campos son obligatorios.");
             return;
         }
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            login("Conductor");
-        }, 800);
+        const result = await login(email, password);
+        setLoading(false);
+        if (!result.success) {
+            setError(result.error || "Error de autenticación");
+            return;
+        }
+        if (result.user && result.user.rol && result.user.rol.toLowerCase() === 'admin') {
+            navigation.reset({
+                index: 0,
+                routes: [{ name: ROUTES.ADMIN_DASHBOARD }],
+            });
+        }
     };
 
     return (
@@ -33,11 +42,11 @@ export default function DriverLoginScreen({ navigation }) {
         >
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
-                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.secondaryContainer }]}>
-                        <FontAwesome name="id-badge" size={40} color={theme.colors.secondary} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+                        <FontAwesome name="user" size={40} color={theme.colors.primary} />
                     </View>
-                    <Text variant="displaySmall" style={{ color: theme.colors.secondary, fontWeight: 'bold', marginTop: 16 }}>Iniciar sesión</Text>
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Acceso para conductores</Text>
+                    <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold', marginTop: 16 }}>Iniciar sesión</Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Acceso para estudiantes</Text>
                 </View>
 
                 <Card style={styles.card}>
@@ -63,7 +72,8 @@ export default function DriverLoginScreen({ navigation }) {
                             right={<TextInput.Icon
                                 icon={secureTextEntry ? 'eye' : 'eye-off'}
                                 onPress={() => setSecureTextEntry(!secureTextEntry)}
-                            />}
+                            />
+                            }
                         />
                         <Button
                             mode="contained"
@@ -76,15 +86,15 @@ export default function DriverLoginScreen({ navigation }) {
 
                         <View style={styles.registerFooter}>
                             <Text variant="bodyMedium">¿No tienes una cuenta?</Text>
-                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.DRIVER_REGISTER)}>
+                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.REGISTER)}>
                                 Registrarse
                             </Button>
                         </View>
-                        <View style={styles.backFooter}>
-                            <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.WELCOME)}>
-                                ← Volver a Inicio
-                            </Button>
-                        </View>
+                            <View style={styles.backFooter}>
+                                <Button mode="text" compact onPress={() => navigation.navigate(ROUTES.WELCOME)}>
+                                    ← Volver a Inicio
+                                </Button>
+                            </View>
                     </Card.Content>
                 </Card>
             </ScrollView>
@@ -98,7 +108,6 @@ export default function DriverLoginScreen({ navigation }) {
         </KeyboardAvoidingView>
     );
 }
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -118,6 +127,13 @@ const styles = StyleSheet.create({
         borderRadius: 40,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        marginBottom: 24,
+        textAlign: 'center',
+        color: '#144985',
     },
     card: {
         elevation: 4,

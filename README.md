@@ -1,6 +1,45 @@
 # Estructura del Proyecto - Carritos App
 
-## 📁 Arquitectura
+## � Guía de Inicio Rápido
+
+### Prerrequisitos
+
+- **Node.js**: [Descargar e instalar](https://nodejs.org/) (versión LTS recomendada).
+- **Expo Go**: Instala la aplicación en tu dispositivo ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/us/app/expo-go/id982107779)).
+- **Git**: [Descargar e instalar](https://git-scm.com/).
+
+### 📦 Instalación y Configuración
+
+1.  **Clonar el repositorio**
+
+    ```bash
+    git clone <URL_DEL_REPOSITORIO>
+    cd Front-Carritos
+    ```
+
+2.  **Instalar dependencias**
+    ```bash
+    npm install
+    ```
+
+### ▶️ Ejecutar la aplicación
+
+Para iniciar el servidor de desarrollo:
+
+```bash
+npx expo start
+```
+
+**Comandos disponibles en la terminal interactiva:**
+
+- Presiona `a` para correr en **Android Emulator**.
+- Presiona `i` para correr en **iOS Simulator** (solo macOS).
+- Presiona `w` para correr en **Web Browser**.
+- Escanea el código QR con la app **Expo Go** para probar en tu dispositivo físico.
+
+---
+
+## �📁 Arquitectura
 
 Este proyecto sigue una arquitectura profesional inspirada en Angular, adaptada para React Native/Expo. La estructura está diseñada para ser escalable, mantenible y fácil de entender a largo plazo.
 
@@ -64,16 +103,19 @@ src/
 ## 🎯 Principios de Organización
 
 ### 1. **Separación de Responsabilidades**
+
 - **core/**: Código que puede ser usado en cualquier parte de la app
 - **features/**: Código específico de dominio, cada feature es independiente
 - **shared/**: Código reutilizable entre features
 
 ### 2. **Escalabilidad**
+
 - Añadir nuevas features es simple: crear una nueva carpeta en `features/`
 - Cada feature contiene todo lo necesario: componentes, screens, navegación
 - No se contamina la carpeta raíz con cada nueva funcionalidad
 
 ### 3. **Mantenibilidad**
+
 - Los archivos están organizados por función y dominio
 - Fácil encontrar dónde hacer cambios
 - Barrel exports (`index.js`) simplifican las importaciones
@@ -82,12 +124,12 @@ src/
 
 ```javascript
 // ✅ Bueno - Usando barrel exports
-import { useAppContext } from '../../../shared/contexts';
-import { isValidEmail, formatDate } from '../../core/utils';
-import { LoginScreen } from '../features/auth/screens';
+import { useAppContext } from "../../../shared/contexts";
+import { isValidEmail, formatDate } from "../../core/utils";
+import { LoginScreen } from "../features/auth/screens";
 
 // ❌ Evitar - Importaciones directas largas
-import { useAppContext } from '../../../shared/contexts/AppContext';
+import { useAppContext } from "../../../shared/contexts/AppContext";
 ```
 
 ## 📝 Guía de Uso
@@ -122,6 +164,7 @@ import { useAppContext } from '../../../shared/contexts/AppContext';
 ## 📚 Referencias
 
 Esta arquitectura está inspirada en:
+
 - **Angular**: Estructura modular por features
 - **Clean Architecture**: Separación de capas y responsabilidades
 - **React Best Practices**: Hooks, Context API, composition

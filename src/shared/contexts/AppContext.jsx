@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
+import { API_ROUTES } from "../../Config/Routes";
 
 const AppContext = createContext();
 
@@ -15,7 +16,7 @@ export function AppContextProvider({ children }) {
 
     const login = async (email, password) => {
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/login', {
+            const response = await fetch(API_ROUTES.AUTH.LOGIN, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ export function AppContextProvider({ children }) {
 
     const register = async (name, email, password) => {
         try {
-            const response = await fetch('http://localhost:8000/api/register', {
+            const response = await fetch(API_ROUTES.AUTH.REGISTER, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

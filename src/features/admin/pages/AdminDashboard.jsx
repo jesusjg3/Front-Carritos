@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text, Button, Card, useTheme, ActivityIndicator } from "react-native-paper";
 import { useAppContext } from "../../../shared/contexts/AppContext";
+import { ROUTES } from "../../../core/constants/routes";
 
 export default function AdminDashboard({ navigation }) {
   const { user } = useAppContext();
@@ -43,7 +44,7 @@ export default function AdminDashboard({ navigation }) {
               <Button
                 mode="contained"
                 style={{ marginTop: 16 }}
-                onPress={() => navigation.navigate("UserManagement")}
+                onPress={() => navigation.navigate(ROUTES.USER_MANAGEMENT)}
               >
                 Ir a gestión de usuarios
               </Button>

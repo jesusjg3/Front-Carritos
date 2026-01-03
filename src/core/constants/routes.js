@@ -11,6 +11,7 @@ export const ROUTES = {
 
   // Admin
   ADMIN_DASHBOARD: 'AdminDashboard',
+  USER_MANAGEMENT: 'UserManagement',
   
   // Dashboard Routes
   DASHBOARD: 'Dashboard',

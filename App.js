@@ -33,7 +33,7 @@ function AppContent() {
             user.rol === "admin" ? (
               <>
                 <Stack.Screen name={ROUTES.ADMIN_DASHBOARD} component={AdminDashboard} />
-                <Stack.Screen name="UserManagement" component={UserManagement} />
+                <Stack.Screen name={ROUTES.USER_MANAGEMENT} component={UserManagement} />
               </>
             ) : (
               <Stack.Screen name={ROUTES.DASHBOARD} component={DashboardTabs} />

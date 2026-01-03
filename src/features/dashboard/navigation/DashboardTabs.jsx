@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import InicioScreen from "../screens/InicioScreen";
 import PerfilScreen from "../screens/PerfilScreen";
 import CarrerasScreen from "../screens/CarrerasScreen";
+import { ROUTES } from "../../../core/constants/routes";
 
 const Tab = createBottomTabNavigator();
 
@@ -35,13 +36,13 @@ export default function DashboardTabs() {
                     let iconName = "home";
 
                     switch (route.name) {
-                        case "Inicio":
+                        case ROUTES.INICIO:
                             iconName = "home";
                             break;
-                        case "Carreras":
+                        case ROUTES.CARRERAS:
                             iconName = "plus";
                             break;
-                        case "Perfil":
+                        case ROUTES.PERFIL:
                             iconName = "user";
                             break;
                     }
@@ -57,9 +58,9 @@ export default function DashboardTabs() {
                 },
             })}
         >
-            <Tab.Screen name="Inicio" component={InicioScreen} />
-            <Tab.Screen name="Carreras" component={CarrerasScreen} />
-            <Tab.Screen name="Perfil" component={PerfilScreen} />
+            <Tab.Screen name={ROUTES.INICIO} component={InicioScreen} />
+            <Tab.Screen name={ROUTES.CARRERAS} component={CarrerasScreen} />
+            <Tab.Screen name={ROUTES.PERFIL} component={PerfilScreen} />
         </Tab.Navigator>
     );
 }

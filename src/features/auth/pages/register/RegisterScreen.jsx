@@ -3,9 +3,12 @@ import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from "re
 import { Button, Card, Snackbar, TextInput, Text, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
 import { ROUTES } from "../../../../core/constants/routes";
+import { useAppContext } from "../../../../shared/contexts";
+import { isValidEmail, isValidPassword, isValidName, passwordsMatch } from "../../../../core/utils/validators";
 
 export default function RegisterScreen({ navigation }) {
     const theme = useTheme();
+    const { register } = useAppContext();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -15,6 +18,41 @@ export default function RegisterScreen({ navigation }) {
 
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [confirmSecureTextEntry, setConfirmSecureTextEntry] = useState(true);
+
+    const handleRegister = async () => {
+        if (!name.trim() || !email.trim() || !password || !confirmpassword) {
+            setError('Todos los campos son obligatorios');
+            return;
+        }
+
+        if (!isValidName(name)) {
+            setError('El nombre debe tener al menos 3 caracteres y solo letras');
+            return;
+        }
+
+        if (!isValidEmail(email)) {
+            setError('El correo electrónico no es válido');
+            return;
+        }
+
+        if (!isValidPassword(password)) {
+            setError('La contraseña debe tener mínimo 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (@$!%*?&)');
+            return;
+        }
+
+        if (!passwordsMatch(password, confirmpassword)) {
+            setError('Las contraseñas no coinciden');
+            return;
+        }
+
+        setLoading(true);
+        const result = await register(name, email, password);
+        setLoading(false);
+
+        if (!result.success) {
+            setError(result.error);
+        }
+    };
 
     return (
         <KeyboardAvoidingView
@@ -90,6 +128,8 @@ export default function RegisterScreen({ navigation }) {
                         <Button
                             mode="contained"
                             loading={loading}
+                            onPress={handleRegister}
+                            disabled={loading}
                             style={styles.button}
                             contentStyle={styles.buttonContent}
                             labelStyle={{ fontSize: 16, fontWeight: 'bold' }}

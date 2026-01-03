@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
+import { API_ROUTES } from "../../Config/Routes";
 
 const AppContext = createContext();
 
@@ -15,10 +16,11 @@ export function AppContextProvider({ children }) {
 
     const login = async (email, password) => {
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/login', {
+            const response = await fetch(API_ROUTES.AUTH.LOGIN, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({ email, password })
             });
@@ -43,6 +45,41 @@ export function AppContextProvider({ children }) {
         }
     };
 
+    const register = async (name, email, password) => {
+        try {
+            const response = await fetch(API_ROUTES.AUTH.REGISTER, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password,
+                    password_confirmation: password,
+                    role_id: 2
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Error en el registro');
+            }
+            setToken(data.access_token);
+            const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+            const userData = {
+                email,
+                rol: payload.role,
+                is_active: payload.is_active,
+                token: data.access_token,
+            };
+            setUser(userData);
+            return { success: true, user: userData };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    };
+
     const logout = () => {
         setUser(null);
         setToken(null);
@@ -54,6 +91,7 @@ export function AppContextProvider({ children }) {
                 user,
                 token,
                 login,
+                register,
                 logout,
                 isDarkTheme,
                 toggleTheme,

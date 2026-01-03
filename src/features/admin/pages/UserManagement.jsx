@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
 import { Text, Card, Button, useTheme, ActivityIndicator, IconButton } from "react-native-paper";
 import { useAppContext } from "../../../shared/contexts/AppContext";
+import { API_ROUTES } from "../../../Config/Routes";
 
 export default function UserManagement() {
   const { user } = useAppContext();
@@ -17,8 +18,11 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/users", {
-        headers: { Authorization: `Bearer ${user?.token}` },
+      const res = await fetch(API_ROUTES.USERS, {
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+          Accept: "application/json",
+        },
       });
       const data = await res.json();
       setUsers(data);

@@ -8,112 +8,86 @@ export default function WelcomeScreen({ navigation }) {
   const { user } = useAppContext();
   const theme = useTheme();
 
-  const goToLoginAsStudent = () => {
-    navigation.navigate(ROUTES.LOGIN, { role: 'student' });
-  };
-  const goToLoginAsDriver = () => {
-    navigation.navigate(ROUTES.LOGIN, { role: 'driver' });
-  };
-
   return (
-
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
-      <View style={styles.content}> 
-        <View style={styles.iconContainer}> 
-          <FontAwesome 
-            name="car" 
-            size={80} 
-            color={theme.colors.primary} 
-          /> 
-        </View> 
-        <Text 
-          variant="displayMedium" 
-          style={[ 
-            styles.title, 
-            { color: theme.colors.primary, fontWeight: "bold" }, 
-          ]} 
-        > 
-          ¡Bienvenido a Carritos Uleam! 
-        </Text> 
-        <Text 
-          variant="titleMedium" 
-          style={[styles.roleTitle, { color: theme.colors.onSurfaceVariant }]} 
-        > 
-          ¿Cómo deseas ingresar?
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <FontAwesome
+            name="car"
+            size={80}
+            color={theme.colors.primary}
+          />
+        </View>
+        <Text
+          variant="displayMedium"
+          style={[
+            styles.title,
+            { color: theme.colors.primary, fontWeight: "bold" },
+          ]}
+        >
+          ¡Bienvenido a Carritos!
+        </Text>
+        <Text
+          variant="titleMedium"
+          style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
+        >
+          Conexiones de transporte universitarias
         </Text>
 
-        <View style={styles.rolesContainer}>
-          <Card style={[styles.roleCard, { borderColor: theme.colors.primary }]}> 
-            <Card.Content> 
-              <View style={styles.roleInner}> 
-                <FontAwesome name="user" size={28} color={theme.colors.primary} /> 
-                <Text variant="titleSmall" style={{ marginTop: 8, color: theme.colors.primary }}>Estudiante</Text> 
-                <Button mode="contained" style={styles.roleButton} onPress={goToLoginAsStudent}> 
-                  Ingresar 
-                </Button> 
-              </View> 
-            </Card.Content> 
-          </Card> 
-
-          <Card style={[styles.roleCard, { borderColor: theme.colors.secondary }]}> 
-            <Card.Content> 
-              <View style={styles.roleInner}> 
-                <FontAwesome name="id-badge" size={28} color={theme.colors.secondary} /> 
-                <Text variant="titleSmall" style={{ marginTop: 8, color: theme.colors.secondary }}>Conductor</Text> 
-                <Button mode="contained" style={styles.roleButton} onPress={goToLoginAsDriver}> 
-                  Ingresar 
-                </Button> 
-              </View> 
-            </Card.Content> 
-          </Card> 
-        </View>
-
-        <View style={styles.registerContainer}>
-          <Button 
-            mode="outlined" 
-            style={styles.secondaryButton} 
-            onPress={() => navigation.navigate(ROUTES.REGISTER)} 
-            contentStyle={styles.buttonContent} 
-          > 
-            Registrarse 
+        <View style={styles.buttonsContainer}>
+          <Button
+            mode="contained"
+            style={styles.primaryButton}
+            contentStyle={styles.buttonContent}
+            onPress={() => navigation.navigate(ROUTES.LOGIN)}
+          >
+            Iniciar Sesión
+          </Button>
+          <Button
+            mode="outlined"
+            style={styles.secondaryButton}
+            contentStyle={styles.buttonContent}
+            onPress={() => navigation.navigate(ROUTES.REGISTER)}
+          >
+            Registrarse
           </Button>
         </View>
 
         {user && (
-          <Card style={[styles.card, { marginBottom: 24 }]}> 
-            <Card.Content> 
-              <Text 
-                variant="labelLarge" 
-                style={{ 
-                  color: theme.colors.primary, 
-                  fontWeight: "bold", 
-                  marginBottom: 8, 
-                }} 
-              > 
-                Tu Información 
-              </Text> 
-              <View style={styles.userInfo}> 
-                <Text 
-                  variant="bodyMedium" 
-                  style={{ color: theme.colors.onSurfaceVariant }} 
-                > 
-                  <Text style={{ fontWeight: "bold" }}>Nombre:</Text> {user.nombre} 
-                </Text> 
-                <Text 
-                  variant="bodyMedium" 
-                  style={{ 
-                    color: theme.colors.onSurfaceVariant, 
-                    marginTop: 4, 
-                  }} 
-                > 
-                  <Text style={{ fontWeight: "bold" }}>Rol:</Text> {user.rol} 
-                </Text> 
-              </View> 
-            </Card.Content> 
-          </Card> 
-        )} 
-      </View> 
-    </View> 
+          <Card style={[styles.card, { marginTop: 24 }]}>
+            <Card.Content>
+              <Text
+                variant="labelLarge"
+                style={{
+                  color: theme.colors.primary,
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                }}
+              >
+                Tu Información
+              </Text>
+              <View style={styles.userInfo}>
+                <Text
+                  variant="bodyMedium"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Nombre:</Text> {user.nombre}
+                </Text>
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    marginTop: 4,
+                  }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Rol:</Text> {user.rol}
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -131,46 +105,24 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 8,
     fontSize: 32,
   },
-  roleTitle: {
+  subtitle: {
     textAlign: "center",
-    marginBottom: 20,
-    fontWeight: "600",
+    marginBottom: 32,
+    fontWeight: "500",
+    fontSize: 14,
   },
-  rolesContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 24,
+  buttonsContainer: {
     width: "100%",
+    gap: 12,
   },
-  roleCard: {
-    flex: 1,
-    maxWidth: 160,
-    borderRadius: 16,
-    borderWidth: 2,
-    elevation: 4,
-  },
-  roleInner: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-  },
-  roleButton: {
-    marginTop: 12,
+  primaryButton: {
     borderRadius: 8,
-    width: "100%",
-  },
-  registerContainer: {
-    alignItems: "center",
-    marginTop: 8,
-    width: "100%",
   },
   secondaryButton: {
     borderRadius: 8,
-    width: '80%',
   },
   buttonContent: {
     paddingVertical: 8,
@@ -178,7 +130,6 @@ const styles = StyleSheet.create({
   card: {
     elevation: 3,
     borderRadius: 16,
-    marginTop: 24,
   },
   userInfo: {
     marginTop: 8,

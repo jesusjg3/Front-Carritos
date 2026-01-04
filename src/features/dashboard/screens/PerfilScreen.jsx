@@ -5,7 +5,7 @@ import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Di
 import { useAppContext } from "../../../shared/contexts/AppContext";
 
 export default function PerfilScreen() {
-    const { user, isDarkTheme, toggleTheme, logout } = useAppContext();
+    const { user, isDarkTheme, toggleTheme, notificationsEnabled, toggleNotifications, logout } = useAppContext();
     const theme = useTheme();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
@@ -18,12 +18,17 @@ export default function PerfilScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Card style={styles.card}>
-
                 <Card.Content>
                     <List.Item
                         title="Tema oscuro"
                         description="Activa o desactiva el modo oscuro."
                         right={() => <Switch value={isDarkTheme} onValueChange={toggleTheme} />}
+                    />
+                    <Divider />
+                    <List.Item
+                        title="Notificaciones"
+                        description="Activa o desactiva las notificaciones."
+                        right={() => <Switch value={notificationsEnabled} onValueChange={toggleNotifications} />}
                     />
                 </Card.Content>
             </Card>

@@ -15,7 +15,7 @@ export default function AdminDashboard({ navigation }) {
     setLoading(false); 
   }, []);
 
-  if (!user || user.role !== "admin") {
+  if (!user || user.rol !== "admin" || !user.is_active) {
     return (
       <View style={styles.centered}>
         <Text variant="titleLarge" style={{ color: theme.colors.error }}>

@@ -28,6 +28,10 @@ export default function LoginScreen({ navigation }) {
             return;
         }
         if (result.user && result.user.rol && result.user.rol.toLowerCase() === 'admin') {
+            if (!result.user.is_active) {
+                setError('Tu cuenta ha sido desactivada. Contacta a un administrador.');
+                return;
+            }
             navigation.reset({
                 index: 0,
                 routes: [{ name: ROUTES.ADMIN_DASHBOARD }],
@@ -46,7 +50,7 @@ export default function LoginScreen({ navigation }) {
                         <FontAwesome name="user" size={40} color={theme.colors.primary} />
                     </View>
                     <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold', marginTop: 16 }}>Iniciar sesión</Text>
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Acceso para estudiantes</Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Accede a tu cuenta</Text>
                 </View>
 
                 <Card style={styles.card}>

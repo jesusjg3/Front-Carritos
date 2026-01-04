@@ -103,11 +103,8 @@ export function AppContextProvider({ children }) {
                 throw new Error(data.error || 'Error de autenticación');
             }
             setToken(data.access_token);
-            const payload = JSON.parse(atob(data.access_token.split('.')[1]));
             const userData = {
-                email,
-                rol: payload.role,
-                is_active: payload.is_active,
+                ...data.user,
                 token: data.access_token,
             };
             setUser(userData);
@@ -140,11 +137,8 @@ export function AppContextProvider({ children }) {
                 throw new Error(data.error || 'Error en el registro');
             }
             setToken(data.access_token);
-            const payload = JSON.parse(atob(data.access_token.split('.')[1]));
             const userData = {
-                email,
-                rol: payload.role,
-                is_active: payload.is_active,
+                ...data.user,
                 token: data.access_token,
             };
             setUser(userData);

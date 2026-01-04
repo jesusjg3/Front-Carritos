@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
-import { Text, FAB, Snackbar, ActivityIndicator } from "react-native-paper";
+import { View, StyleSheet, FlatList, RefreshControl, useWindowDimensions } from "react-native";
+import { Text, FAB, Snackbar, ActivityIndicator, Chip, SegmentedButtons } from "react-native-paper";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
 import AdminHeader from "../components/AdminHeader";
-import GenericCard from "../components/GenericCard";
+import DataTableComponent from "../components/DataTableComponent";
 import GenericFormModal from "../components/GenericFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import SearchBar from "../components/SearchBar";
 import { COLORS, SPACING } from "../../../core/constants/theme";
 import { getInitials, getUserRole } from "../../../core/utils";
 
@@ -17,9 +19,15 @@ const DRIVER_FIELDS = [
 
 export default function DriverManagement({ navigation }) {
   const { user } = useAppContext();
+  const { width: screenWidth } = useWindowDimensions();
+  const isMobile = screenWidth < 768;
   const [drivers, setDrivers] = useState([]);
+  const [filteredDrivers, setFilteredDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [viewMode, setViewMode] = useState('table');
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -31,6 +39,32 @@ export default function DriverManagement({ navigation }) {
   useEffect(() => {
     fetchDrivers();
   }, []);
+
+  useEffect(() => {
+    filterDrivers();
+  }, [drivers, searchQuery, filterStatus]);
+
+  const filterDrivers = () => {
+    let filtered = [...drivers];
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (d) =>
+          d.name?.toLowerCase().includes(query) ||
+          d.email?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtrar por estado
+    if (filterStatus !== 'all') {
+      const isActive = filterStatus === 'active';
+      filtered = filtered.filter((d) => d.is_active === isActive);
+    }
+
+    setFilteredDrivers(filtered);
+  };
 
   const fetchDrivers = async () => {
     setLoading(true);
@@ -215,34 +249,86 @@ export default function DriverManagement({ navigation }) {
     <View style={styles.container}>
       <AdminHeader
         title="Gestión de Conductores"
-        subtitle={`Total: ${drivers.length}`}
+        subtitle="Administra todos los conductores"
         showBack
         onBackPress={() => navigation.goBack()}
+        actions={[
+          {
+            icon: 'refresh',
+            onPress: onRefresh,
+          },
+        ]}
       />
 
-      <FlatList
-        data={drivers}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.PRIMARY]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text variant="bodyLarge" style={styles.emptyText}>
-              No hay conductores registrados
-            </Text>
+      <View style={styles.content}>
+        {/* Barra de búsqueda */}
+        <SearchBar
+          placeholder="Buscar conductor por nombre o email..."
+          value={searchQuery}
+          onSearch={setSearchQuery}
+        />
+
+        {/* Controles de vista y filtros */}
+        <View style={styles.controlsContainer}>
+          <View style={styles.filtersContainer}>
+            <Chip
+              selected={filterStatus === 'all'}
+              onPress={() => setFilterStatus('all')}
+              style={styles.filterChip}
+              icon={() => <MaterialCommunityIcons name="car" size={18} />}
+            >
+              Todos
+            </Chip>
+            <Chip
+              selected={filterStatus === 'active'}
+              onPress={() => setFilterStatus('active')}
+              style={styles.filterChip}
+              icon={() => <MaterialCommunityIcons name="check-circle" size={18} />}
+            >
+              Activos
+            </Chip>
+            <Chip
+              selected={filterStatus === 'inactive'}
+              onPress={() => setFilterStatus('inactive')}
+              style={styles.filterChip}
+              icon={() => <MaterialCommunityIcons name="close-circle" size={18} />}
+            >
+              Inactivos
+            </Chip>
           </View>
-        }
-        contentContainerStyle={styles.listContent}
-      />
+
+          <SegmentedButtons
+            value={viewMode}
+            onValueChange={setViewMode}
+            buttons={[
+              {
+                value: 'table',
+                label: 'Tabla',
+                icon: 'table',
+              },
+              {
+                value: 'list',
+                label: 'Lista',
+                icon: 'view-list',
+              },
+            ]}
+            style={styles.viewToggle}
+          />
+        </View>
+
+        {/* Tabla de conductores */}
+        <DataTableComponent
+          data={filteredDrivers}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onToggleStatus={handleToggleStatus}
+          emptyMessage="No se encontraron conductores con los filtros aplicados"
+        />
+      </View>
 
       <FAB
         icon="plus"
+        label="Nuevo Conductor"
         style={styles.fab}
         onPress={handleCreate}
         color={COLORS.WHITE}
@@ -256,7 +342,17 @@ export default function DriverManagement({ navigation }) {
         }}
         onSubmit={handleFormSubmit}
         data={selectedDriver}
-        fields={DRIVER_FIELDS}
+        fields={(() => {
+          const baseFields = [
+            { name: 'name', label: 'Nombre Completo', type: 'text', placeholder: 'Ej: Carlos Ramírez', required: true },
+            { name: 'email', label: 'Correo Electrónico', type: 'email', placeholder: 'conductor@example.com', required: true },
+          ];
+          if (!selectedDriver) {
+            baseFields.push({ name: 'password', label: 'Contraseña', type: 'password', placeholder: 'Mínimo 8 caracteres', required: true });
+            baseFields.push({ name: 'password_confirmation', label: 'Confirmar Contraseña', type: 'password', placeholder: 'Repite la contraseña', required: true });
+          }
+          return baseFields;
+        })()}
         isLoading={formLoading}
         title={selectedDriver ? 'Editar Conductor' : 'Crear Nuevo Conductor'}
         submitText={selectedDriver ? 'Actualizar' : 'Crear'}
@@ -294,6 +390,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
+  },
+  content: {
+    flex: 1,
+    padding: SPACING.SM,
+    alignItems: 'center',
+    width: '100%',
+  },
+  controlsContainer: {
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    marginBottom: SPACING.SM,
+    gap: SPACING.SM,
+    maxWidth: 1200,
+    width: '100%',
+  },
+  filtersContainer: {
+    flexDirection: 'row',
+    gap: SPACING.XS,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    backgroundColor: COLORS.WHITE,
+  },
+  viewToggle: {
+    width: '100%',
   },
   loadingContainer: {
     flex: 1,

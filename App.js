@@ -1,8 +1,9 @@
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { PaperProvider } from "react-native-paper";
+import { PaperProvider, ActivityIndicator } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { View } from "react-native";
 
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
 import { ROUTES } from "./src/core/constants/routes";
@@ -19,7 +20,15 @@ import DriverManagement from "./src/features/admin/pages/DriverManagement";
 const Stack = createNativeStackNavigator();
 
 function AppContent() {
-  const { paperTheme, user } = useAppContext();
+  const { paperTheme, user, isLoading } = useAppContext();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: paperTheme.colors.background }}>
+        <ActivityIndicator animating size="large" />
+      </View>
+    );
+  }
 
   const userRole = getUserRole(user);
   const isAdmin = userRole === "admin";

@@ -48,3 +48,41 @@ export const formatDate = (date) => {
     day: 'numeric',
   });
 };
+
+/**
+ * Obtiene las iniciales de un nombre
+ * @param {string} name - Nombre completo
+ * @returns {string} Iniciales (máximo 2 caracteres)
+ */
+export const getInitials = (name) => {
+  if (!name) return '??';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) {
+    return parts[0].substring(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+/**
+ * Formatea el nombre del rol para mostrar
+ * @param {string} roleName - Nombre del rol
+ * @returns {string} Nombre formateado
+ */
+export const formatRoleName = (roleName) => {
+  const roleNames = {
+    admin: 'Administrador',
+    pasajero: 'Pasajero',
+    conductor: 'Conductor',
+  };
+  return roleNames[roleName?.toLowerCase()] || roleName || 'Sin rol';
+};
+
+/**
+ * Formatea el estado para mostrar
+ * @param {boolean} isActive - Estado del usuario
+ * @returns {string} Texto del estado
+ */
+export const formatStatus = (isActive) => {
+  return isActive ? 'Activo' : 'Inactivo';
+};
+

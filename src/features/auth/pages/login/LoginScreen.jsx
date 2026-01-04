@@ -27,12 +27,6 @@ export default function LoginScreen({ navigation }) {
             setError(result.error || "Error de autenticación");
             return;
         }
-        if (result.user && result.user.rol && result.user.rol.toLowerCase() === 'admin') {
-            navigation.reset({
-                index: 0,
-                routes: [{ name: ROUTES.ADMIN_DASHBOARD }],
-            });
-        }
     };
 
     return (

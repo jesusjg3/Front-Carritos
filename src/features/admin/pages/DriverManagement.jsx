@@ -10,26 +10,29 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { COLORS, SPACING } from "../../../core/constants/theme";
 import { getInitials, getUserRole } from "../../../core/utils";
 
-export default function UserManagement({ navigation }) {
+const DRIVER_FIELDS = [
+  { name: 'name', label: 'Nombre Completo', type: 'text', placeholder: 'Ej: Juan García', required: true },
+  { name: 'email', label: 'Correo Electrónico', type: 'email', placeholder: 'correo@example.com', required: true },
+];
+
+export default function DriverManagement({ navigation }) {
   const { user } = useAppContext();
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
   const [formModalVisible, setFormModalVisible] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedDriver, setSelectedDriver] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
+  const [driverToDelete, setDriverToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-    fetchRoles();
+    fetchDrivers();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchDrivers = async () => {
     setLoading(true);
     try {
       const res = await fetch(API_ROUTES.USERS, {
@@ -39,52 +42,37 @@ export default function UserManagement({ navigation }) {
         },
       });
 
-      if (!res.ok) throw new Error('Error al obtener usuarios');
+      if (!res.ok) throw new Error('Error al obtener conductores');
 
       const data = await res.json();
       const allUsers = data.data || data;
-      const filteredUsers = allUsers.filter(
-        (u) => getUserRole(u) !== 'conductor'
+
+      // Filtrar solo conductores usando la función de normalización
+      const driversFiltered = allUsers.filter(
+        (u) => getUserRole(u) === 'conductor'
       );
-      setUsers(filteredUsers);
+
+      setDrivers(driversFiltered);
     } catch (err) {
-      setSnackbar({ visible: true, message: 'Error al cargar usuarios' });
-      setUsers([]);
+      setSnackbar({ visible: true, message: 'Error al cargar conductores' });
+      setDrivers([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchRoles = async () => {
-    try {
-      const res = await fetch(API_ROUTES.ROLES, {
-        headers: {
-          Authorization: `Bearer ${user?.token}`,
-          Accept: "application/json",
-        },
-      });
-
-      if (!res.ok) throw new Error('Error al obtener roles');
-
-      const data = await res.json();
-      setRoles(data.data || data);
-    } catch (err) {
-      console.error('Error fetching roles:', err);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchUsers();
+      await fetchDrivers();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handleToggleStatus = async (userId) => {
+  const handleToggleStatus = async (driverId) => {
     try {
-      const res = await fetch(`${API_ROUTES.USERS}/${userId}/toggle-status`, {
+      const res = await fetch(`${API_ROUTES.USERS}/${driverId}/toggle-status`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${user?.token}`,
@@ -95,68 +83,39 @@ export default function UserManagement({ navigation }) {
       if (!res.ok) throw new Error('Error al cambiar estado');
 
       setSnackbar({ visible: true, message: 'Estado actualizado correctamente' });
-      await fetchUsers();
+      fetchDrivers();
     } catch (err) {
-      setSnackbar({ visible: true, message: 'Error al cambiar estado del usuario' });
+      setSnackbar({ visible: true, message: 'Error al cambiar estado del conductor' });
     }
   };
 
-  const handleEdit = (userData) => {
-    setSelectedUser(userData);
+  const handleEdit = (driverData) => {
+    setSelectedDriver(driverData);
     setFormModalVisible(true);
   };
 
-  const handleDelete = (userId) => {
-    setUserToDelete(userId);
+  const handleDelete = (driverId) => {
+    setDriverToDelete(driverId);
     setDeleteDialogVisible(true);
   };
 
   const handleCreate = () => {
-    setSelectedUser(null);
+    setSelectedDriver(null);
     setFormModalVisible(true);
   };
 
   const handleFormSubmit = async (formData) => {
     setFormLoading(true);
     try {
-      const isEdit = !!selectedUser;
-      const selectedRoleId = Number(formData.rol_id);
+      const submitData = {
+        ...formData,
+        rol_id: 3, // ID del rol conductor
+      };
 
-      if (!isEdit && selectedRoleId === 1) {
-        throw new Error('No puedes crear usuarios admin desde aquí');
-      }
-
-      let url = '';
-      let payload = {};
-      let method = isEdit ? 'PUT' : 'POST';
-
-      if (isEdit) {
-        url = `${API_ROUTES.USERS}/${selectedUser.id}`;
-        payload = {
-          name: formData.name,
-          email: formData.email,
-          rol_id: selectedRoleId,
-        };
-      } else {
-        const isDriver = selectedRoleId === 3;
-        if (isDriver) {
-          url = API_ROUTES.DRIVERS;
-          payload = {
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-          };
-        } else {
-          url = API_ROUTES.AUTH.REGISTER;
-          payload = {
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-            password_confirmation: formData.password,
-            role_id: selectedRoleId,
-          };
-        }
-      }
+      const method = selectedDriver ? 'PUT' : 'POST';
+      const url = selectedDriver
+        ? `${API_ROUTES.USERS}/${selectedDriver.id}`
+        : API_ROUTES.DRIVERS;
 
       const res = await fetch(url, {
         method,
@@ -165,7 +124,7 @@ export default function UserManagement({ navigation }) {
           Authorization: `Bearer ${user?.token}`,
           Accept: 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(submitData),
       });
 
       if (!res.ok) {
@@ -173,11 +132,11 @@ export default function UserManagement({ navigation }) {
         throw new Error(errorData.error || 'Error al procesar la solicitud');
       }
 
-      const message = isEdit ? 'Usuario actualizado' : 'Usuario creado';
+      const message = selectedDriver ? 'Conductor actualizado' : 'Conductor creado';
       setSnackbar({ visible: true, message });
       setFormModalVisible(false);
-      setSelectedUser(null);
-      await fetchUsers();
+      setSelectedDriver(null);
+      await fetchDrivers();
     } catch (err) {
       setSnackbar({ visible: true, message: err.message || 'Error en la solicitud' });
     } finally {
@@ -188,7 +147,7 @@ export default function UserManagement({ navigation }) {
   const handleConfirmDelete = async () => {
     setDeleteLoading(true);
     try {
-      const res = await fetch(`${API_ROUTES.USERS}/${userToDelete}`, {
+      const res = await fetch(`${API_ROUTES.USERS}/${driverToDelete}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${user?.token}`,
@@ -201,10 +160,10 @@ export default function UserManagement({ navigation }) {
         throw new Error(errorData.error || 'Error al eliminar');
       }
 
-      setSnackbar({ visible: true, message: 'Usuario eliminado correctamente' });
+      setSnackbar({ visible: true, message: 'Conductor eliminado correctamente' });
       setDeleteDialogVisible(false);
-      setUserToDelete(null);
-      await fetchUsers();
+      setDriverToDelete(null);
+      await fetchDrivers();
     } catch (err) {
       setSnackbar({ visible: true, message: err.message || 'Error al eliminar' });
     } finally {
@@ -212,30 +171,19 @@ export default function UserManagement({ navigation }) {
     }
   };
 
-  const getUserColor = (roleName) => {
-    switch (roleName?.toLowerCase()) {
-      case 'admin':
-        return COLORS.ADMIN;
-      case 'pasajero':
-        return COLORS.PASSENGER;
-      default:
-        return COLORS.PRIMARY;
-    }
-  };
-
   const renderItem = ({ item }) => {
-    const roleName = getUserRole(item) || 'Usuario';
+    const roleName = getUserRole(item) || 'Conductor';
     return (
       <GenericCard
         item={item}
         avatarText={getInitials(item.name)}
-        avatarColor={getUserColor(roleName)}
+        avatarColor={COLORS.DRIVER}
         fields={[
           { key: 'name', label: 'Nombre', variant: 'titleMedium' },
           { key: 'email', label: 'Email', variant: 'bodySmall' },
         ]}
         chips={[
-          { key: 'rol', getValue: () => roleName, color: getUserColor(roleName) },
+          { key: 'rol', getValue: () => roleName, color: COLORS.DRIVER },
           { key: 'status', getValue: () => item.is_active ? 'Activo' : 'Inactivo', color: item.is_active ? COLORS.SUCCESS : COLORS.WARNING },
         ]}
         actions={[
@@ -247,12 +195,12 @@ export default function UserManagement({ navigation }) {
     );
   };
 
-  if (loading && users.length === 0) {
+  if (loading && drivers.length === 0) {
     return (
       <View style={styles.container}>
         <AdminHeader
-          title="Gestión de Usuarios"
-          subtitle="Administra todos los usuarios"
+          title="Gestión de Conductores"
+          subtitle="Administra todos los conductores"
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -266,14 +214,14 @@ export default function UserManagement({ navigation }) {
   return (
     <View style={styles.container}>
       <AdminHeader
-        title="Gestión de Usuarios"
-        subtitle={`Total: ${users.length}`}
+        title="Gestión de Conductores"
+        subtitle={`Total: ${drivers.length}`}
         showBack
         onBackPress={() => navigation.goBack()}
       />
 
       <FlatList
-        data={users}
+        data={drivers}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         refreshControl={
@@ -286,7 +234,7 @@ export default function UserManagement({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text variant="bodyLarge" style={styles.emptyText}>
-              No hay usuarios registrados
+              No hay conductores registrados
             </Text>
           </View>
         }
@@ -304,38 +252,25 @@ export default function UserManagement({ navigation }) {
         visible={formModalVisible}
         onDismiss={() => {
           setFormModalVisible(false);
-          setSelectedUser(null);
+          setSelectedDriver(null);
         }}
         onSubmit={handleFormSubmit}
-        data={selectedUser}
-        fields={(() => {
-          const allowedRoles = roles.filter((r) => r.id === 2 || r.id === 3);
-
-          const baseFields = [
-            { name: 'name', label: 'Nombre Completo', type: 'text', placeholder: 'Ej: Juan García', required: true },
-            { name: 'email', label: 'Correo Electrónico', type: 'email', placeholder: 'correo@example.com', required: true },
-            { name: 'rol_id', label: 'Rol', type: 'select', options: selectedUser ? roles : allowedRoles, required: true },
-          ];
-          if (!selectedUser) {
-            baseFields.push({ name: 'password', label: 'Contraseña', type: 'password', placeholder: 'Mínimo 8 caracteres', required: true });
-            baseFields.push({ name: 'password_confirmation', label: 'Confirmar Contraseña', type: 'password', placeholder: 'Repite la contraseña', required: true });
-          }
-          return baseFields;
-        })()}
+        data={selectedDriver}
+        fields={DRIVER_FIELDS}
         isLoading={formLoading}
-        title={selectedUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-        submitText={selectedUser ? 'Actualizar' : 'Crear'}
+        title={selectedDriver ? 'Editar Conductor' : 'Crear Nuevo Conductor'}
+        submitText={selectedDriver ? 'Actualizar' : 'Crear'}
       />
 
       <ConfirmDialog
         visible={deleteDialogVisible}
         onDismiss={() => {
           setDeleteDialogVisible(false);
-          setUserToDelete(null);
+          setDriverToDelete(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Eliminar Usuario"
-        message="¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer."
+        title="Eliminar Conductor"
+        message="¿Estás seguro de que deseas eliminar este conductor? Esta acción no se puede deshacer."
         confirmText="Eliminar"
         isLoading={deleteLoading}
       />
@@ -383,6 +318,6 @@ const styles = StyleSheet.create({
     margin: SPACING.MD,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.PASSENGER,
+    backgroundColor: COLORS.DRIVER,
   },
 });

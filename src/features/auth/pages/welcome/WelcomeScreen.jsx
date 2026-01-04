@@ -106,7 +106,7 @@ export default function WelcomeScreen({ navigation }) {
                     marginTop: 4, 
                   }} 
                 > 
-                  <Text style={{ fontWeight: "bold" }}>Rol:</Text> {user.rol} 
+                  <Text style={{ fontWeight: "bold" }}>Rol:</Text> {user.role} 
                 </Text> 
               </View> 
             </Card.Content> 

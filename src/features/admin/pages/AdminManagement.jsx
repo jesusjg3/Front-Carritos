@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, FlatList, RefreshControl, useWindowDimensions, ScrollView } from "react-native";
-import { Text, FAB, Snackbar, ActivityIndicator, Chip, Divider, SegmentedButtons, Menu } from "react-native-paper";
+import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { Text, FAB, Snackbar, ActivityIndicator, Chip } from "react-native-paper";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
@@ -9,71 +9,59 @@ import DataTableComponent from "../components/DataTableComponent";
 import GenericFormModal from "../components/GenericFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import SearchBar from "../components/SearchBar";
-import { COLORS, SPACING, SHADOWS } from "../../../core/constants/theme";
-import { getInitials, getUserRole } from "../../../core/utils";
+import { COLORS, SPACING } from "../../../core/constants/theme";
+import { getUserRole } from "../../../core/utils";
 
-export default function UserManagement({ navigation }) {
+export default function AdminManagement({ navigation }) {
   const { user } = useAppContext();
   const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 768;
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [admins, setAdmins] = useState([]);
+  const [filteredAdmins, setFilteredAdmins] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('active'); // 'active', 'inactive', 'all'
-  const [statusMenuVisible, setStatusMenuVisible] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' o 'list'
+  const [filterStatus, setFilterStatus] = useState('active');
   const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
   const [formModalVisible, setFormModalVisible] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
+  const [adminToDelete, setAdminToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    fetchAdmins();
     fetchRoles();
   }, []);
 
   useEffect(() => {
-    filterUsers();
-  }, [users, searchQuery, filterRole, filterStatus]);
+    filterAdmins();
+  }, [admins, searchQuery, filterStatus]);
 
-  const filterUsers = () => {
-    let filtered = [...users];
+  const filterAdmins = () => {
+    let filtered = [...admins];
 
-    // Filtrar por búsqueda
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (u) =>
-          u.name?.toLowerCase().includes(query) ||
-          u.email?.toLowerCase().includes(query)
+        (a) =>
+          a.name?.toLowerCase().includes(query) ||
+          a.email?.toLowerCase().includes(query)
       );
     }
 
-    // Filtrar por rol
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(
-        (u) => getUserRole(u)?.toLowerCase() === filterRole.toLowerCase()
-      );
-    }
-
-    // Filtrar por estado
     if (filterStatus !== 'all') {
       filtered = filtered.filter(
-        (u) => (filterStatus === 'active' ? u.is_active : !u.is_active)
+        (a) => (filterStatus === 'active' ? a.is_active : !a.is_active)
       );
     }
 
-    setFilteredUsers(filtered);
+    setFilteredAdmins(filtered);
   };
 
-  const fetchUsers = async () => {
+  const fetchAdmins = async () => {
     setLoading(true);
     try {
       const res = await fetch(API_ROUTES.USERS, {
@@ -83,18 +71,17 @@ export default function UserManagement({ navigation }) {
         },
       });
 
-      if (!res.ok) throw new Error('Error al obtener usuarios');
+      if (!res.ok) throw new Error('Error al obtener administradores');
 
       const data = await res.json();
       const allUsers = data.data || data;
-      // Filtrar solo pasajeros (no admins ni conductores)
-      const passengerUsers = allUsers.filter(
-        (u) => getUserRole(u)?.toLowerCase() === 'pasajero'
+      const adminUsers = allUsers.filter(
+        (u) => getUserRole(u)?.toLowerCase() === 'admin'
       );
-      setUsers(passengerUsers);
+      setAdmins(adminUsers);
     } catch (err) {
-      setSnackbar({ visible: true, message: 'Error al cargar usuarios' });
-      setUsers([]);
+      setSnackbar({ visible: true, message: 'Error al cargar administradores' });
+      setAdmins([]);
     } finally {
       setLoading(false);
     }
@@ -121,21 +108,20 @@ export default function UserManagement({ navigation }) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchUsers();
+      await fetchAdmins();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handleToggleStatus = async (userId) => {
-    // No permitir cambiar tu propio estado
-    if (userId === user?.id) {
+  const handleToggleStatus = async (adminId) => {
+    if (adminId === user?.id) {
       setSnackbar({ visible: true, message: 'No puedes desactivar tu propia cuenta' });
       return;
     }
 
     try {
-      const res = await fetch(`${API_ROUTES.USERS}/${userId}/toggle-status`, {
+      const res = await fetch(`${API_ROUTES.USERS}/${adminId}/toggle-status`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${user?.token}`,
@@ -146,73 +132,57 @@ export default function UserManagement({ navigation }) {
       if (!res.ok) throw new Error('Error al cambiar estado');
 
       setSnackbar({ visible: true, message: 'Estado actualizado correctamente' });
-      await fetchUsers();
+      await fetchAdmins();
     } catch (err) {
-      setSnackbar({ visible: true, message: 'Error al cambiar estado del usuario' });
+      setSnackbar({ visible: true, message: 'Error al cambiar estado del administrador' });
     }
   };
 
-  const handleEdit = (userData) => {
-    setSelectedUser(userData);
+  const handleEdit = (adminData) => {
+    setSelectedAdmin(adminData);
     setFormModalVisible(true);
   };
 
-  const handleDelete = (userId) => {
-    // No permitir eliminar tu propia cuenta
-    if (userId === user?.id) {
+  const handleDelete = (adminId) => {
+    if (adminId === user?.id) {
       setSnackbar({ visible: true, message: 'No puedes eliminar tu propia cuenta' });
       return;
     }
 
-    setUserToDelete(userId);
+    setAdminToDelete(adminId);
     setDeleteDialogVisible(true);
   };
 
   const handleCreate = () => {
-    setSelectedUser(null);
+    setSelectedAdmin(null);
     setFormModalVisible(true);
   };
 
   const handleFormSubmit = async (formData) => {
     setFormLoading(true);
     try {
-      const isEdit = !!selectedUser;
-      const selectedRoleId = Number(formData.rol_id);
-
-      if (!isEdit && selectedRoleId === 1) {
-        throw new Error('No puedes crear usuarios admin desde aquí');
-      }
+      const isEdit = !!selectedAdmin;
 
       let url = '';
       let payload = {};
       let method = isEdit ? 'PUT' : 'POST';
 
       if (isEdit) {
-        url = `${API_ROUTES.USERS}/${selectedUser.id}`;
+        url = `${API_ROUTES.USERS}/${selectedAdmin.id}`;
         payload = {
           name: formData.name,
           email: formData.email,
-          rol_id: selectedRoleId,
+          rol_id: 1, // Admin
         };
       } else {
-        const isDriver = selectedRoleId === 3;
-        if (isDriver) {
-          url = API_ROUTES.DRIVERS;
-          payload = {
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-          };
-        } else {
-          url = API_ROUTES.AUTH.REGISTER;
-          payload = {
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-            password_confirmation: formData.password,
-            role_id: selectedRoleId,
-          };
-        }
+        url = API_ROUTES.AUTH.REGISTER;
+        payload = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          password_confirmation: formData.password,
+          role_id: 1, // Admin
+        };
       }
 
       const res = await fetch(url, {
@@ -230,11 +200,11 @@ export default function UserManagement({ navigation }) {
         throw new Error(errorData.error || 'Error al procesar la solicitud');
       }
 
-      const message = isEdit ? 'Usuario actualizado' : 'Usuario creado';
+      const message = isEdit ? 'Administrador actualizado' : 'Administrador creado';
       setSnackbar({ visible: true, message });
       setFormModalVisible(false);
-      setSelectedUser(null);
-      await fetchUsers();
+      setSelectedAdmin(null);
+      await fetchAdmins();
     } catch (err) {
       setSnackbar({ visible: true, message: err.message || 'Error en la solicitud' });
     } finally {
@@ -245,7 +215,7 @@ export default function UserManagement({ navigation }) {
   const handleConfirmDelete = async () => {
     setDeleteLoading(true);
     try {
-      const res = await fetch(`${API_ROUTES.USERS}/${userToDelete}`, {
+      const res = await fetch(`${API_ROUTES.USERS}/${adminToDelete}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${user?.token}`,
@@ -258,10 +228,10 @@ export default function UserManagement({ navigation }) {
         throw new Error(errorData.error || 'Error al eliminar');
       }
 
-      setSnackbar({ visible: true, message: 'Usuario eliminado correctamente' });
+      setSnackbar({ visible: true, message: 'Administrador eliminado correctamente' });
       setDeleteDialogVisible(false);
-      setUserToDelete(null);
-      await fetchUsers();
+      setAdminToDelete(null);
+      await fetchAdmins();
     } catch (err) {
       setSnackbar({ visible: true, message: err.message || 'Error al eliminar' });
     } finally {
@@ -269,25 +239,12 @@ export default function UserManagement({ navigation }) {
     }
   };
 
-  const getUserColor = (roleName) => {
-    switch (roleName?.toLowerCase()) {
-      case 'admin':
-        return COLORS.ADMIN;
-      case 'pasajero':
-        return COLORS.PASSENGER;
-      case 'conductor':
-        return COLORS.DRIVER;
-      default:
-        return COLORS.PRIMARY;
-    }
-  };
-
-  if (loading && users.length === 0) {
+  if (loading && admins.length === 0) {
     return (
       <View style={styles.container}>
         <AdminHeader
-          title="Gestión de Usuarios"
-          subtitle="Administra todos los usuarios"
+          title="Gestión de Administradores"
+          subtitle="Administra los administradores del sistema"
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -301,8 +258,8 @@ export default function UserManagement({ navigation }) {
   return (
     <View style={styles.container}>
       <AdminHeader
-        title="Gestión de Usuarios"
-        subtitle="Administra los usuarios pasajeros"
+        title="Gestión de Administradores"
+        subtitle="Administra los administradores del sistema"
         showBack
         onBackPress={() => navigation.goBack()}
         actions={[
@@ -314,21 +271,19 @@ export default function UserManagement({ navigation }) {
       />
 
       <View style={styles.content}>
-        {/* Barra de búsqueda */}
         <SearchBar
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar administrador por nombre o email..."
           value={searchQuery}
           onSearch={setSearchQuery}
         />
 
-        {/* Controles de vista y filtros */}
         <View style={styles.controlsContainer}>
           <View style={styles.filtersContainer}>
             <Chip
               selected={filterStatus === 'all'}
               onPress={() => setFilterStatus('all')}
               style={styles.filterChip}
-              icon={() => <MaterialCommunityIcons name="account-group" size={18} />}
+              icon={() => <MaterialCommunityIcons name="shield-account" size={18} />}
             >
               Todos
             </Chip>
@@ -349,47 +304,28 @@ export default function UserManagement({ navigation }) {
               Inactivos
             </Chip>
           </View>
-
-          <SegmentedButtons
-            value={viewMode}
-            onValueChange={setViewMode}
-            buttons={[
-              {
-                value: 'table',
-                label: 'Tabla',
-                icon: 'table',
-              },
-              {
-                value: 'list',
-                label: 'Lista',
-                icon: 'view-list',
-              },
-            ]}
-            style={styles.viewToggle}
-          />
         </View>
 
-        {/* Tabla de usuarios */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.PRIMARY} />
           </View>
         ) : (
           <DataTableComponent
-            data={filteredUsers}
+            data={filteredAdmins}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onToggleStatus={handleToggleStatus}
             currentUserId={user?.id}
             onFilterStatusChange={setFilterStatus}
-            emptyMessage="No se encontraron usuarios con los filtros aplicados"
+            emptyMessage="No se encontraron administradores con los filtros aplicados"
           />
         )}
       </View>
 
       <FAB
         icon="plus"
-        label="Nuevo Usuario"
+        label="Nuevo Admin"
         style={styles.fab}
         onPress={handleCreate}
         color={COLORS.WHITE}
@@ -399,38 +335,35 @@ export default function UserManagement({ navigation }) {
         visible={formModalVisible}
         onDismiss={() => {
           setFormModalVisible(false);
-          setSelectedUser(null);
+          setSelectedAdmin(null);
         }}
         onSubmit={handleFormSubmit}
-        data={selectedUser}
+        data={selectedAdmin}
         fields={(() => {
-          const allowedRoles = roles.filter((r) => r.id === 2 || r.id === 3);
-
           const baseFields = [
             { name: 'name', label: 'Nombre Completo', type: 'text', placeholder: 'Ej: Juan García', required: true },
             { name: 'email', label: 'Correo Electrónico', type: 'email', placeholder: 'correo@example.com', required: true },
-            { name: 'rol_id', label: 'Rol', type: 'select', options: selectedUser ? roles : allowedRoles, required: true },
           ];
-          if (!selectedUser) {
+          if (!selectedAdmin) {
             baseFields.push({ name: 'password', label: 'Contraseña', type: 'password', placeholder: 'Mínimo 8 caracteres', required: true });
             baseFields.push({ name: 'password_confirmation', label: 'Confirmar Contraseña', type: 'password', placeholder: 'Repite la contraseña', required: true });
           }
           return baseFields;
         })()}
         isLoading={formLoading}
-        title={selectedUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-        submitText={selectedUser ? 'Actualizar' : 'Crear'}
+        title={selectedAdmin ? 'Editar Administrador' : 'Crear Nuevo Administrador'}
+        submitText={selectedAdmin ? 'Actualizar' : 'Crear'}
       />
 
       <ConfirmDialog
         visible={deleteDialogVisible}
         onDismiss={() => {
           setDeleteDialogVisible(false);
-          setUserToDelete(null);
+          setAdminToDelete(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Eliminar Usuario"
-        message="¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer."
+        title="Eliminar Administrador"
+        message="¿Estás seguro de que deseas eliminar este administrador? Esta acción no se puede deshacer."
         confirmText="Eliminar"
         isLoading={deleteLoading}
       />
@@ -485,10 +418,6 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     marginRight: 0,
-  },
-  viewToggle: {
-    marginLeft: 0,
-    width: '100%',
   },
   fab: {
     position: 'absolute',

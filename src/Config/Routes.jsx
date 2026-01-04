@@ -10,6 +10,7 @@ export const API_ROUTES = {
 		ME: `${API_BASE_URL}/me`,
 		LOGOUT: `${API_BASE_URL}/logout`,
 		CHECK_EMAIL: `${API_BASE_URL}/check-email`,
+		REFRESH: `${API_BASE_URL}/refresh`,
 	},
 
 	// Users & Drivers

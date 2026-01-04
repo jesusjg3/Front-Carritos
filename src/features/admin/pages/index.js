@@ -5,4 +5,5 @@
 
 export { default as AdminDashboard } from './AdminDashboard';
 export { default as UserManagement } from './UserManagement';
+export { default as AdminManagement } from './AdminManagement';
 export { default as DriverManagement } from './DriverManagement';

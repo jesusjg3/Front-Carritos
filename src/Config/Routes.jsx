@@ -30,6 +30,9 @@ export const API_ROUTES = {
 	// Tabs
 	TABS: `${API_BASE_URL}/tabs`,
 
+	// Destinations
+	DESTINATIONS: `${API_BASE_URL}/destinations`,
+
 	// Ratings
 	RATINGS: `${API_BASE_URL}/ratings`,
 };

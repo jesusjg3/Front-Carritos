@@ -15,6 +15,7 @@ import RegisterScreen from "./src/features/auth/pages/register/RegisterScreen";
 import DashboardTabs from "./src/features/dashboard/navigation/DashboardTabs";
 import AdminDashboard from "./src/features/admin/pages/AdminDashboard";
 import UserManagement from "./src/features/admin/pages/UserManagement";
+import AdminManagement from "./src/features/admin/pages/AdminManagement";
 import DriverManagement from "./src/features/admin/pages/DriverManagement";
 
 const Stack = createNativeStackNavigator();
@@ -62,6 +63,7 @@ function AppContent() {
                 options={{ animationEnabled: false }}
               />
               <Stack.Screen name={ROUTES.USER_MANAGEMENT} component={UserManagement} />
+              <Stack.Screen name={ROUTES.ADMIN_MANAGEMENT} component={AdminManagement} />
               <Stack.Screen name={ROUTES.DRIVER_MANAGEMENT} component={DriverManagement} />
             </>
           ) : (

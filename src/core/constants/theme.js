@@ -5,9 +5,9 @@
 // Colores principales del sistema
 export const COLORS = {
   // Primarios
-  PRIMARY: '#1976D2',
-  PRIMARY_DARK: '#115293',
-  PRIMARY_LIGHT: '#42A5F5',
+  PRIMARY: '#144985',
+  PRIMARY_DARK: '#0D3461',
+  PRIMARY_LIGHT: '#1E88E5',
   
   // Secundarios
   SECONDARY: '#FF6B6B',
@@ -19,9 +19,9 @@ export const COLORS = {
   INFO: '#2196F3',
   
   // Roles
-  ADMIN: '#d32f37ff',
-  PASSENGER: '#1976D2',
-  DRIVER: '#388E3C',
+  ADMIN: '#d32f2f',
+  PASSENGER: '#144985',
+  DRIVER: '#1E88E5',
   
   // Neutros
   WHITE: '#FFFFFF',

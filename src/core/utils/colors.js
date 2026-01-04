@@ -3,6 +3,8 @@
  * Estas funciones pueden ser usadas en todo el frontend (admin, estudiantes, conductores)
  */
 
+import { COLORS } from '../constants/theme';
+
 /**
  * Obtiene el color asociado a un rol específico
  * @param {string} roleName - Nombre del rol (admin, pasajero, conductor)
@@ -10,11 +12,11 @@
  */
 export const getRoleColor = (roleName) => {
   const roleColors = {
-    admin: '#D32F2F',      // Rojo oscuro
-    pasajero: '#1976D2',   // Azul
-    conductor: '#388E3C',  // Verde
+    admin: COLORS.ADMIN,
+    pasajero: COLORS.PASSENGER,
+    conductor: COLORS.DRIVER,
   };
-  return roleColors[roleName?.toLowerCase()] || '#757575'; // Gris por defecto
+  return roleColors[roleName?.toLowerCase()] || COLORS.GRAY_500;
 };
 
 /**
@@ -23,7 +25,7 @@ export const getRoleColor = (roleName) => {
  * @returns {string} Color hexadecimal
  */
 export const getStatusColor = (isActive) => {
-  return isActive ? '#4CAF50' : '#F44336'; // Verde para activo, rojo para inactivo
+  return isActive ? COLORS.SUCCESS : COLORS.ERROR;
 };
 
 /**

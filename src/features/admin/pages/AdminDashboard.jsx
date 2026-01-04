@@ -68,12 +68,6 @@ export default function AdminDashboard({ navigation }) {
     pendingRequests: 0,
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchStats();
-    }
-  }, []);
-
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -123,13 +117,19 @@ export default function AdminDashboard({ navigation }) {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      fetchStats();
+    }
+  }, []);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchStats();
   };
 
   const userRole = getUserRole(user);
-  if (!user || userRole !== "admin") {
+  if (!user || userRole !== "admin" || !user.is_active) {
     return (
       <View style={styles.centered}>
         <Text variant="titleLarge" style={{ color: COLORS.ERROR }}>

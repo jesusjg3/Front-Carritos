@@ -1,241 +1,141 @@
-
-import { View, StyleSheet, Platform, ScrollView, Modal, TouchableOpacity, Pressable } from "react-native";
-import { Card, Text, Button, RadioButton, Divider, ActivityIndicator } from "react-native-paper";
+import React, { useState } from 'react';
+import { View, StyleSheet, Platform } from "react-native";
+import { Text, Button, ActivityIndicator, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from 'react-native-webview';
+
 import { useAppContext } from "../../../shared/contexts/AppContext";
-import { useTheme } from "react-native-paper";
 import { mapaHtml } from "../../../Web/mapaCode";
-import React, { useState, useEffect, useRef } from 'react';
+
+// Components
 import RideRequestCard from "../components/RideRequestCard";
 import StatusToggleButton from "../components/StatusToggleButton";
-import { createEcho } from "../../../core/services/echo";
-import { API_ROUTES } from "../../../Config/Routes";
-import * as Location from 'expo-location';
+import ActiveTripCard from "../components/ActiveTripCard";
+import DestinationModal from "../components/DestinationModal";
+
+// Hooks
+import { useLocationLogic } from "../../../shared/hooks/useLocationLogic";
+import { useTripLifecycle } from "../../../shared/hooks/useTripLifecycle";
+import { useDestinations } from "../../../shared/hooks/useDestinations";
 
 export default function InicioScreen() {
     const { user, token } = useAppContext();
     const theme = useTheme();
     
-    // Estados principales
-    const [isOnline, setIsOnline] = React.useState(false);
-    const [requestQueue, setRequestQueue] = React.useState([]);
-    const [echoInstance, setEchoInstance] = React.useState(null);
-
-    // Estados para destinos y ubicación (Nuevos)
+    // Local UI State
+    const [isOnline, setIsOnline] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [destinoSeleccionado, setDestinoSeleccionado] = useState(null);
-    const [destinos, setDestinos] = useState([]);
-    const [cargando, setCargando] = useState(false);
-    const [error, setError] = useState(null);
-    const [ubicacion, setUbicacion] = useState(null);
-    const [permisoUbicacion, setPermisoUbicacion] = useState(false);
-    const webViewRef = useRef(null);
 
-    // Initial setup for Echo (or when token changes)
-    useEffect(() => {
-        if (token && isOnline) {
-            const echo = createEcho(token);
-            setEchoInstance(echo);
-            
-            console.log('Echo connected, subscribing to drivers...');
-
-            const channel = echo.private('drivers');
-
-            channel.listen('.NewTripRequest', (event) => {
-                console.log('EVENT RECEIVED: NewTripRequest', event);
-                setRequestQueue(prev => [...prev, {
-                    ...event,
-                    origin: event.origin_address || 'Ubicación desconocida',
-                    destination: event.destination_address || 'Destino desconocido',
-                    distance: `${event.distance} km` 
-                }]);
-            })
-            .listen('.TripTaken', (event) => {
-                 console.log('EVENT RECEIVED: .TripTaken', event);
-                 setRequestQueue(prev => prev.filter(req => req.id != event.id));
-            })
-            .listen('TripTaken', (event) => {
-                 console.log('EVENT RECEIVED: TripTaken', event);
-                 setRequestQueue(prev => prev.filter(req => req.id != event.id));
-            })
-            .subscribed(() => {
-                console.log('Successfully subscribed to private-drivers channel');
-            })
-            .error((error) => {
-                console.error('Echo subscription error:', error);
-            });
-
-            return () => {
-                echo.disconnect();
-                setEchoInstance(null);
-            };
-        }
-    }, [token, isOnline]);
-
-    // Setup inicial de ubicación y destinos (Solo para Pasajeros)
-    useEffect(() => {
-        console.log('Usuario actual:', user);
-        if (user && user.role === 'pasajero') {
-            cargarDestinos();
-            obtenerUbicacion();
-        }
-    }, [user]);
-
-    const obtenerUbicacion = async () => {
-        try {
-            // Solicitar permisos de ubicación
-            const { status } = await Location.requestForegroundPermissionsAsync();
-
-            if (status !== 'granted') {
-                console.warn('Permiso de ubicación denegado');
-                setPermisoUbicacion(false);
-                return;
-            }
-
-            setPermisoUbicacion(true);
-
-            // Obtener ubicación actual
-            const location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-
-            const { latitude, longitude } = location.coords;
-            setUbicacion({ latitude, longitude });
-
-            console.log('Ubicación del usuario:', { latitude, longitude });
-
-            // Centrar mapa en la ubicación del usuario
-            if (webViewRef.current) {
-                webViewRef.current.injectJavaScript(`
-                    if (window.map) {
-                        window.map.setView([${latitude}, ${longitude}], 15);
-                        L.marker([${latitude}, ${longitude}])
-                            .bindPopup('Tu ubicación')
-                            .addTo(window.map)
-                            .openPopup();
-                    }
-                `);
-            }
-        } catch (err) {
-            console.error('Error al obtener ubicación:', err);
-        }
-    };
-
-    const cargarDestinos = async () => {
-        try {
-            setCargando(true);
-            setError(null);
-
-            console.log('Intentando cargar destinos desde:', API_ROUTES.DESTINATIONS);
-
-            const response = await fetch(API_ROUTES.DESTINATIONS);
-
-            console.log('Status de respuesta:', response.status);
-            console.log('Status OK:', response.ok);
-
-            if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Error del servidor:', errorData);
-                throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('Datos recibidos:', data);
-
-            const destinosTransformados = (data.destinations || data || []).map(destino => ({
-                ...destino,
-                nombre: destino.name || destino.nombre
-            }));
-
-            setDestinos(destinosTransformados);
-            console.log('Destinos cargados desde backend:', destinosTransformados);
-        } catch (err) {
-            console.error('Error completo:', err);
-            setError(err.message || 'No se pudieron cargar los destinos disponibles');
-        } finally {
-            setCargando(false);
-        }
-    };
-
-    const handleToggleStatus = () => {
-        const newStatus = !isOnline;
-        setIsOnline(newStatus);
-        
-        if (!newStatus) {
-            setRequestQueue([]);
-        }
-    };
-
-    const currentRequest = requestQueue.length > 0 ? requestQueue[0] : null;
-
-    const handleAccept = async () => {
-        if (!currentRequest) return;
-        
-        try {
-            console.log('Accepting trip:', currentRequest.id);
-            const response = await fetch(`${API_ROUTES.TRIPS}/${currentRequest.id}/accept`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                console.log('Viaje aceptado exitosamente:', data);
-                setRequestQueue(prev => prev.slice(1));
-                // TODO: Navigate to Active Trip Screen
-            } else {
-                console.error('Error accepting trip:', data);
-                if (response.status === 409) {
-                     alert("Este viaje ya fue tomado por otro conductor.");
-                } else {
-                     alert("Error al aceptar el viaje: " + (data.error || "Desconocido"));
-                }
-                setRequestQueue(prev => prev.slice(1));
-            }
-        } catch (error) {
-            console.error('Network error accepting trip:', error);
-            alert("Error de conexión al aceptar el viaje.");
-        }
-    };
-
-    const handleReject = () => {
-        console.log('Viaje rechazado');
-        setRequestQueue(prev => prev.slice(1));
-    };
-
-    const openModal = () => setModalVisible(true);
-    const closeModal = () => setModalVisible(false);
-
-    const handleDestinoSelect = (destino) => {
-        setDestinoSeleccionado(destino);
-        console.log('Destino seleccionado:', destino);
-    };
-
-    const confirmarDestino = () => {
-        if (destinoSeleccionado) {
-            closeModal();
-            // TODO: Buscar conductores para destino
-            console.log('Buscando conductores para destino:', destinoSeleccionado);
-        }
-    };
-
+    // Derived Roles
     const isPasajero = user && user.role === 'pasajero';
+    const isConductor = user && user.role === 'conductor';
 
+    // Custom Hooks
+    const { 
+        requestQueue, 
+        activeTrip, 
+        isSearching, 
+        setIsSearching, 
+        handleAcceptRequest, 
+        handleRejectRequest, 
+        handleStartTrip, 
+        handleFinishTrip,
+        requestTrip 
+    } = useTripLifecycle(user, token, isOnline, isPasajero);
+
+    const { 
+        ubicacion, 
+        webViewRef, 
+        obtenerUbicacion 
+    } = useLocationLogic(user, isPasajero, activeTrip);
+
+    const { 
+        destinos, 
+        cargandoDestinos, 
+        errorDestinos, 
+        cargarDestinos 
+    } = useDestinations(user, isPasajero);
+
+
+    // Handlers
+    const handleToggleStatus = () => setIsOnline(!isOnline);
+    
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; 
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return parseFloat((R * c).toFixed(2));
+    };
+
+    const confirmRequestTrip = async () => {
+        if (!destinoSeleccionado || !ubicacion) {
+            alert("Necesitamos tu ubicación y un destino.");
+            return;
+        }
+        const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
+        
+        const success = await requestTrip(ubicacion, destinoSeleccionado, dist);
+        if (success) {
+            setModalVisible(false);
+        }
+    };
+
+    // --- RENDER ---
+    
+    // 1. Searching View
+    if (isSearching) {
+         return (
+             <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+                 <View style={styles.searchingContainer}>
+                     <Text variant="headlineMedium" style={styles.searchingTitle}>Buscando conductor...</Text>
+                     <ActivityIndicator size="large" animating={true} color={theme.colors.primary} style={{ marginVertical: 20 }} />
+                     <View style={styles.radarContainer}>
+                         <View style={[styles.radarCircle, { borderColor: theme.colors.primary }]} />
+                         <View style={[styles.radarCircle, { width: 150, height: 150, opacity: 0.5, borderColor: theme.colors.primary }]} />
+                     </View>
+                     <Button mode="contained" onPress={() => setIsSearching(false)} style={styles.cancelButton} buttonColor={theme.colors.error}>
+                         Cancelar Solicitud
+                     </Button>
+                 </View>
+             </SafeAreaView>
+         );
+    }
+
+    // 2. Active Trip View
+    if (activeTrip) {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+                <View style={[styles.mapContainer, { flex: 0.6 }]}>
+                    <WebView
+                        ref={webViewRef}
+                        source={{ html: mapaHtml }}
+                        style={styles.map}
+                        originWhitelist={['*']}
+                    />
+                </View>
+                <ActiveTripCard 
+                    activeTrip={activeTrip}
+                    isPasajero={isPasajero}
+                    onContact={() => alert('Contactando...')}
+                    onCancel={() => alert('Cancel feature pending')}
+                    onStartTrip={handleStartTrip}
+                    onFinishTrip={handleFinishTrip}
+                />
+            </SafeAreaView>
+        );
+    }
+
+    // 3. Default View (Map + Controls)
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <View style={styles.mapContainer}>
                 {Platform.OS === 'web' ? (
-                    <iframe
-                        title="mapa"
-                        srcDoc={mapaHtml}
-                        style={{ width: '100%', height: '100%', border: 'none' }}
-                    />
+                    <iframe title="mapa" srcDoc={mapaHtml} style={{ width: '100%', height: '100%', border: 'none' }} />
                 ) : (
                     <WebView
                         ref={webViewRef}
@@ -243,50 +143,36 @@ export default function InicioScreen() {
                         style={styles.map}
                         originWhitelist={['*']}
                         onLoadEnd={() => {
-                            // Centrar el mapa cuando carga
                             if (isPasajero && ubicacion && webViewRef.current) {
                                 setTimeout(() => {
-                                    const jsCode = `
-                                        console.log('Intentando centrar mapa en:', ${ubicacion.latitude}, ${ubicacion.longitude});
-                                        if (typeof centerMap === 'function') {
-                                            centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
-                                        }
-                                        if (typeof placeUserMarker === 'function') {
-                                            placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude});
-                                        }
-                                        true;
-                                    `;
-                                    webViewRef.current.injectJavaScript(jsCode);
+                                    webViewRef.current.injectJavaScript(`
+                                        if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
+                                        if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude});
+                                    `);
                                 }, 2000);
                             }
                         }}
                     />
                 )}
                 
-                {/* Driver Status Toggle (Solo para Conductores) */}
-                {user && user.role === 'conductor' && (
-                    <StatusToggleButton 
-                        isOnline={isOnline} 
-                        onToggle={handleToggleStatus} 
+                {isConductor && (
+                    <StatusToggleButton isOnline={isOnline} onToggle={handleToggleStatus} />
+                )}
+
+                {isConductor && requestQueue.length > 0 && (
+                     <RideRequestCard 
+                        request={requestQueue[0]} 
+                        onAccept={() => handleAcceptRequest(requestQueue[0])} 
+                        onReject={handleRejectRequest} 
                     />
                 )}
 
-                {/* Incoming Request Card (Solo para Conductores) */}
-                {user && user.role === 'conductor' && currentRequest && (
-                    <RideRequestCard 
-                        request={currentRequest}
-                        onAccept={handleAccept}
-                        onReject={handleReject}
-                    />
-                )}
-
-                {/* Botón flotante sobre el mapa (Solo Pasajeros) */}
                 {isPasajero && (
                     <View style={styles.floatingButtonContainer}>
                         <Button
                             mode="contained"
                             icon="map-marker-radius"
-                            onPress={openModal}
+                            onPress={() => setModalVisible(true)}
                             style={[styles.floatingButton, { backgroundColor: theme.colors.primary }]}
                             contentStyle={styles.floatingButtonContent}
                             labelStyle={styles.floatingButtonLabel}
@@ -297,230 +183,32 @@ export default function InicioScreen() {
                 )}
             </View>
 
-            {/* Modal de selección de destino (estilo bottom sheet) */}
-            <Modal
-                animationType="slide"
-                transparent={true}
+            <DestinationModal
                 visible={modalVisible}
-                onRequestClose={closeModal}
-            >
-                <Pressable style={styles.modalOverlay} onPress={closeModal}>
-                    <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
-                        {/* Indicador de arrastre */}
-                        <View style={styles.dragIndicator} />
-
-                        {/* Título */}
-                        <Text variant="titleLarge" style={styles.modalTitle}>
-                            Selecciona tu destino
-                        </Text>
-                        <Divider style={styles.divider} />
-
-                        {/* Lista de destinos con RadioButtons */}
-                        <ScrollView style={styles.destinosList} showsVerticalScrollIndicator={false}>
-                            {cargando ? (
-                                <View style={styles.loadingContainer}>
-                                    <ActivityIndicator animating={true} size="large" />
-                                    <Text style={styles.loadingText}>Cargando destinos...</Text>
-                                </View>
-                            ) : error ? (
-                                <View style={styles.errorContainer}>
-                                    <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                                        {error}
-                                    </Text>
-                                    <Button
-                                        mode="outlined"
-                                        onPress={cargarDestinos}
-                                        style={styles.retryButton}
-                                    >
-                                        Reintentar
-                                    </Button>
-                                </View>
-                            ) : destinos.length === 0 ? (
-                                <View style={styles.emptyContainer}>
-                                    <Text style={styles.emptyText}>
-                                        No hay destinos disponibles en este momento
-                                    </Text>
-                                </View>
-                            ) : (
-                                <RadioButton.Group
-                                    onValueChange={(value) => {
-                                        const destino = destinos.find(d => d.id.toString() === value);
-                                        handleDestinoSelect(destino);
-                                    }}
-                                    value={destinoSeleccionado?.id.toString() || ''}
-                                >
-                                    {destinos.map((destino) => (
-                                        <TouchableOpacity
-                                            key={destino.id}
-                                            style={styles.destinoItem}
-                                            onPress={() => handleDestinoSelect(destino)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <RadioButton.Android value={destino.id.toString()} />
-                                            <Text
-                                                variant="bodyLarge"
-                                                style={[
-                                                    styles.destinoText,
-                                                    destinoSeleccionado?.id === destino.id && {
-                                                        color: theme.colors.primary,
-                                                        fontWeight: 'bold'
-                                                    }
-                                                ]}
-                                            >
-                                                {destino.nombre}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </RadioButton.Group>
-                            )}
-                        </ScrollView>
-
-                        {/* Botones de acción */}
-                        <View style={styles.modalActions}>
-                            <Button
-                                mode="outlined"
-                                onPress={closeModal}
-                                style={styles.actionButton}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                mode="contained"
-                                onPress={confirmarDestino}
-                                style={styles.actionButton}
-                                disabled={!destinoSeleccionado}
-                            >
-                                Confirmar
-                            </Button>
-                        </View>
-                    </Pressable>
-                </Pressable>
-            </Modal>
+                onDismiss={() => setModalVisible(false)}
+                destinos={destinos}
+                cargando={cargandoDestinos}
+                error={errorDestinos}
+                onRetry={cargarDestinos}
+                destinoSeleccionado={destinoSeleccionado}
+                onSelect={setDestinoSeleccionado}
+                onConfirm={confirmRequestTrip}
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    mapContainer: {
-        flex: 1,
-        position: 'relative',
-    },
-    map: {
-        flex: 1,
-    },
-    floatingButtonContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 16,
-        right: 16,
-        zIndex: 100,
-    },
-    floatingButton: {
-        borderRadius: 12,
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    floatingButtonContent: {
-        paddingVertical: 12,
-    },
-    floatingButtonLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingBottom: 32,
-        maxHeight: '75%',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-    },
-    dragIndicator: {
-        width: 40,
-        height: 4,
-        backgroundColor: '#BDBDBD',
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginTop: 12,
-        marginBottom: 16,
-    },
-    modalTitle: {
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 8,
-        paddingHorizontal: 24,
-    },
-    divider: {
-        marginBottom: 16,
-    },
-    destinosList: {
-        maxHeight: 400,
-        paddingHorizontal: 16,
-    },
-    destinoItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-    },
-    destinoText: {
-        marginLeft: 12,
-        flex: 1,
-    },
-    loadingContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 40,
-    },
-    loadingText: {
-        marginTop: 12,
-        textAlign: 'center',
-    },
-    errorContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 40,
-    },
-    errorText: {
-        textAlign: 'center',
-        marginBottom: 16,
-        fontWeight: '500',
-    },
-    retryButton: {
-        borderRadius: 8,
-    },
-    emptyContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 40,
-    },
-    emptyText: {
-        textAlign: 'center',
-        opacity: 0.6,
-    },
-    modalActions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
-        borderRadius: 8,
-    },
+    container: { flex: 1 },
+    mapContainer: { flex: 1, position: 'relative' },
+    map: { flex: 1 },
+    floatingButtonContainer: { position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 100 },
+    floatingButton: { borderRadius: 12, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+    floatingButtonContent: { paddingVertical: 12 },
+    floatingButtonLabel: { fontSize: 16, fontWeight: '600' },
+    searchingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    searchingTitle: { marginBottom: 20, fontWeight: 'bold', textAlign: 'center' },
+    radarContainer: { width: 200, height: 200, justifyContent: 'center', alignItems: 'center', marginVertical: 40 },
+    radarCircle: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 2, opacity: 0.8 },
+    cancelButton: { width: '100%', maxWidth: 300, paddingVertical: 8 },
 });

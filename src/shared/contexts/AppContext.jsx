@@ -65,11 +65,9 @@ export function AppContextProvider({ children }) {
             if (response.ok) {
                 const data = await response.json();
                 setToken(data.access_token);
-                const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+                // Usar el objeto user devuelto por el backend, que incluye id, name, role, etc.
                 const userData = {
-                    email: user?.email || '',
-                    rol: payload.role,
-                    is_active: payload.is_active,
+                    ...data.user,
                     token: data.access_token,
                 };
                 setUser(userData);

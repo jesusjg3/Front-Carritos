@@ -2,7 +2,6 @@ const API_BASE_URL = "http://192.168.0.176:8000/api";
 
 export const API_ROUTES = {
 	BASE_URL: API_BASE_URL,
-
 	// Auth
 	AUTH: {
 		LOGIN: `${API_BASE_URL}/login`,

@@ -73,11 +73,14 @@ export default function InicioScreen() {
         }
     }, [token, isOnline]);
 
-    // Setup inicial de ubicación y destinos
+    // Setup inicial de ubicación y destinos (Solo para Pasajeros)
     useEffect(() => {
-        cargarDestinos();
-        obtenerUbicacion();
-    }, []);
+        console.log('Usuario actual:', user);
+        if (user && user.role === 'pasajero') {
+            cargarDestinos();
+            obtenerUbicacion();
+        }
+    }, [user]);
 
     const obtenerUbicacion = async () => {
         try {
@@ -222,6 +225,8 @@ export default function InicioScreen() {
         }
     };
 
+    const isPasajero = user && user.role === 'pasajero';
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
             <View style={styles.mapContainer}>
@@ -239,7 +244,7 @@ export default function InicioScreen() {
                         originWhitelist={['*']}
                         onLoadEnd={() => {
                             // Centrar el mapa cuando carga
-                            if (ubicacion && webViewRef.current) {
+                            if (isPasajero && ubicacion && webViewRef.current) {
                                 setTimeout(() => {
                                     const jsCode = `
                                         console.log('Intentando centrar mapa en:', ${ubicacion.latitude}, ${ubicacion.longitude});
@@ -258,14 +263,16 @@ export default function InicioScreen() {
                     />
                 )}
                 
-                {/* Driver Status Toggle */}
-                <StatusToggleButton 
-                    isOnline={isOnline} 
-                    onToggle={handleToggleStatus} 
-                />
+                {/* Driver Status Toggle (Solo para Conductores) */}
+                {user && user.role === 'conductor' && (
+                    <StatusToggleButton 
+                        isOnline={isOnline} 
+                        onToggle={handleToggleStatus} 
+                    />
+                )}
 
-                {/* Incoming Request Card */}
-                {currentRequest && (
+                {/* Incoming Request Card (Solo para Conductores) */}
+                {user && user.role === 'conductor' && currentRequest && (
                     <RideRequestCard 
                         request={currentRequest}
                         onAccept={handleAccept}
@@ -273,19 +280,21 @@ export default function InicioScreen() {
                     />
                 )}
 
-                {/* Botón flotante sobre el mapa */}
-                <View style={styles.floatingButtonContainer}>
-                    <Button
-                        mode="contained"
-                        icon="map-marker-radius"
-                        onPress={openModal}
-                        style={[styles.floatingButton, { backgroundColor: theme.colors.primary }]}
-                        contentStyle={styles.floatingButtonContent}
-                        labelStyle={styles.floatingButtonLabel}
-                    >
-                        {destinoSeleccionado ? destinoSeleccionado.nombre : "Seleccionar Destino"}
-                    </Button>
-                </View>
+                {/* Botón flotante sobre el mapa (Solo Pasajeros) */}
+                {isPasajero && (
+                    <View style={styles.floatingButtonContainer}>
+                        <Button
+                            mode="contained"
+                            icon="map-marker-radius"
+                            onPress={openModal}
+                            style={[styles.floatingButton, { backgroundColor: theme.colors.primary }]}
+                            contentStyle={styles.floatingButtonContent}
+                            labelStyle={styles.floatingButtonLabel}
+                        >
+                            {destinoSeleccionado ? destinoSeleccionado.nombre : "Seleccionar Destino"}
+                        </Button>
+                    </View>
+                )}
             </View>
 
             {/* Modal de selección de destino (estilo bottom sheet) */}

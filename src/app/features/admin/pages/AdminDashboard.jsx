@@ -181,10 +181,7 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingTop: SPACING.LG,
     paddingHorizontal: SPACING.LG,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    boxShadow: '2px 0px 3.84px rgba(0,0,0,0.25)',
     elevation: 5,
   },
   menuHeader: {

@@ -18,6 +18,18 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
                 {/* Content */}
                 <View style={styles.content}>
+                    {/* Passenger Count */}
+                    <View style={styles.passengersRow}>
+                        <MaterialCommunityIcons name="account-group" size={24} color={COLORS.PRIMARY} style={styles.icon} />
+                        <View style={styles.textContainer}>
+                            <Text style={styles.label}>
+                                {request.passengers_count || 1} {(request.passengers_count || 1) === 1 ? 'Pasajero' : 'Pasajeros'}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <Divider style={styles.divider} />
+
                     {/* Origin */}
                     <View style={styles.row}>
                         <MaterialCommunityIcons name="cart-outline" size={24} color={COLORS.SUCCESS} style={styles.icon} />
@@ -90,6 +102,14 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: SPACING.MD,
+    },
+    passengersRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: SPACING.XS,
+        backgroundColor: COLORS.GRAY_50,
+        padding: SPACING.SM,
+        borderRadius: BORDER_RADIUS.MD,
     },
     row: {
         flexDirection: 'row',

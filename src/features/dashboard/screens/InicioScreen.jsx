@@ -17,6 +17,8 @@ import DestinationModal from "../components/DestinationModal";
 import { useLocationLogic } from "../../../shared/hooks/useLocationLogic";
 import { useTripLifecycle } from "../../../shared/hooks/useTripLifecycle";
 import { useDestinations } from "../../../shared/hooks/useDestinations";
+import { useDriverLocation } from "../../../shared/hooks/useDriverLocation";
+import { useNearbyDrivers } from "../../../shared/hooks/useNearbyDrivers";
 
 export default function InicioScreen() {
     const { user, token } = useAppContext();
@@ -35,7 +37,8 @@ export default function InicioScreen() {
     const { 
         requestQueue, 
         activeTrip, 
-        isSearching, 
+        isSearching,
+        requestAttempt,
         setIsSearching, 
         handleAcceptRequest, 
         handleRejectRequest, 
@@ -57,6 +60,29 @@ export default function InicioScreen() {
         cargarDestinos 
     } = useDestinations(user, isPasajero);
 
+    // Hook para actualizar ubicación del conductor
+    const { location: driverLocation } = useDriverLocation(user, token, isOnline);
+
+    // Hook para obtener conductores cercanos (solo pasajeros)
+    const { nearbyDrivers, loading: loadingDrivers } = useNearbyDrivers(
+        user, 
+        token, 
+        ubicacion, 
+        isPasajero && !isSearching && !activeTrip
+    );
+
+    // Efecto para actualizar conductores en el mapa
+    React.useEffect(() => {
+        if (isPasajero && nearbyDrivers.length > 0 && webViewRef.current) {
+            const driversData = JSON.stringify(nearbyDrivers);
+            webViewRef.current.injectJavaScript(`
+                if (typeof updateNearbyDrivers === 'function') {
+                    updateNearbyDrivers(${driversData});
+                }
+            `);
+        }
+    }, [nearbyDrivers, isPasajero]);
+
 
     // Handlers
     const handleToggleStatus = () => setIsOnline(!isOnline);
@@ -72,14 +98,14 @@ export default function InicioScreen() {
         return parseFloat((R * c).toFixed(2));
     };
 
-    const confirmRequestTrip = async () => {
+    const confirmRequestTrip = async (passengersCount) => {
         if (!destinoSeleccionado || !ubicacion) {
             alert("Necesitamos tu ubicación y un destino.");
             return;
         }
         const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
         
-        const success = await requestTrip(ubicacion, destinoSeleccionado, dist);
+        const success = await requestTrip(ubicacion, destinoSeleccionado, dist, passengersCount);
         if (success) {
             setModalVisible(false);
         }
@@ -93,6 +119,7 @@ export default function InicioScreen() {
              <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
                  <View style={styles.searchingContainer}>
                      <Text variant="headlineMedium" style={styles.searchingTitle}>Buscando conductor...</Text>
+                     <Text variant="bodySmall" style={styles.searchingSubtitle}>Intento #{requestAttempt}</Text>
                      <ActivityIndicator size="large" animating={true} color={theme.colors.primary} style={{ marginVertical: 20 }} />
                      <View style={styles.radarContainer}>
                          <View style={[styles.radarCircle, { borderColor: theme.colors.primary }]} />
@@ -207,7 +234,8 @@ const styles = StyleSheet.create({
     floatingButtonContent: { paddingVertical: 12 },
     floatingButtonLabel: { fontSize: 16, fontWeight: '600' },
     searchingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-    searchingTitle: { marginBottom: 20, fontWeight: 'bold', textAlign: 'center' },
+    searchingTitle: { marginBottom: 10, fontWeight: 'bold', textAlign: 'center' },
+    searchingSubtitle: { marginBottom: 20, textAlign: 'center', color: '#666' },
     radarContainer: { width: 200, height: 200, justifyContent: 'center', alignItems: 'center', marginVertical: 40 },
     radarCircle: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 2, opacity: 0.8 },
     cancelButton: { width: '100%', maxWidth: 300, paddingVertical: 8 },

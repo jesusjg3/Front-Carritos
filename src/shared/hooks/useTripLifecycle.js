@@ -7,6 +7,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [echoInstance, setEchoInstance] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [activeTrip, setActiveTrip] = useState(null);
+    const [tripTimeout, setTripTimeout] = useState(null);
+    const [requestAttempt, setRequestAttempt] = useState(1);
 
     // Conexión Websocket (Echo)
     useEffect(() => {
@@ -24,7 +26,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     ...event,
                     origin: event.origin_address || 'Ubicación desconocida',
                     destination: event.destination_address || 'Destino desconocido',
-                    distance: `${event.distance} km` 
+                    distance: `${event.distance} km`,
+                    passengers_count: event.passengers_count || 1
                 }]);
             })
             .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
@@ -70,6 +73,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const resetTripState = () => {
         setActiveTrip(null);
         setIsSearching(false);
+        setRequestAttempt(1);
+        if (tripTimeout) {
+            clearTimeout(tripTimeout);
+            setTripTimeout(null);
+        }
     };
 
     // --- ACCIONES DE API ---
@@ -145,7 +153,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
          }
     };
     
-    const requestTrip = async (ubicacion, destinoSeleccionado, distance) => {
+    const requestTrip = async (ubicacion, destinoSeleccionado, distance, passengersCount = 1) => {
         try {
             const payload = {
                 origin_lat: ubicacion.latitude,
@@ -154,7 +162,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 destination_lat: destinoSeleccionado.latitude,
                 destination_lng: destinoSeleccionado.longitude,
                 destination_address: destinoSeleccionado.address || destinoSeleccionado.nombre,
-                distance: distance
+                distance: distance,
+                passengers_count: passengersCount
             };
 
             const response = await fetch(`${API_ROUTES.TRIPS}/request`, {
@@ -171,6 +180,16 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
             if (response.ok) {
                 setIsSearching(true);
+                setRequestAttempt(data.request_attempt || 1);
+                
+                // Configurar timeout de 5 minutos
+                const timeout = setTimeout(() => {
+                    console.log('Solicitud expirada, se generará una nueva automáticamente');
+                    alert('Tu solicitud expiró. Se generará una nueva automáticamente.');
+                    setIsSearching(false);
+                }, 5 * 60 * 1000); // 5 minutos
+                
+                setTripTimeout(timeout);
                 return true;
             } else {
                 alert("Error al solicitar viaje: " + (data.message || "Desconocido"));
@@ -191,6 +210,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         setIsSearching,
         setActiveTrip,
         setRequestQueue,
+        requestAttempt,
         handleAcceptRequest,
         handleRejectRequest,
         handleStartTrip,

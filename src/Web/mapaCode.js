@@ -37,6 +37,14 @@ export const mapaHtml = `
             left: 50%;
             transform: translateX(-50%);
         }
+        .user-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #1E88E5;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 8px rgba(0,0,0,0.35);
+        }
         .destination-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 40px;
@@ -87,13 +95,11 @@ export const mapaHtml = `
                     iconAnchor: [23, 56]
                 });
             } else {
-                iconToUse = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
+                iconToUse = L.divIcon({
+                    html: '<div class="user-dot"></div>',
+                    className: '',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
                 });
             }
 
@@ -152,8 +158,71 @@ export const mapaHtml = `
         if (routingControl) {
             map.removeControl(routingControl);
             routingControl = null;
-            }
         }
+    }
+
+    // Variables para gestionar marcadores de conductores
+    var driverMarkers = {};
+    var carritoIconUrl = null;
+
+    // Función para configurar la URL del icono del carrito
+    function setCarritoIcon(iconUrl) {
+        carritoIconUrl = iconUrl;
+    }
+
+    // Función para actualizar conductores cercanos en el mapa
+    function updateNearbyDrivers(drivers) {
+        if (!drivers || !Array.isArray(drivers)) {
+            console.error("Drivers debe ser un array");
+            return;
+        }
+
+        // IDs de conductores actuales
+        var currentDriverIds = drivers.map(d => d.id);
+        
+        // Remover conductores que ya no están en la lista
+        Object.keys(driverMarkers).forEach(id => {
+            if (!currentDriverIds.includes(parseInt(id))) {
+                map.removeLayer(driverMarkers[id]);
+                delete driverMarkers[id];
+            }
+        });
+
+        // Agregar o actualizar conductores
+        drivers.forEach(driver => {
+            if (!driver.lat || !driver.lng) return;
+            
+            // Icono personalizado del carrito - usar imagen si está disponible
+            var iconUrl = carritoIconUrl || driver.iconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxOCIgZmlsbD0iIzRDQUY1MCIvPjxwYXRoIGQ9Ik0yMCAxMGw1IDhIMTVsNS04eiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=';
+            
+            var carritoIcon = L.icon({
+                iconUrl: iconUrl,
+                iconSize: [45, 45],
+                iconAnchor: [22.5, 22.5],
+                popupAnchor: [0, -22.5]
+            });
+
+            if (driverMarkers[driver.id]) {
+                // Actualizar posición existente con animación suave
+                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]);
+            } else {
+                // Crear nuevo marcador
+                var marker = L.marker([driver.lat, driver.lng], { icon: carritoIcon })
+                    .addTo(map)
+                    .bindPopup((driver.name || 'Conductor disponible') + '<br><small>' + (driver.distance ? driver.distance + ' km' : '') + '</small>');
+                driverMarkers[driver.id] = marker;
+            }
+        });
+
+        console.log('Conductores en mapa:', Object.keys(driverMarkers).length);
+    }
+
+    // Función para limpiar todos los conductores del mapa
+    function clearDriverMarkers() {
+        Object.values(driverMarkers).forEach(marker => map.removeLayer(marker));
+        driverMarkers = {};
+    }
+
     </script>
     </body>
     </html>

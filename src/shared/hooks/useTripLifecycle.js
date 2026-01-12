@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { createEcho } from '../../core/services/echo';
 import { API_ROUTES } from '../../Config/Routes';
 
@@ -230,14 +231,24 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 
                 // Configurar timeout de 1 minuto para testing
                 const timeout = setTimeout(() => {
-                    console.log('Solicitud expirada, generando nueva automáticamente');
-                    alert('Tu solicitud expiró. Se generará una nueva automáticamente.');
+                    console.log('Solicitud expirada');
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
-                    // Esperar 1 segundo y luego reintentar
-                    setTimeout(() => {
-                        requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
-                    }, 5000);
+                    
+                    // Usar Alert.alert para que tenga callback
+                    Alert.alert(
+                        'Solicitud Expirada',
+                        '¿Deseas intentar nuevamente?',
+                        [
+                            {
+                                text: 'OK',
+                                onPress: () => {
+                                    // Hacer nueva solicitud cuando el usuario presiona OK
+                                    requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
+                                }
+                            }
+                        ]
+                    );
                 }, 1 * 60 * 1000); // 1 minuto
                 
                 tripTimeoutRef.current = timeout;

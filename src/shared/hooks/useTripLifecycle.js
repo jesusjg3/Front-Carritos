@@ -7,7 +7,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [echoInstance, setEchoInstance] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [activeTrip, setActiveTrip] = useState(null);
-    const [requestAttempt, setRequestAttempt] = useState(1);
     const [lastRequestParams, setLastRequestParams] = useState(null);
     const tripTimeoutRef = useRef(null);
 
@@ -90,9 +89,30 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             return () => {
                 echo.disconnect();
                 setEchoInstance(null);
+                // Limpiar timeout al desconectar
+                if (tripTimeoutRef.current) {
+                    clearTimeout(tripTimeoutRef.current);
+                    tripTimeoutRef.current = null;
+                }
             };
+        } else {
+            // Si no hay token, limpiar timeout
+            if (tripTimeoutRef.current) {
+                clearTimeout(tripTimeoutRef.current);
+                tripTimeoutRef.current = null;
+            }
         }
     }, [token, isOnline, user, isPasajero]);
+
+    // Limpiar timeout cuando el componente se desmonta
+    useEffect(() => {
+        return () => {
+            if (tripTimeoutRef.current) {
+                clearTimeout(tripTimeoutRef.current);
+                tripTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const resetTripState = () => {
         setActiveTrip(null);
@@ -207,14 +227,18 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
             if (response.ok) {
                 setIsSearching(true);
-                setRequestAttempt(data.request_attempt || 1);
                 
-                // Configurar timeout de 5 minutos
+                // Configurar timeout de 1 minuto para testing
                 const timeout = setTimeout(() => {
                     console.log('Solicitud expirada, generando nueva automáticamente');
-                    // Reintentar automáticamente con los mismos parámetros
-                    requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
-                }, 5 * 60 * 1000); // 5 minutos
+                    alert('Tu solicitud expiró. Se generará una nueva automáticamente.');
+                    // Resetear estado para mostrar mapa
+                    setIsSearching(false);
+                    // Esperar 1 segundo y luego reintentar
+                    setTimeout(() => {
+                        requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
+                    }, 5000);
+                }, 1 * 60 * 1000); // 1 minuto
                 
                 tripTimeoutRef.current = timeout;
                 return true;
@@ -230,6 +254,15 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
 
+    const cancelTrip = () => {
+        if (tripTimeoutRef.current) {
+            clearTimeout(tripTimeoutRef.current);
+            tripTimeoutRef.current = null;
+        }
+        setIsSearching(false);
+        setLastRequestParams(null);
+    };
+
     return {
         requestQueue,
         activeTrip,
@@ -237,11 +270,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         setIsSearching,
         setActiveTrip,
         setRequestQueue,
-        requestAttempt,
         handleAcceptRequest,
         handleRejectRequest,
         handleStartTrip,
         handleFinishTrip,
-        requestTrip
+        requestTrip,
+        cancelTrip
     };
 };

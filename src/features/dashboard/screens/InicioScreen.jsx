@@ -45,7 +45,8 @@ export default function InicioScreen() {
         handleRejectRequest, 
         handleStartTrip, 
         handleFinishTrip,
-        requestTrip 
+        requestTrip,
+        cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
 
     const { 
@@ -126,7 +127,7 @@ export default function InicioScreen() {
                          <View style={[styles.radarCircle, { borderColor: theme.colors.primary }]} />
                          <View style={[styles.radarCircle, { width: 150, height: 150, opacity: 0.5, borderColor: theme.colors.primary }]} />
                      </View>
-                     <Button mode="contained" onPress={() => setIsSearching(false)} style={styles.cancelButton} buttonColor={theme.colors.error}>
+                     <Button mode="contained" onPress={cancelTrip} style={styles.cancelButton} buttonColor={theme.colors.error}>
                          Cancelar Solicitud
                      </Button>
                  </View>

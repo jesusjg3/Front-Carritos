@@ -52,7 +52,7 @@ export const useNearbyDrivers = (user, token, currentLocation, isActive = true) 
                 params: {
                     latitude: currentLocation.latitude,
                     longitude: currentLocation.longitude,
-                    radius: 5, // 5 km de radio
+                    radius: 10, // 5 km de radio
                 },
                 headers: {
                     Authorization: `Bearer ${token}`,

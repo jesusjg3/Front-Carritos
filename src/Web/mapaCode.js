@@ -51,6 +51,12 @@ export const mapaHtml = `
             color: #d32f2f; /* Red color for the pin */
             text-align: center;
         }
+        .carrito-marker {
+            font-family: 'Material Symbols Outlined';
+            font-size: 46px;
+            color: #1E88E5; /* Blue car icon */
+            text-align: center;
+        }
         /* Hide the itinerary instructions */
         .leaflet-routing-container {
             display: none;
@@ -83,6 +89,8 @@ export const mapaHtml = `
     function placeUserMarker(lat, lon, photoBase64) {
         if (map && lat !== undefined && lon !== undefined) {
             var iconToUse;
+            
+            // Usar puntito azul para el usuario
             if (photoBase64) {
                 iconToUse = L.divIcon({
                     html: \`
@@ -165,7 +173,7 @@ export const mapaHtml = `
     var driverMarkers = {};
     var carritoIconUrl = null;
 
-    // Función para configurar la URL del icono del carrito
+    // Función para configurar la URL del icono del carrito para conductores
     function setCarritoIcon(iconUrl) {
         carritoIconUrl = iconUrl;
     }
@@ -191,30 +199,27 @@ export const mapaHtml = `
         // Agregar o actualizar conductores
         drivers.forEach(driver => {
             if (!driver.lat || !driver.lng) return;
-            
-            // Icono personalizado del carrito - usar imagen si está disponible
-            var iconUrl = carritoIconUrl || driver.iconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxOCIgZmlsbD0iIzRDQUY1MCIvPjxwYXRoIGQ9Ik0yMCAxMGw1IDhIMTVsNS04eiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=';
+
+            // Usar SOLO la imagen PNG del carrito
+            var iconUrl = carritoIconUrl || driver.iconUrl;
+            if (!iconUrl) return;
             
             var carritoIcon = L.icon({
                 iconUrl: iconUrl,
-                iconSize: [45, 45],
-                iconAnchor: [22.5, 22.5],
-                popupAnchor: [0, -22.5]
+                iconSize: [120, 120],
+                iconAnchor: [60, 60],
+                popupAnchor: [0, -60]
             });
 
             if (driverMarkers[driver.id]) {
-                // Actualizar posición existente con animación suave
-                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]);
+                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]).setIcon(carritoIcon);
             } else {
-                // Crear nuevo marcador
                 var marker = L.marker([driver.lat, driver.lng], { icon: carritoIcon })
                     .addTo(map)
                     .bindPopup((driver.name || 'Conductor disponible') + '<br><small>' + (driver.distance ? driver.distance + ' km' : '') + '</small>');
                 driverMarkers[driver.id] = marker;
             }
         });
-
-        console.log('Conductores en mapa:', Object.keys(driverMarkers).length);
     }
 
     // Función para limpiar todos los conductores del mapa

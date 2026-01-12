@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Platform } from "react-native";
 import { Text, Button, ActivityIndicator, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -6,6 +6,7 @@ import { WebView } from 'react-native-webview';
 
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { mapaHtml } from "../../../Web/mapaCode";
+import { CARRITO_MARKER_BASE64 } from "../../../Web/carritoMarkerBase64";
 
 // Components
 import RideRequestCard from "../components/RideRequestCard";
@@ -71,6 +72,7 @@ export default function InicioScreen() {
         isPasajero && !isSearching && !activeTrip
     );
 
+
     // Efecto para actualizar conductores en el mapa
     React.useEffect(() => {
         if (isPasajero && nearbyDrivers.length > 0 && webViewRef.current) {
@@ -82,7 +84,6 @@ export default function InicioScreen() {
             `);
         }
     }, [nearbyDrivers, isPasajero]);
-
 
     // Handlers
     const handleToggleStatus = () => setIsOnline(!isOnline);
@@ -171,12 +172,14 @@ export default function InicioScreen() {
                         originWhitelist={['*']}
                         onLoadEnd={() => {
                             if (isPasajero && ubicacion && webViewRef.current) {
-                                setTimeout(() => {
-                                    webViewRef.current.injectJavaScript(`
-                                        if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
-                                        if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude});
-                                    `);
-                                }, 2000);
+                                const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                webViewRef.current.injectJavaScript(`
+                                    (function(){
+                                       if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
+                                    })();
+                                    if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
+                                    if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude});
+                                `);
                             }
                         }}
                     />

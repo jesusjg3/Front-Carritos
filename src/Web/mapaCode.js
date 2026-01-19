@@ -37,10 +37,24 @@ export const mapaHtml = `
             left: 50%;
             transform: translateX(-50%);
         }
+        .user-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #1E88E5;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 8px rgba(0,0,0,0.35);
+        }
         .destination-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 40px;
             color: #d32f2f; /* Red color for the pin */
+            text-align: center;
+        }
+        .carrito-marker {
+            font-family: 'Material Symbols Outlined';
+            font-size: 46px;
+            color: #1E88E5; /* Blue car icon */
             text-align: center;
         }
         /* Hide the itinerary instructions */
@@ -75,6 +89,8 @@ export const mapaHtml = `
     function placeUserMarker(lat, lon, photoBase64) {
         if (map && lat !== undefined && lon !== undefined) {
             var iconToUse;
+            
+            // Usar puntito azul para el usuario
             if (photoBase64) {
                 iconToUse = L.divIcon({
                     html: \`
@@ -87,13 +103,11 @@ export const mapaHtml = `
                     iconAnchor: [23, 56]
                 });
             } else {
-                iconToUse = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
+                iconToUse = L.divIcon({
+                    html: '<div class="user-dot"></div>',
+                    className: '',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
                 });
             }
 
@@ -152,8 +166,68 @@ export const mapaHtml = `
         if (routingControl) {
             map.removeControl(routingControl);
             routingControl = null;
-            }
         }
+    }
+
+    // Variables para gestionar marcadores de conductores
+    var driverMarkers = {};
+    var carritoIconUrl = null;
+
+    // Función para configurar la URL del icono del carrito para conductores
+    function setCarritoIcon(iconUrl) {
+        carritoIconUrl = iconUrl;
+    }
+
+    // Función para actualizar conductores cercanos en el mapa
+    function updateNearbyDrivers(drivers) {
+        if (!drivers || !Array.isArray(drivers)) {
+            console.error("Drivers debe ser un array");
+            return;
+        }
+
+        // IDs de conductores actuales
+        var currentDriverIds = drivers.map(d => d.id);
+        
+        // Remover conductores que ya no están en la lista
+        Object.keys(driverMarkers).forEach(id => {
+            if (!currentDriverIds.includes(parseInt(id))) {
+                map.removeLayer(driverMarkers[id]);
+                delete driverMarkers[id];
+            }
+        });
+
+        // Agregar o actualizar conductores
+        drivers.forEach(driver => {
+            if (!driver.lat || !driver.lng) return;
+
+            // Usar SOLO la imagen PNG del carrito
+            var iconUrl = carritoIconUrl || driver.iconUrl;
+            if (!iconUrl) return;
+            
+            var carritoIcon = L.icon({
+                iconUrl: iconUrl,
+                iconSize: [120, 120],
+                iconAnchor: [60, 60],
+                popupAnchor: [0, -60]
+            });
+
+            if (driverMarkers[driver.id]) {
+                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]).setIcon(carritoIcon);
+            } else {
+                var marker = L.marker([driver.lat, driver.lng], { icon: carritoIcon })
+                    .addTo(map)
+                    .bindPopup((driver.name || 'Conductor disponible') + '<br><small>' + (driver.distance ? driver.distance + ' km' : '') + '</small>');
+                driverMarkers[driver.id] = marker;
+            }
+        });
+    }
+
+    // Función para limpiar todos los conductores del mapa
+    function clearDriverMarkers() {
+        Object.values(driverMarkers).forEach(marker => map.removeLayer(marker));
+        driverMarkers = {};
+    }
+
     </script>
     </body>
     </html>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { createEcho } from '../../core/services/echo';
 import { API_ROUTES } from '../../Config/Routes';
 
@@ -7,6 +8,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [echoInstance, setEchoInstance] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [activeTrip, setActiveTrip] = useState(null);
+    const [lastRequestParams, setLastRequestParams] = useState(null);
+    const tripTimeoutRef = useRef(null);
 
     // Conexión Websocket (Echo)
     useEffect(() => {
@@ -24,7 +27,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     ...event,
                     origin: event.origin_address || 'Ubicación desconocida',
                     destination: event.destination_address || 'Destino desconocido',
-                    distance: `${event.distance} km` 
+                    distance: `${event.distance} km`,
+                    passengers_count: event.passengers_count || 1
                 }]);
             })
             .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
@@ -37,39 +41,88 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 
                 passengerChannel.listen('.TripAccepted', (event) => {
                     console.log('EVENT RECEIVED: TripAccepted', event);
+                    // Limpiar el timeout de reintentos
+                    if (tripTimeoutRef.current) {
+                        clearTimeout(tripTimeoutRef.current);
+                        tripTimeoutRef.current = null;
+                    }
                     setIsSearching(false);
                     setActiveTrip(event.trip);
                     alert("¡Tu conductor va en camino!");
                 })
                 .listen('.TripStarted', (event) => {
                     console.log('EVENT RECEIVED: .TripStarted', event);
+                    // Limpiar el timeout de reintentos
+                    if (tripTimeoutRef.current) {
+                        clearTimeout(tripTimeoutRef.current);
+                        tripTimeoutRef.current = null;
+                    }
                     setIsSearching(false);
                     setActiveTrip(event.trip);
                 })
                 .listen('TripStarted', (event) => {
-                     setActiveTrip(event.trip);
+                    if (tripTimeoutRef.current) {
+                        clearTimeout(tripTimeoutRef.current);
+                        tripTimeoutRef.current = null;
+                    }
+                    setActiveTrip(event.trip);
                 })
                 .listen('.TripFinished', (event) => {
-                     console.log('EVENT RECEIVED: .TripFinished', event);
-                     resetTripState();
-                     alert("¡Has llegado a tu destino!");
+                    console.log('EVENT RECEIVED: .TripFinished', event);
+                    // Limpiar el timeout de reintentos
+                    if (tripTimeoutRef.current) {
+                        clearTimeout(tripTimeoutRef.current);
+                        tripTimeoutRef.current = null;
+                    }
+                    resetTripState();
+                    alert("¡Has llegado a tu destino!");
                 })
                 .listen('TripFinished', (event) => {
-                     resetTripState();
-                     alert("¡Has llegado a tu destino!");
+                    if (tripTimeoutRef.current) {
+                        clearTimeout(tripTimeoutRef.current);
+                        tripTimeoutRef.current = null;
+                    }
+                    resetTripState();
+                    alert("¡Has llegado a tu destino!");
                 });
             }
 
             return () => {
                 echo.disconnect();
                 setEchoInstance(null);
+                // Limpiar timeout al desconectar
+                if (tripTimeoutRef.current) {
+                    clearTimeout(tripTimeoutRef.current);
+                    tripTimeoutRef.current = null;
+                }
             };
+        } else {
+            // Si no hay token, limpiar timeout
+            if (tripTimeoutRef.current) {
+                clearTimeout(tripTimeoutRef.current);
+                tripTimeoutRef.current = null;
+            }
         }
     }, [token, isOnline, user, isPasajero]);
+
+    // Limpiar timeout cuando el componente se desmonta
+    useEffect(() => {
+        return () => {
+            if (tripTimeoutRef.current) {
+                clearTimeout(tripTimeoutRef.current);
+                tripTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const resetTripState = () => {
         setActiveTrip(null);
         setIsSearching(false);
+        setRequestAttempt(1);
+        if (tripTimeoutRef.current) {
+            clearTimeout(tripTimeoutRef.current);
+            tripTimeoutRef.current = null;
+        }
     };
 
     // --- ACCIONES DE API ---
@@ -145,8 +198,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
          }
     };
     
-    const requestTrip = async (ubicacion, destinoSeleccionado, distance) => {
+    const requestTrip = async (ubicacion, destinoSeleccionado, distance, passengersCount = 1) => {
         try {
+            // Guardar parámetros para reintentos
+            setLastRequestParams({ ubicacion, destinoSeleccionado, distance, passengersCount });
+
             const payload = {
                 origin_lat: ubicacion.latitude,
                 origin_lng: ubicacion.longitude,
@@ -154,7 +210,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 destination_lat: destinoSeleccionado.latitude,
                 destination_lng: destinoSeleccionado.longitude,
                 destination_address: destinoSeleccionado.address || destinoSeleccionado.nombre,
-                distance: distance
+                distance: distance,
+                passengers_count: passengersCount
             };
 
             const response = await fetch(`${API_ROUTES.TRIPS}/request`, {
@@ -171,6 +228,30 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
             if (response.ok) {
                 setIsSearching(true);
+                
+                // Configurar timeout de 1 minuto para testing
+                const timeout = setTimeout(() => {
+                    console.log('Solicitud expirada');
+                    // Resetear estado para mostrar mapa
+                    setIsSearching(false);
+                    
+                    // Usar Alert.alert para que tenga callback
+                    Alert.alert(
+                        'Solicitud Expirada',
+                        '¿Deseas intentar nuevamente?',
+                        [
+                            {
+                                text: 'OK',
+                                onPress: () => {
+                                    // Hacer nueva solicitud cuando el usuario presiona OK
+                                    requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
+                                }
+                            }
+                        ]
+                    );
+                }, 1 * 60 * 1000); // 1 minuto
+                
+                tripTimeoutRef.current = timeout;
                 return true;
             } else {
                 alert("Error al solicitar viaje: " + (data.message || "Desconocido"));
@@ -184,6 +265,15 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
 
+    const cancelTrip = () => {
+        if (tripTimeoutRef.current) {
+            clearTimeout(tripTimeoutRef.current);
+            tripTimeoutRef.current = null;
+        }
+        setIsSearching(false);
+        setLastRequestParams(null);
+    };
+
     return {
         requestQueue,
         activeTrip,
@@ -195,6 +285,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         handleRejectRequest,
         handleStartTrip,
         handleFinishTrip,
-        requestTrip
+        requestTrip,
+        cancelTrip
     };
 };

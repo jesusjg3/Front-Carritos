@@ -42,7 +42,7 @@ export default function ActiveTripCard({
                                 }
                             </Text>
                         </View>
-                        <View>
+                        <View style={{ flex: 1 }}>
                             <Text variant="titleMedium">
                                 {isPasajero ? (activeTrip.driver?.name || 'Conductor') : (activeTrip.passenger?.name || 'Pasajero')}
                             </Text>
@@ -51,6 +51,11 @@ export default function ActiveTripCard({
                             </Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text>⭐ {isPasajero ? "4.9" : "4.8"}</Text>
+                                {!isPasajero && activeTrip.passengers_count && (
+                                    <Text style={{ marginLeft: 12, color: 'gray' }}>
+                                        👥 {activeTrip.passengers_count} {activeTrip.passengers_count === 1 ? 'pasajero' : 'pasajeros'}
+                                    </Text>
+                                )}
                             </View>
                         </View>
                     </View>

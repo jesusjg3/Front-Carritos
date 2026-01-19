@@ -5,11 +5,20 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
     const [ubicacion, setUbicacion] = useState(null);
     const [permisoUbicacion, setPermisoUbicacion] = useState(false);
     const webViewRef = useRef(null);
+    const watchSubscription = useRef(null);
+    const hasCenteredRef = useRef(false);
 
+    // Iniciar/limpiar seguimiento cuando el pasajero está activo
     useEffect(() => {
         if (user && isPasajero) {
-            obtenerUbicacion();
+            startWatchingLocation();
+        } else {
+            stopWatchingLocation();
         }
+
+        return () => {
+            stopWatchingLocation();
+        };
     }, [user, isPasajero]);
 
     // Efecto para dibujar ruta cuando el viaje comienza (estado 4)
@@ -35,8 +44,9 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
         }
     }, [activeTrip]);
 
-    const obtenerUbicacion = async () => {
+    const startWatchingLocation = async () => {
         try {
+            // Solicitar permisos
             const { status } = await Location.requestForegroundPermissionsAsync();
 
             if (status !== 'granted') {
@@ -47,30 +57,61 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
 
             setPermisoUbicacion(true);
 
-            const location = await Location.getCurrentPositionAsync({
+            // Obtener ubicación inicial
+            const initialLocation = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.High,
             });
 
-            const { latitude, longitude } = location.coords;
-            setUbicacion({ latitude, longitude });
+            applyLocationUpdate(initialLocation, true);
 
-            console.log('Ubicación del usuario:', { latitude, longitude });
-
-            if (webViewRef.current) {
-                webViewRef.current.injectJavaScript(`
-                    if (window.map) {
-                        window.map.setView([${latitude}, ${longitude}], 15);
-                        L.marker([${latitude}, ${longitude}])
-                            .bindPopup('Tu ubicación')
-                            .addTo(window.map)
-                            .openPopup();
-                    }
-                `);
+            // Comenzar seguimiento continuo
+            if (watchSubscription.current) {
+                watchSubscription.current.remove();
             }
+
+            watchSubscription.current = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.High,
+                    timeInterval: 4000, // cada 4s
+                    distanceInterval: 5, // o cada 5 metros
+                },
+                (newLocation) => applyLocationUpdate(newLocation)
+            );
         } catch (err) {
             console.error('Error al obtener ubicación:', err);
         }
     };
+
+    const stopWatchingLocation = () => {
+        if (watchSubscription.current) {
+            watchSubscription.current.remove();
+            watchSubscription.current = null;
+        }
+    };
+
+    const applyLocationUpdate = (location, shouldCenter = false) => {
+        if (!location?.coords) return;
+
+        const { latitude, longitude } = location.coords;
+        setUbicacion({ latitude, longitude });
+
+        const centerNow = shouldCenter || !hasCenteredRef.current;
+        if (centerNow) {
+            hasCenteredRef.current = true;
+        }
+
+        if (webViewRef.current) {
+            webViewRef.current.injectJavaScript(`
+                if (typeof placeUserMarker === 'function') {
+                    placeUserMarker(${latitude}, ${longitude});
+                }
+                ${centerNow ? 'if (typeof centerMap === "function") { centerMap(' + latitude + ', ' + longitude + '); }' : ''}
+            `);
+        }
+    };
+
+    // Exponer función manual de refresco (compatible con usos anteriores)
+    const obtenerUbicacion = () => startWatchingLocation();
 
     return {
         ubicacion,

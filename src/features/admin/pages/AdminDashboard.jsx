@@ -142,10 +142,8 @@ export default function AdminDashboard({ navigation }) {
 
   const handleLogout = () => {
     logout();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: ROUTES.WELCOME }],
-    });
+    // Limpiar el contexto y volver a la pantalla de bienvenida
+    // El NavigationContainer se actualizará automáticamente cuando user sea null
   };
 
   return (

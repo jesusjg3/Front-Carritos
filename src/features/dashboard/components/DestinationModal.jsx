@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from "react-native";
-import { Text, Button, RadioButton, Divider, ActivityIndicator, useTheme } from "react-native-paper";
+import { Text, Button, RadioButton, Divider, ActivityIndicator, useTheme, SegmentedButtons, IconButton } from "react-native-paper";
 
 export default function DestinationModal({ 
     visible, 
@@ -14,6 +14,7 @@ export default function DestinationModal({
     onConfirm 
 }) {
     const theme = useTheme();
+    const [passengersCount, setPassengersCount] = useState(1);
 
     return (
         <Modal
@@ -71,9 +72,45 @@ export default function DestinationModal({
                         )}
                     </ScrollView>
 
+                    {/* Selector de número de pasajeros */}
+                    <View style={styles.passengersContainer}>
+                        <Text variant="titleMedium" style={styles.passengersTitle}>Número de pasajeros</Text>
+                        <View style={styles.passengerCounter}>
+                            <IconButton
+                                icon="minus-circle"
+                                size={32}
+                                onPress={() => setPassengersCount(Math.max(1, passengersCount - 1))}
+                                disabled={passengersCount <= 1}
+                                iconColor={passengersCount <= 1 ? theme.colors.disabled : theme.colors.primary}
+                            />
+                            <View style={styles.counterDisplay}>
+                                <Text variant="headlineMedium" style={[styles.counterText, { color: theme.colors.primary }]}>
+                                    {passengersCount}
+                                </Text>
+                                <Text variant="bodySmall" style={styles.counterLabel}>
+                                    {passengersCount === 1 ? 'pasajero' : 'pasajeros'}
+                                </Text>
+                            </View>
+                            <IconButton
+                                icon="plus-circle"
+                                size={32}
+                                onPress={() => setPassengersCount(Math.min(5, passengersCount + 1))}
+                                disabled={passengersCount >= 5}
+                                iconColor={passengersCount >= 5 ? theme.colors.disabled : theme.colors.primary}
+                            />
+                        </View>
+                    </View>
+
                     <View style={styles.modalActions}>
                         <Button mode="outlined" onPress={onDismiss} style={styles.actionButton}>Cancelar</Button>
-                        <Button mode="contained" onPress={onConfirm} style={styles.actionButton} disabled={!destinoSeleccionado}>Confirmar</Button>
+                        <Button 
+                            mode="contained" 
+                            onPress={() => onConfirm(passengersCount)} 
+                            style={styles.actionButton} 
+                            disabled={!destinoSeleccionado}
+                        >
+                            Confirmar
+                        </Button>
                     </View>
                 </Pressable>
             </Pressable>
@@ -97,6 +134,35 @@ const styles = StyleSheet.create({
     emptyText: { color: 'gray' },
     destinoItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 },
     destinoText: { marginLeft: 12, flex: 1 },
+    passengersContainer: { 
+        paddingHorizontal: 24, 
+        paddingVertical: 16, 
+        borderTopWidth: 1, 
+        borderTopColor: '#E0E0E0',
+        backgroundColor: '#F5F5F5',
+    },
+    passengersTitle: { 
+        fontWeight: '600', 
+        marginBottom: 12, 
+        textAlign: 'center',
+    },
+    passengerCounter: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        gap: 16,
+    },
+    counterDisplay: { 
+        alignItems: 'center', 
+        minWidth: 80,
+    },
+    counterText: { 
+        fontWeight: 'bold',
+    },
+    counterLabel: { 
+        color: 'gray',
+        marginTop: 4,
+    },
     modalActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16 },
     actionButton: { flex: 1, marginHorizontal: 8 },
 });

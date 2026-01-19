@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, ScrollView } from "react-native";
 import { Text, Button, ActivityIndicator, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from 'react-native-webview';
@@ -24,7 +24,7 @@ import { useNearbyDrivers } from "../../../shared/hooks/useNearbyDrivers";
 export default function InicioScreen() {
     const { user, token } = useAppContext();
     const theme = useTheme();
-    
+
     // Local UI State
     const [isOnline, setIsOnline] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -35,31 +35,31 @@ export default function InicioScreen() {
     const isConductor = user && user.role === 'conductor';
 
     // Custom Hooks
-    const { 
-        requestQueue, 
-        activeTrip, 
+    const {
+        requestQueue,
+        activeTrip,
         isSearching,
         requestAttempt,
-        setIsSearching, 
-        handleAcceptRequest, 
-        handleRejectRequest, 
-        handleStartTrip, 
+        setIsSearching,
+        handleAcceptRequest,
+        handleRejectRequest,
+        handleStartTrip,
         handleFinishTrip,
         requestTrip,
         cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
 
-    const { 
-        ubicacion, 
-        webViewRef, 
-        obtenerUbicacion 
+    const {
+        ubicacion,
+        webViewRef,
+        obtenerUbicacion
     } = useLocationLogic(user, isPasajero, activeTrip);
 
-    const { 
-        destinos, 
-        cargandoDestinos, 
-        errorDestinos, 
-        cargarDestinos 
+    const {
+        destinos,
+        cargandoDestinos,
+        errorDestinos,
+        cargarDestinos
     } = useDestinations(user, isPasajero);
 
     // Hook para actualizar ubicación del conductor
@@ -67,17 +67,18 @@ export default function InicioScreen() {
 
     // Hook para obtener conductores cercanos (solo pasajeros)
     const { nearbyDrivers, loading: loadingDrivers } = useNearbyDrivers(
-        user, 
-        token, 
-        ubicacion, 
+        user,
+        token,
+        ubicacion,
         isPasajero && !isSearching && !activeTrip
     );
 
 
     // Efecto para actualizar conductores en el mapa
     React.useEffect(() => {
-        if (isPasajero && nearbyDrivers.length > 0 && webViewRef.current) {
-            const driversData = JSON.stringify(nearbyDrivers);
+        if (isPasajero && webViewRef.current) {
+            // Pasamos la lista (vacía o llena) para que el mapa se actualice
+            const driversData = JSON.stringify(nearbyDrivers || []);
             webViewRef.current.injectJavaScript(`
                 if (typeof updateNearbyDrivers === 'function') {
                     updateNearbyDrivers(${driversData});
@@ -88,15 +89,15 @@ export default function InicioScreen() {
 
     // Handlers
     const handleToggleStatus = () => setIsOnline(!isOnline);
-    
+
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; 
+        const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return parseFloat((R * c).toFixed(2));
     };
 
@@ -106,7 +107,7 @@ export default function InicioScreen() {
             return;
         }
         const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
-        
+
         const success = await requestTrip(ubicacion, destinoSeleccionado, dist, passengersCount);
         if (success) {
             setModalVisible(false);
@@ -114,25 +115,25 @@ export default function InicioScreen() {
     };
 
     // --- RENDER ---
-    
+
     // 1. Searching View
     if (isSearching) {
-         return (
-             <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-                 <View style={styles.searchingContainer}>
-                     <Text variant="headlineMedium" style={styles.searchingTitle}>Buscando conductor...</Text>
-                     <Text variant="bodySmall" style={styles.searchingSubtitle}>Intento #{requestAttempt}</Text>
-                     <ActivityIndicator size="large" animating={true} color={theme.colors.primary} style={{ marginVertical: 20 }} />
-                     <View style={styles.radarContainer}>
-                         <View style={[styles.radarCircle, { borderColor: theme.colors.primary }]} />
-                         <View style={[styles.radarCircle, { width: 150, height: 150, opacity: 0.5, borderColor: theme.colors.primary }]} />
-                     </View>
-                     <Button mode="contained" onPress={cancelTrip} style={styles.cancelButton} buttonColor={theme.colors.error}>
-                         Cancelar Solicitud
-                     </Button>
-                 </View>
-             </SafeAreaView>
-         );
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+                <View style={styles.searchingContainer}>
+                    <Text variant="headlineMedium" style={styles.searchingTitle}>Buscando conductor...</Text>
+                    <Text variant="bodySmall" style={styles.searchingSubtitle}>Intento #{requestAttempt}</Text>
+                    <ActivityIndicator size="large" animating={true} color={theme.colors.primary} style={{ marginVertical: 20 }} />
+                    <View style={styles.radarContainer}>
+                        <View style={[styles.radarCircle, { borderColor: theme.colors.primary }]} />
+                        <View style={[styles.radarCircle, { width: 150, height: 150, opacity: 0.5, borderColor: theme.colors.primary }]} />
+                    </View>
+                    <Button mode="contained" onPress={cancelTrip} style={styles.cancelButton} buttonColor={theme.colors.error}>
+                        Cancelar Solicitud
+                    </Button>
+                </View>
+            </SafeAreaView>
+        );
     }
 
     // 2. Active Trip View
@@ -147,7 +148,7 @@ export default function InicioScreen() {
                         originWhitelist={['*']}
                     />
                 </View>
-                <ActiveTripCard 
+                <ActiveTripCard
                     activeTrip={activeTrip}
                     isPasajero={isPasajero}
                     onContact={() => alert('Contactando...')}
@@ -172,30 +173,42 @@ export default function InicioScreen() {
                         style={styles.map}
                         originWhitelist={['*']}
                         onLoadEnd={() => {
-                            if (isPasajero && ubicacion && webViewRef.current) {
+                            if (webViewRef.current) {
+                                // 1. Configurar icono siempre (independiente de la ubicación)
                                 const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                 webViewRef.current.injectJavaScript(`
-                                    (function(){
-                                       if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
-                                    })();
-                                    if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
-                                    if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude});
+                                    if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
                                 `);
+
+                                // 2. Si ya tenemos ubicación, centrar y poner marcador
+                                if ((isPasajero || isConductor) && ubicacion) {
+                                    webViewRef.current.injectJavaScript(`
+                                        if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
+                                        if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, ${isConductor});
+                                    `);
+                                }
                             }
                         }}
                     />
                 )}
-                
+
                 {isConductor && (
                     <StatusToggleButton isOnline={isOnline} onToggle={handleToggleStatus} />
                 )}
 
                 {isConductor && requestQueue.length > 0 && (
-                     <RideRequestCard 
-                        request={requestQueue[0]} 
-                        onAccept={() => handleAcceptRequest(requestQueue[0])} 
-                        onReject={handleRejectRequest} 
-                    />
+                    <View style={styles.requestsContainer}>
+                        <ScrollView style={styles.requestsScroll} contentContainerStyle={styles.requestsContent} showsVerticalScrollIndicator={false}>
+                            {requestQueue.map((req, index) => (
+                                <RideRequestCard
+                                    key={req.id || index}
+                                    request={req}
+                                    onAccept={() => handleAcceptRequest(req)}
+                                    onReject={handleRejectRequest}
+                                />
+                            ))}
+                        </ScrollView>
+                    </View>
                 )}
 
                 {isPasajero && (
@@ -243,4 +256,20 @@ const styles = StyleSheet.create({
     radarContainer: { width: 200, height: 200, justifyContent: 'center', alignItems: 'center', marginVertical: 40 },
     radarCircle: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 2, opacity: 0.8 },
     cancelButton: { width: '100%', maxWidth: 300, paddingVertical: 8 },
+    requestsContainer: {
+        position: 'absolute',
+        bottom: 20, // Raised up from 20 to 80
+        left: 20,
+        right: 20,
+        maxHeight: '65%', // Allow up to ~3 cards visible (compact mode)
+        zIndex: 20,
+    },
+    requestsScroll: {
+        flex: 1,
+    },
+    requestsContent: {
+        paddingBottom: 0,
+        flexGrow: 1,
+        justifyContent: 'flex-end', // Stack from bottom up
+    },
 });

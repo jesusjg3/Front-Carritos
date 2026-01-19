@@ -9,6 +9,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [isSearching, setIsSearching] = useState(false);
     const [activeTrip, setActiveTrip] = useState(null);
     const [lastRequestParams, setLastRequestParams] = useState(null);
+    const [requestAttempt, setRequestAttempt] = useState(1);
     const tripTimeoutRef = useRef(null);
 
     // Conexión Websocket (Echo)
@@ -16,7 +17,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         if (token && (isOnline || isPasajero)) {
             const echo = createEcho(token);
             setEchoInstance(echo);
-            
+
             console.log('Echo connected, subscribing to drivers...');
 
             const channel = echo.private('drivers');
@@ -31,14 +32,14 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     passengers_count: event.passengers_count || 1
                 }]);
             })
-            .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-            .listen('TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)));
+                .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+                .listen('TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)));
 
             // Escuchar canal privado del pasajero
             if (isPasajero && user?.id) {
                 console.log(`Subscribing to private channel: passenger.${user.id}`);
                 const passengerChannel = echo.private(`passenger.${user.id}`);
-                
+
                 passengerChannel.listen('.TripAccepted', (event) => {
                     console.log('EVENT RECEIVED: TripAccepted', event);
                     // Limpiar el timeout de reintentos
@@ -50,41 +51,41 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     setActiveTrip(event.trip);
                     alert("¡Tu conductor va en camino!");
                 })
-                .listen('.TripStarted', (event) => {
-                    console.log('EVENT RECEIVED: .TripStarted', event);
-                    // Limpiar el timeout de reintentos
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    setIsSearching(false);
-                    setActiveTrip(event.trip);
-                })
-                .listen('TripStarted', (event) => {
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    setActiveTrip(event.trip);
-                })
-                .listen('.TripFinished', (event) => {
-                    console.log('EVENT RECEIVED: .TripFinished', event);
-                    // Limpiar el timeout de reintentos
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    resetTripState();
-                    alert("¡Has llegado a tu destino!");
-                })
-                .listen('TripFinished', (event) => {
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    resetTripState();
-                    alert("¡Has llegado a tu destino!");
-                });
+                    .listen('.TripStarted', (event) => {
+                        console.log('EVENT RECEIVED: .TripStarted', event);
+                        // Limpiar el timeout de reintentos
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
+                        }
+                        setIsSearching(false);
+                        setActiveTrip(event.trip);
+                    })
+                    .listen('TripStarted', (event) => {
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
+                        }
+                        setActiveTrip(event.trip);
+                    })
+                    .listen('.TripFinished', (event) => {
+                        console.log('EVENT RECEIVED: .TripFinished', event);
+                        // Limpiar el timeout de reintentos
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
+                        }
+                        resetTripState();
+                        alert("¡Has llegado a tu destino!");
+                    })
+                    .listen('TripFinished', (event) => {
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
+                        }
+                        resetTripState();
+                        alert("¡Has llegado a tu destino!");
+                    });
             }
 
             return () => {
@@ -179,25 +180,25 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
     const handleFinishTrip = async () => {
-         if (!activeTrip) return;
-         try {
-             const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/finish`, {
-                 method: 'POST',
-                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-             });
-             const data = await response.json();
-             if (response.ok) {
-                 resetTripState();
-                 alert("¡Viaje finalizado con éxito!");
-             } else {
-                 alert("Error al finalizar: " + (data.error || "Desconocido"));
-             }
-         } catch (error) {
-             console.error(error);
-             alert("Error de conexión");
-         }
+        if (!activeTrip) return;
+        try {
+            const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/finish`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                resetTripState();
+                alert("¡Viaje finalizado con éxito!");
+            } else {
+                alert("Error al finalizar: " + (data.error || "Desconocido"));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        }
     };
-    
+
     const requestTrip = async (ubicacion, destinoSeleccionado, distance, passengersCount = 1) => {
         try {
             // Guardar parámetros para reintentos
@@ -228,13 +229,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
             if (response.ok) {
                 setIsSearching(true);
-                
+
                 // Configurar timeout de 1 minuto para testing
                 const timeout = setTimeout(() => {
                     console.log('Solicitud expirada');
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
-                    
+
                     // Usar Alert.alert para que tenga callback
                     Alert.alert(
                         'Solicitud Expirada',
@@ -250,7 +251,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                         ]
                     );
                 }, 1 * 60 * 1000); // 1 minuto
-                
+
                 tripTimeoutRef.current = timeout;
                 return true;
             } else {
@@ -278,6 +279,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         requestQueue,
         activeTrip,
         isSearching,
+        requestAttempt,
         setIsSearching,
         setActiveTrip,
         setRequestQueue,

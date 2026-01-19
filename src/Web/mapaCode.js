@@ -86,12 +86,21 @@ export const mapaHtml = `
         }
     }
 
-    function placeUserMarker(lat, lon, photoBase64) {
+    function placeUserMarker(lat, lon, photoBase64, isDriver) {
         if (map && lat !== undefined && lon !== undefined) {
             var iconToUse;
             
-            // Usar puntito azul para el usuario
-            if (photoBase64) {
+                // Si es conductor, usar icono de carrito (usar mismo tamaño que conductores cercanos: 120x120)
+            if (isDriver && carritoIconUrl) {
+                iconToUse = L.icon({
+                    iconUrl: carritoIconUrl,
+                    iconSize: [120, 120], // Mismo tamaño que updateNearbyDrivers
+                    iconAnchor: [60, 60],
+                    popupAnchor: [0, -60]
+                });
+            }
+            // Usar foto de usuario si existe (Pasajero)
+            else if (photoBase64 && !isDriver) {
                 iconToUse = L.divIcon({
                     html: \`
                         <div class="user-marker-container">
@@ -103,6 +112,7 @@ export const mapaHtml = `
                     iconAnchor: [23, 56]
                 });
             } else {
+                // Usar puntito azul por defecto (Pasajero sin foto o fallback)
                 iconToUse = L.divIcon({
                     html: '<div class="user-dot"></div>',
                     className: '',
@@ -180,8 +190,16 @@ export const mapaHtml = `
 
     // Función para actualizar conductores cercanos en el mapa
     function updateNearbyDrivers(drivers) {
+        console.log("updateNearbyDrivers llamado con:", drivers ? drivers.length : 'null');
+        
         if (!drivers || !Array.isArray(drivers)) {
             console.error("Drivers debe ser un array");
+            return;
+        }
+
+        // Si no hay conductores, limpiar todo explícitamente
+        if (drivers.length === 0) {
+            clearDriverMarkers();
             return;
         }
 
@@ -190,7 +208,8 @@ export const mapaHtml = `
         
         // Remover conductores que ya no están en la lista
         Object.keys(driverMarkers).forEach(id => {
-            if (!currentDriverIds.includes(parseInt(id))) {
+            if (!currentDriverIds.includes(parseInt(id)) && !currentDriverIds.includes(id)) { // Check both types just in case
+                console.log("Removiendo conductor id:", id);
                 map.removeLayer(driverMarkers[id]);
                 delete driverMarkers[id];
             }

@@ -8,9 +8,10 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
     const watchSubscription = useRef(null);
     const hasCenteredRef = useRef(false);
 
-    // Iniciar/limpiar seguimiento cuando el pasajero está activo
+    // Iniciar/limpiar seguimiento cuando el usuario está activo (Pasajero o Conductor)
     useEffect(() => {
-        if (user && isPasajero) {
+        const isConductor = user && user.role === 'conductor';
+        if (user && (isPasajero || isConductor)) {
             startWatchingLocation();
         } else {
             stopWatchingLocation();
@@ -23,21 +24,30 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
 
     // Efecto para dibujar ruta cuando el viaje comienza (estado 4)
     useEffect(() => {
-        if (activeTrip && activeTrip.state_id == 4 && webViewRef.current) {
-            const originLat = activeTrip.origin_lat || activeTrip.origin?.lat;
-            const originLng = activeTrip.origin_lng || activeTrip.origin?.lng;
-            const destLat = activeTrip.destination_lat || activeTrip.destination?.lat;
-            const destLng = activeTrip.destination_lng || activeTrip.destination?.lng;
+        if (webViewRef.current) {
+            if (activeTrip && activeTrip.state_id == 4) {
+                const originLat = activeTrip.origin_lat || activeTrip.origin?.lat;
+                const originLng = activeTrip.origin_lng || activeTrip.origin?.lng;
+                const destLat = activeTrip.destination_lat || activeTrip.destination?.lat;
+                const destLng = activeTrip.destination_lng || activeTrip.destination?.lng;
 
-            if (originLat && originLng && destLat && destLng) {
-                console.log('Dibujando ruta en mapa:', { originLat, originLng, destLat, destLng });
+                if (originLat && originLng && destLat && destLng) {
+                    console.log('Dibujando ruta en mapa:', { originLat, originLng, destLat, destLng });
+                    webViewRef.current.injectJavaScript(`
+                        if (typeof drawRoute === 'function') {
+                            drawRoute(${originLat}, ${originLng}, ${destLat}, ${destLng});
+                        }
+                        if (typeof centerMap === 'function') {
+                            // Centrar en punto medio o destino
+                            centerMap(${destLat}, ${destLng});
+                        }
+                    `);
+                }
+            } else {
+                // Limpiar ruta si no estamos en viaje en curso (estado 4)
                 webViewRef.current.injectJavaScript(`
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${originLat}, ${originLng}, ${destLat}, ${destLng});
-                    }
-                    if (typeof centerMap === 'function') {
-                        // Centrar en punto medio o destino
-                        centerMap(${destLat}, ${destLng});
+                    if (typeof clearRoute === 'function') {
+                        clearRoute();
                     }
                 `);
             }
@@ -72,8 +82,8 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
             watchSubscription.current = await Location.watchPositionAsync(
                 {
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 4000, // cada 4s
-                    distanceInterval: 5, // o cada 5 metros
+                    timeInterval: 3000, // cada 3s
+                    distanceInterval: 1, // cada 1 metro
                 },
                 (newLocation) => applyLocationUpdate(newLocation)
             );
@@ -103,7 +113,7 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
         if (webViewRef.current) {
             webViewRef.current.injectJavaScript(`
                 if (typeof placeUserMarker === 'function') {
-                    placeUserMarker(${latitude}, ${longitude});
+                    placeUserMarker(${latitude}, ${longitude}, null, ${user?.role === 'conductor'});
                 }
                 ${centerNow ? 'if (typeof centerMap === "function") { centerMap(' + latitude + ', ' + longitude + '); }' : ''}
             `);

@@ -26,10 +26,10 @@ export const useNearbyDrivers = (user, token, currentLocation, isActive = true) 
         // Obtener conductores inicialmente
         fetchNearbyDrivers();
 
-        // Actualizar cada 8 segundos
+        // Actualizar cada 3 segundos (antes 8s) para ver desconexiones más rápido
         pollInterval.current = setInterval(() => {
             fetchNearbyDrivers();
-        }, 8000);
+        }, 3000);
 
         return () => {
             if (pollInterval.current) {

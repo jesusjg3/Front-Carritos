@@ -31,7 +31,7 @@ export const useDriverLocation = (user, token, isOnline) => {
         try {
             // Solicitar permisos de ubicación
             const { status } = await Location.requestForegroundPermissionsAsync();
-            
+
             if (status !== 'granted') {
                 setLocationError('Permiso de ubicación denegado');
                 console.error('Permiso de ubicación denegado');
@@ -42,7 +42,7 @@ export const useDriverLocation = (user, token, isOnline) => {
             const initialLocation = await Location.getCurrentPositionAsync({
                 accuracy: Location.Accuracy.High,
             });
-            
+
             const { latitude, longitude } = initialLocation.coords;
             setLocation({ latitude, longitude });
             await sendLocationToServer(latitude, longitude);
@@ -51,8 +51,8 @@ export const useDriverLocation = (user, token, isOnline) => {
             watchSubscription.current = await Location.watchPositionAsync(
                 {
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 5000, // Actualizar cada 5 segundos
-                    distanceInterval: 10, // O cuando se mueva 10 metros
+                    timeInterval: 3000, // Cada 3 segundos
+                    distanceInterval: 1, // Sensibilidad máxima (1 metro)
                 },
                 (newLocation) => {
                     const { latitude, longitude } = newLocation.coords;
@@ -61,18 +61,41 @@ export const useDriverLocation = (user, token, isOnline) => {
                 }
             );
 
-            // Enviar ubicación al servidor cada 10 segundos
+            // Enviar ubicación al servidor cada 3 segundos (antes 10s) para mejor tiempo real
             updateInterval.current = setInterval(async () => {
-                const currentLocation = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.Balanced,
-                });
-                const { latitude, longitude } = currentLocation.coords;
-                await sendLocationToServer(latitude, longitude);
-            }, 10000);
+                try {
+                    const currentLocation = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                    });
+                    const { latitude, longitude } = currentLocation.coords;
+                    await sendLocationToServer(latitude, longitude);
+                } catch (err) {
+                    console.warn('Error en intervalo de ubicación (reintentando...):', err.message);
+                }
+            }, 3000);
 
         } catch (error) {
             console.error('Error al iniciar seguimiento de ubicación:', error);
             setLocationError(error.message);
+        }
+    };
+
+    const setDriverOffline = async () => {
+        if (!token) return;
+        try {
+            await axios.post(
+                API_ROUTES.SET_DRIVER_OFFLINE,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            console.log('Driver set to offline in server');
+        } catch (error) {
+            console.error('Error setting driver offline:', error);
         }
     };
 
@@ -86,6 +109,8 @@ export const useDriverLocation = (user, token, isOnline) => {
             updateInterval.current = null;
         }
         setLocation(null);
+        // Notificar al servidor que estamos offline
+        setDriverOffline();
     };
 
     const sendLocationToServer = async (latitude, longitude) => {

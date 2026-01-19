@@ -11,57 +11,54 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
     return (
         <View style={styles.container}>
             <View style={styles.card}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Carreras</Text>
-                </View>
+                {/* Header removed to save space */}
 
                 {/* Content */}
                 <View style={styles.content}>
-                    {/* Passenger Count */}
-                    <View style={styles.passengersRow}>
-                        <MaterialCommunityIcons name="account-group" size={24} color={COLORS.PRIMARY} style={styles.icon} />
-                        <View style={styles.textContainer}>
-                            <Text style={styles.label}>
+                    {/* Locations Row */}
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.subLabel}>Origen</Text>
+                            <Text style={styles.statValue} numberOfLines={2}>{request.origin}</Text>
+                        </View>
+
+                        <MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.GRAY_400 || '#9e9e9e'} style={{ marginTop: 10 }} />
+
+                        <View style={styles.statItem}>
+                            <Text style={styles.subLabel}>Destino</Text>
+                            <Text style={styles.statValue} numberOfLines={2}>{request.destination}</Text>
+                        </View>
+                    </View>
+
+                    {/* Metadata Row (Passengers | Distance) */}
+                    <View style={styles.metadataRow}>
+                        <View style={styles.metaItem}>
+                            <MaterialCommunityIcons name="account-group" size={20} color={COLORS.PRIMARY} />
+                            <Text style={styles.metaText}>
                                 {request.passengers_count || 1} {(request.passengers_count || 1) === 1 ? 'Pasajero' : 'Pasajeros'}
                             </Text>
                         </View>
-                    </View>
 
-                    <Divider style={styles.divider} />
+                        <View style={styles.verticalDivider} />
 
-                    {/* Origin */}
-                    <View style={styles.row}>
-                        <MaterialCommunityIcons name="cart-outline" size={24} color={COLORS.SUCCESS} style={styles.icon} />
-                        <View style={styles.textContainer}>
-                            <Text style={styles.label}>Origen: {request.origin}</Text>
-                            <Text style={styles.subLabel}>Distancia: {request.distance}</Text>
-                        </View>
-                    </View>
-
-                    <Divider style={styles.divider} />
-
-                    {/* Destination */}
-                    <View style={styles.row}>
-                        <MaterialCommunityIcons name="cart" size={24} color={COLORS.SUCCESS} style={styles.icon} />
-                        <View style={styles.textContainer}>
-                            <Text style={styles.label}>Destino: {request.destination}</Text>
-                            <Text style={styles.subLabel}>Distancia: {request.distance}</Text>
+                        <View style={styles.metaItem}>
+                            <MaterialCommunityIcons name="map-marker-distance" size={18} color={COLORS.GRAY_600} />
+                            <Text style={styles.metaText}>{request.distance}</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <TouchableOpacity 
-                        style={[styles.button, styles.acceptButton]} 
+                    <TouchableOpacity
+                        style={[styles.button, styles.acceptButton]}
                         onPress={onAccept}
                     >
                         <Text style={styles.buttonText}>ACEPTAR</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={[styles.button, styles.rejectButton]} 
+                    <TouchableOpacity
+                        style={[styles.button, styles.rejectButton]}
                         onPress={onReject}
                     >
                         <Text style={styles.buttonText}>RECHAZAR</Text>
@@ -74,10 +71,8 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
 const styles = StyleSheet.create({
     container: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
+        marginBottom: 10, // Relative positioning for list stacking
+        backgroundColor: 'transparent',
         zIndex: 20,
     },
     card: {
@@ -101,7 +96,8 @@ const styles = StyleSheet.create({
         color: COLORS.GRAY_800,
     },
     content: {
-        padding: SPACING.MD,
+        padding: SPACING.SM, // Reduced from MD
+        paddingBottom: 0,
     },
     passengersRow: {
         flexDirection: 'row',
@@ -137,13 +133,12 @@ const styles = StyleSheet.create({
     },
     actions: {
         flexDirection: 'row',
-        padding: SPACING.MD,
-        paddingTop: 0,
+        padding: SPACING.SM, // Reduced from MD
         gap: SPACING.MD,
     },
     button: {
         flex: 1,
-        paddingVertical: 12,
+        paddingVertical: 8, // Reduced from 12
         borderRadius: BORDER_RADIUS.MD,
         alignItems: 'center',
         justifyContent: 'center',
@@ -188,5 +183,48 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: SPACING.SM,
+        gap: 8,
+    },
+    statItem: {
+        flex: 1,
+    },
+    statValue: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.GRAY_800,
+        marginTop: 2,
+    },
+    metadataRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: COLORS.GRAY_50,
+        padding: SPACING.SM,
+        borderRadius: BORDER_RADIUS.MD,
+        marginTop: SPACING.XS,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        justifyContent: 'center',
+    },
+    verticalDivider: {
+        width: 1,
+        height: 20,
+        backgroundColor: COLORS.GRAY_200,
+        marginHorizontal: SPACING.SM,
+    },
+    metaText: {
+        marginLeft: 8,
+        fontSize: 13,
+        color: COLORS.GRAY_700,
+        fontWeight: '500',
     }
 });

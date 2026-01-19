@@ -18,7 +18,7 @@ export default function StatusToggleButton({ isOnline, onToggle }) {
                 <Text style={styles.text}>
                     {isOnline ? 'DESCONECTARSE' : 'CONECTARSE'}
                 </Text>
-                
+
                 <View style={styles.switchContainer}>
                     <View style={[styles.indicator, { backgroundColor: isOnline ? '#fff' : '#fff' }]} />
                 </View>
@@ -30,7 +30,7 @@ export default function StatusToggleButton({ isOnline, onToggle }) {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: '40%', // Approximate position from image
+        top: 100, // Moved up as requested
         alignSelf: 'center',
         zIndex: 10,
     },

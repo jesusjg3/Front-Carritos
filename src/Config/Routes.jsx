@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.1.23:8000/api";
+const API_BASE_URL = "http://192.168.10.96:8000/api";
 
 export const API_ROUTES = {
 	BASE_URL: API_BASE_URL,
@@ -37,6 +37,7 @@ export const API_ROUTES = {
 
 	// Driver Location
 	UPDATE_DRIVER_LOCATION: `${API_BASE_URL}/driver/location`,
+	SET_DRIVER_OFFLINE: `${API_BASE_URL}/driver/offline`,
 	NEARBY_DRIVERS: `${API_BASE_URL}/drivers/nearby`,
 };
 

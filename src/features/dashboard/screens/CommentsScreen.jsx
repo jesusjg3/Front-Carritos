@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from '@react-navigation/native';
 import { View, FlatList, StyleSheet } from "react-native";
 import { Text, Card, useTheme, ActivityIndicator, Avatar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,9 +12,11 @@ export default function CommentsScreen() {
     const [ratings, setRatings] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        fetchRatings();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchRatings();
+        }, [])
+    );
 
     const fetchRatings = async () => {
         try {

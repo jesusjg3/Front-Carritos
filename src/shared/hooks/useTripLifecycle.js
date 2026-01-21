@@ -45,6 +45,15 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 })
                 .listen('.TripCancelled', (event) => {
                     setRequestQueue(prev => prev.filter(req => req.id != event.id));
+                    // Si el viaje cancelado es el actual, limpiar estado
+                    setActiveTrip(prev => {
+                        if (prev && prev.id == event.id) {
+                            alert("El viaje ha sido cancelado.");
+                            setIsSearching(false);
+                            return null;
+                        }
+                        return prev;
+                    });
                 })
                 .listen('.RequestCancelled', (event) => {
                     setRequestQueue(prev => prev.filter(req => req.id != event.id || req.trip_request_id != event.trip_request_id));
@@ -151,7 +160,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                                     latitude: event.latitude,
                                     longitude: event.longitude,
                                     last_update: event.timestamp
-                                }
+                                },
+                                // Update top-level coordinates so InicioScreen can read them
+                                latitude: event.latitude,
+                                longitude: event.longitude
                             }
                         };
                     });
@@ -301,6 +313,9 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             const data = await response.json();
 
             if (response.ok) {
+                // UPDATE: Guardar ID del viaje para poder cancelarlo
+                setLastRequestParams(prev => ({ ...prev, tripId: data.id }));
+
                 setIsSearching(true);
 
                 // Configurar timeout de 1 minuto para testing

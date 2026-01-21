@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Modal, StyleSheet, TouchableOpacity } from 'react-native';
 import { Button, TextInput, useTheme, Card, Text } from 'react-native-paper';
 import { FontAwesome } from '@expo/vector-icons';
-import { API_ROUTES } from '../../../../Config/Routes';
-import { useAppContext } from '../../../../shared/contexts/AppContext';
+import { API_ROUTES } from '../../../Config/Routes';
+import { useAppContext } from '../../../shared/contexts/AppContext';
 
 export default function RateDriverModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from "react";
 import { View, FlatList, StyleSheet } from "react-native";
 import { Text, Card, useTheme, ActivityIndicator } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,9 +12,11 @@ export default function HistoryScreen() {
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchHistory();
+        }, [])
+    );
 
     const fetchHistory = async () => {
         try {

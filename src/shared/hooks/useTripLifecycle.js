@@ -12,6 +12,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [requestAttempt, setRequestAttempt] = useState(1);
     const tripTimeoutRef = useRef(null);
 
+    const [tripToRate, setTripToRate] = useState(null);
+
     // Conexión Websocket (Echo)
     useEffect(() => {
         if (token && (isOnline || isPasajero)) {
@@ -70,21 +72,20 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     })
                     .listen('.TripFinished', (event) => {
                         console.log('EVENT RECEIVED: .TripFinished', event);
-                        // Limpiar el timeout de reintentos
                         if (tripTimeoutRef.current) {
                             clearTimeout(tripTimeoutRef.current);
                             tripTimeoutRef.current = null;
                         }
+                        setTripToRate(event.trip); // Set trip to rate
                         resetTripState();
-                        alert("¡Has llegado a tu destino!");
                     })
                     .listen('TripFinished', (event) => {
                         if (tripTimeoutRef.current) {
                             clearTimeout(tripTimeoutRef.current);
                             tripTimeoutRef.current = null;
                         }
+                        setTripToRate(event.trip); // Set trip to rate
                         resetTripState();
-                        alert("¡Has llegado a tu destino!");
                     });
             }
 
@@ -280,6 +281,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         activeTrip,
         isSearching,
         requestAttempt,
+        tripToRate,
+        setTripToRate,
         setIsSearching,
         setActiveTrip,
         setRequestQueue,
@@ -291,3 +294,4 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         cancelTrip
     };
 };
+

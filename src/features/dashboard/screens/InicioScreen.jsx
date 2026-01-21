@@ -13,6 +13,7 @@ import RideRequestCard from "../components/RideRequestCard";
 import StatusToggleButton from "../components/StatusToggleButton";
 import ActiveTripCard from "../components/ActiveTripCard";
 import DestinationModal from "../components/DestinationModal";
+import RateDriverModal from "../components/RateDriverModal";
 
 // Hooks
 import { useLocationLogic } from "../../../shared/hooks/useLocationLogic";
@@ -40,6 +41,8 @@ export default function InicioScreen() {
         activeTrip,
         isSearching,
         requestAttempt,
+        tripToRate,
+        setTripToRate,
         setIsSearching,
         handleAcceptRequest,
         handleRejectRequest,
@@ -237,6 +240,13 @@ export default function InicioScreen() {
                 destinoSeleccionado={destinoSeleccionado}
                 onSelect={setDestinoSeleccionado}
                 onConfirm={confirmRequestTrip}
+            />
+
+            <RateDriverModal
+                visible={!!tripToRate}
+                trip={tripToRate}
+                onDismiss={() => setTripToRate(null)}
+                onRateSuccess={() => setTripToRate(null)}
             />
         </SafeAreaView>
     );

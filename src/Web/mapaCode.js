@@ -14,6 +14,7 @@ export const mapaHtml = `
             position: relative;
             width: 46px;
             height: 56px;
+            transition: all 0.5s linear; /* suaviza movimiento */
         }
         .user-marker-icon {
             width: 40px;
@@ -25,6 +26,7 @@ export const mapaHtml = `
             position: absolute;
             top: 0;
             left: 0;
+            transition: all 0.5s linear; /* suaviza movimiento */
         }
         .user-marker-tail {
             width: 0;
@@ -74,6 +76,9 @@ export const mapaHtml = `
     var destinationMarkers = [];
     var routingControl;
 
+    // Desabilitar zoom con doble tap
+    map.doubleClickZoom.disable();
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
@@ -90,13 +95,13 @@ export const mapaHtml = `
         if (map && lat !== undefined && lon !== undefined) {
             var iconToUse;
             
-                // Si es conductor, usar icono de carrito (usar mismo tamaño que conductores cercanos: 120x120)
+                // Si es conductor, usar icono de carrito (usar mismo tamaño que conductores cercanos: 40x40)
             if (isDriver && carritoIconUrl) {
                 iconToUse = L.icon({
                     iconUrl: carritoIconUrl,
-                    iconSize: [120, 120], // Mismo tamaño que updateNearbyDrivers
-                    iconAnchor: [60, 60],
-                    popupAnchor: [0, -60]
+                    iconSize: [40, 40], // Mismo tamaño que updateNearbyDrivers
+                    iconAnchor: [20, 20],
+                    popupAnchor: [0, -20]
                 });
             }
             // Usar foto de usuario si existe (Pasajero)
@@ -225,9 +230,9 @@ export const mapaHtml = `
             
             var carritoIcon = L.icon({
                 iconUrl: iconUrl,
-                iconSize: [120, 120],
-                iconAnchor: [60, 60],
-                popupAnchor: [0, -60]
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -20]
             });
 
             if (driverMarkers[driver.id]) {
@@ -246,6 +251,48 @@ export const mapaHtml = `
         Object.values(driverMarkers).forEach(marker => map.removeLayer(marker));
         driverMarkers = {};
     }
+
+    // Función para dibujar ruta entre dos puntos
+    function drawRoute(startLat, startLng, endLat, endLng) {
+        if (!map || !startLat || !startLng || !endLat || !endLng) return;
+
+        if (routingControl) {
+            map.removeControl(routingControl);
+        }
+
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(startLat, startLng),
+                L.latLng(endLat, endLng)
+            ],
+            routeWhileDragging: false,
+            showAlternatives: false,
+            lineOptions: {
+                styles: [{color: '#144985', opacity: 0.8, weight: 4}]
+            }
+        }).addTo(map);
+
+        map.fitBounds([[startLat, startLng], [endLat, endLng]], {padding: [50, 50]});
+    }
+
+    // Función para limpiar ruta
+    function clearRoute() {
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+        }
+    }
+
+    // Capturar doble clic para seleccionar destino personalizado
+    map.on('dblclick', function(e) {
+        if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'MAP_DOUBLE_TAP',
+                latitude: e.latlng.lat,
+                longitude: e.latlng.lng
+            }));
+        }
+    });
 
     </script>
     </body>

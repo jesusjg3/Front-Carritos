@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import * as Location from 'expo-location';
 
-export const useLocationLogic = (user, isPasajero, activeTrip) => {
+export const useLocationLogic = (user, isPasajero, activeTrip, externalWebViewRef = null) => {
     const [ubicacion, setUbicacion] = useState(null);
     const [permisoUbicacion, setPermisoUbicacion] = useState(false);
-    const webViewRef = useRef(null);
+    const internalWebViewRef = useRef(null);
+    const webViewRef = externalWebViewRef || internalWebViewRef;  // Usar ref externo si se proporciona
     const watchSubscription = useRef(null);
     const hasCenteredRef = useRef(false);
 
@@ -126,7 +127,6 @@ export const useLocationLogic = (user, isPasajero, activeTrip) => {
     return {
         ubicacion,
         permisoUbicacion,
-        webViewRef,
         obtenerUbicacion
     };
 };

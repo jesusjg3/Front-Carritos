@@ -79,7 +79,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             location: event.trip.driver?.location || {
                                 latitude: event.trip.driver?.latitude,
                                 longitude: event.trip.driver?.longitude
-                            }
+                            },
+                            // Ensure coordinates are available at top level for UI
+                            latitude: event.trip.driver?.latitude || event.trip.driver?.location?.latitude,
+                            longitude: event.trip.driver?.longitude || event.trip.driver?.location?.longitude
                         }
                     };
                     setActiveTrip(tripData);
@@ -92,17 +95,27 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             tripTimeoutRef.current = null;
                         }
                         setIsSearching(false);
-                        const tripData = {
-                            ...event.trip,
-                            driver: {
-                                ...event.trip.driver,
-                                location: event.trip.driver?.location || {
-                                    latitude: event.trip.driver?.latitude,
-                                    longitude: event.trip.driver?.longitude
+
+                        setActiveTrip(prev => {
+                            const driverRating = event.trip.driver?.rating || event.trip.driver?.score || prev?.driver?.rating || prev?.driver?.score;
+
+                            const tripData = {
+                                ...event.trip,
+                                driver: {
+                                    ...event.trip.driver,
+                                    rating: driverRating, // Preserve rating
+                                    score: driverRating, // Preserve score
+                                    location: event.trip.driver?.location || {
+                                        latitude: event.trip.driver?.latitude,
+                                        longitude: event.trip.driver?.longitude
+                                    },
+                                    // Ensure coordinates are available at top level for UI
+                                    latitude: event.trip.driver?.latitude || event.trip.driver?.location?.latitude,
+                                    longitude: event.trip.driver?.longitude || event.trip.driver?.location?.longitude
                                 }
-                            }
-                        };
-                        setActiveTrip(tripData);
+                            };
+                            return tripData;
+                        });
                     })
                     .listen('TripStarted', (event) => {
                         console.log('[TRIP] EVENT RECEIVED: TripStarted', event);
@@ -110,17 +123,27 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             clearTimeout(tripTimeoutRef.current);
                             tripTimeoutRef.current = null;
                         }
-                        const tripData = {
-                            ...event.trip,
-                            driver: {
-                                ...event.trip.driver,
-                                location: event.trip.driver?.location || {
-                                    latitude: event.trip.driver?.latitude,
-                                    longitude: event.trip.driver?.longitude
+
+                        setActiveTrip(prev => {
+                            const driverRating = event.trip.driver?.rating || event.trip.driver?.score || prev?.driver?.rating || prev?.driver?.score;
+
+                            const tripData = {
+                                ...event.trip,
+                                driver: {
+                                    ...event.trip.driver,
+                                    rating: driverRating,
+                                    score: driverRating,
+                                    location: event.trip.driver?.location || {
+                                        latitude: event.trip.driver?.latitude,
+                                        longitude: event.trip.driver?.longitude
+                                    },
+                                    // Ensure coordinates are available at top level for UI
+                                    latitude: event.trip.driver?.latitude || event.trip.driver?.location?.latitude,
+                                    longitude: event.trip.driver?.longitude || event.trip.driver?.location?.longitude
                                 }
-                            }
-                        };
-                        setActiveTrip(tripData);
+                            };
+                            return tripData;
+                        });
                     })
                     .listen('.TripFinished', (event) => {
                         console.log('[TRIP] EVENT RECEIVED: .TripFinished', event);
@@ -128,7 +151,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             clearTimeout(tripTimeoutRef.current);
                             tripTimeoutRef.current = null;
                         }
-                        setTripToRate(event.trip);
+                        setTripToRate(event.trip); // Trigger Rate Modal
+                        // Limpiar la selección de destino para borrar la ruta del mapa
+                        if (typeof setDestinoSeleccionado === 'function') {
+                            setDestinoSeleccionado(null);
+                        }
                         resetTripState();
                         alert("¡Has llegado a tu destino!");
                     })

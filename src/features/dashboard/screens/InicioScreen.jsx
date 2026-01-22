@@ -30,7 +30,7 @@ export default function InicioScreen() {
     const [isOnline, setIsOnline] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [destinoSeleccionado, setDestinoSeleccionado] = useState(null);
-    
+
     // Crear ref del WebView en el componente (no en hooks)
     const webViewRef = useRef(null);
 
@@ -54,6 +54,13 @@ export default function InicioScreen() {
         requestTrip,
         cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
+
+    // Limpiar destino seleccionado cuando finaliza el viaje (hay algo para calificar)
+    useEffect(() => {
+        if (tripToRate) {
+            setDestinoSeleccionado(null);
+        }
+    }, [tripToRate]);
 
     const {
         ubicacion,
@@ -178,7 +185,7 @@ export default function InicioScreen() {
                             if (radarWebViewRef.current && ubicacion) {
                                 // Configurar icono del carrito
                                 const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                                
+
                                 radarWebViewRef.current.injectJavaScript(`
                                     if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
                                     
@@ -338,7 +345,7 @@ export default function InicioScreen() {
                         key={isSearching ? 'searching' : 'idle'} // Forzar reload cuando cambia isSearching
                     />
                 </View>
-                
+
                 {/* Anillos del radar con opacidad para ver el mapa */}
                 {radarAnims.map((anim, idx) => (
                     <Animated.View
@@ -363,7 +370,7 @@ export default function InicioScreen() {
                 ))}
 
                 {/* Punto central del pasajero */}
-                <View style={[styles.radarCenter, { borderColor: ringColor }]}> 
+                <View style={[styles.radarCenter, { borderColor: ringColor }]}>
                     <Animated.View
                         style={[
                             styles.radarCenterInner,
@@ -402,15 +409,25 @@ export default function InicioScreen() {
 
     // Efecto para dibujar ruta cuando se selecciona destino
     React.useEffect(() => {
-        if (isPasajero && destinoSeleccionado && ubicacion && webViewRef.current) {
+        console.log('[MAP] Check ruta preview:', {
+            hasDest: !!destinoSeleccionado,
+            hasUbi: !!ubicacion,
+            hasWebView: !!webViewRef.current,
+            noActiveTrip: !activeTrip
+        });
+
+        // Solo dibujar esta ruta si NO hsy un viaje activo
+        if (isPasajero && destinoSeleccionado && ubicacion && webViewRef.current && !activeTrip) {
+            console.log('[MAP] Dibujando ruta preview:', destinoSeleccionado.nombre);
             webViewRef.current.injectJavaScript(`
                 if (typeof drawRoute === 'function') {
-                    drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${destinoSeleccionado.latitude}, ${destinoSeleccionado.longitude});
+                    // Pasar 400px de padding inferior para que se vea arriba del modal
+                    drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${destinoSeleccionado.latitude}, ${destinoSeleccionado.longitude}, 400);
                 }
                 true;
             `);
         }
-    }, [destinoSeleccionado, ubicacion, isPasajero]);
+    }, [destinoSeleccionado, ubicacion, isPasajero, activeTrip]);
 
     // Efecto para limpiar ruta cuando se cancela selección
     React.useEffect(() => {
@@ -438,14 +455,14 @@ export default function InicioScreen() {
     // ========== EFECTO CRÍTICO: Actualizar marcador del pasajero en tiempo real durante viaje ==========
     React.useEffect(() => {
         if (isPasajero && activeTrip && ubicacion && webViewRef.current) {
-            console.log('[MAP] Pasajero - Actualizando marcador en tiempo real', { 
-                lat: ubicacion.latitude, 
+            console.log('[MAP] Pasajero - Actualizando marcador en tiempo real', {
+                lat: ubicacion.latitude,
                 lng: ubicacion.longitude,
                 state_id: activeTrip.state_id,
                 status: activeTrip.status,
                 state: activeTrip.state
             });
-            
+
             // Actualizar el marcador del pasajero y centrar el mapa
             webViewRef.current.injectJavaScript(`
                 if (typeof placeUserMarker === 'function') {
@@ -509,9 +526,19 @@ export default function InicioScreen() {
 
             if (conductorLat && conductorLng && pickupLat && pickupLng) {
                 console.log('[MAP] Pasajero Fase 1 - Dibujando ruta conductor→pickup');
+                const driverInfo = JSON.stringify([{
+                    id: activeTrip.driver?.id || 'driver',
+                    lat: parseFloat(conductorLat),
+                    lng: parseFloat(conductorLng),
+                    name: activeTrip.driver?.name || 'Conductor'
+                }]);
+
                 webViewRef.current.injectJavaScript(`
                     if (typeof drawRoute === 'function') {
                         drawRoute(${conductorLat}, ${conductorLng}, ${pickupLat}, ${pickupLng});
+                    }
+                    if (typeof updateNearbyDrivers === 'function') {
+                        updateNearbyDrivers(${driverInfo});
                     }
                     true;
                 `);
@@ -543,9 +570,19 @@ export default function InicioScreen() {
 
             if (conductorLat && conductorLng && destLat && destLng) {
                 console.log('[MAP] Pasajero Fase 2 - Dibujando ruta conductor→destino');
+                const driverInfo = JSON.stringify([{
+                    id: activeTrip.driver?.id || 'driver',
+                    lat: parseFloat(conductorLat),
+                    lng: parseFloat(conductorLng),
+                    name: activeTrip.driver?.name || 'Conductor'
+                }]);
+
                 webViewRef.current.injectJavaScript(`
                     if (typeof drawRoute === 'function') {
                         drawRoute(${conductorLat}, ${conductorLng}, ${destLat}, ${destLng});
+                    }
+                    if (typeof updateNearbyDrivers === 'function') {
+                        updateNearbyDrivers(${driverInfo});
                     }
                     true;
                 `);
@@ -559,7 +596,7 @@ export default function InicioScreen() {
     const handleWebViewMessage = (event) => {
         try {
             const data = JSON.parse(event.nativeEvent.data);
-            
+
             if (data.type === 'MAP_DOUBLE_TAP' && isPasajero) {
                 const customDestino = {
                     id: 'custom-' + Date.now(),

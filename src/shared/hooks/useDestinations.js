@@ -28,7 +28,9 @@ export const useDestinations = (user, isPasajero) => {
             const data = await response.json();
             const destinosTransformados = (data.destinations || data || []).map(destino => ({
                 ...destino,
-                nombre: destino.name || destino.nombre
+                nombre: destino.name || destino.nombre,
+                latitude: parseFloat(destino.latitude || destino.lat),
+                longitude: parseFloat(destino.longitude || destino.lng)
             }));
 
             setDestinos(destinosTransformados);

@@ -86,7 +86,14 @@ export const useLocationLogic = (user, isPasajero, activeTrip, externalWebViewRe
                     timeInterval: 3000, // cada 3s
                     distanceInterval: 1, // cada 1 metro
                 },
-                (newLocation) => applyLocationUpdate(newLocation)
+                (newLocation) => {
+                    // Filtrar lecturas de baja precisión (> 20m) para evitar "teletransportes"
+                    if (newLocation.coords.accuracy && newLocation.coords.accuracy > 20) {
+                        console.log('Ignorando ubicación de baja precisión:', newLocation.coords.accuracy);
+                        return;
+                    }
+                    applyLocationUpdate(newLocation);
+                }
             );
         } catch (err) {
             console.error('Error al obtener ubicación:', err);

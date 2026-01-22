@@ -52,7 +52,7 @@ export default function ActiveTripCard({
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 {isPasajero && (
                                     <>
-                                        <Text>⭐ {activeTrip.driver?.rating ? Number(activeTrip.driver.rating).toFixed(1) : (activeTrip.driver?.score ? Number(activeTrip.driver.score).toFixed(1) : "5.0")}</Text>
+                                        <Text>⭐ {Number(activeTrip.driver?.rating || activeTrip.driver?.score || 5).toFixed(1)}</Text>
                                     </>
                                 )}
                                 {!isPasajero && activeTrip.passengers_count && (

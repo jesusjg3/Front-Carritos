@@ -253,26 +253,39 @@ export const mapaHtml = `
     }
 
     // Función para dibujar ruta entre dos puntos
-    function drawRoute(startLat, startLng, endLat, endLng) {
+    function drawRoute(startLat, startLng, endLat, endLng, paddingBottom) {
         if (!map || !startLat || !startLng || !endLat || !endLng) return;
 
+        var waypoints = [
+            L.latLng(startLat, startLng),
+            L.latLng(endLat, endLng)
+        ];
+
         if (routingControl) {
-            map.removeControl(routingControl);
+            // Si ya existe, solo actualizamos los puntos para evitar parpadeos y recargas
+            routingControl.setWaypoints(waypoints);
+        } else {
+            // Si no existe, lo creamos
+            routingControl = L.Routing.control({
+                waypoints: waypoints,
+                routeWhileDragging: false,
+                showAlternatives: false,
+                lineOptions: {
+                    styles: [{color: '#144985', opacity: 0.8, weight: 4}]
+                }
+            }).addTo(map);
         }
 
-        routingControl = L.Routing.control({
-            waypoints: [
-                L.latLng(startLat, startLng),
-                L.latLng(endLat, endLng)
-            ],
-            routeWhileDragging: false,
-            showAlternatives: false,
-            lineOptions: {
-                styles: [{color: '#144985', opacity: 0.8, weight: 4}]
-            }
-        }).addTo(map);
-
-        map.fitBounds([[startLat, startLng], [endLat, endLng]], {padding: [50, 50]});
+        // Ajustar vista considerando el modal (padding inferior)
+        // Solo ajustamos si es la primera vez o si cambia drásticamente para no molestar al usuario si mueve el mapa
+        // Por simplicidad, lo haremos siempre que se llame explícitamente, pero podrías condicionarlo.
+        var padBottom = paddingBottom || 50;
+        // Pequeño delay para dejar que OSRM calcule y Leaflet renderice antes de hacer fitBounds
+        // o simplemente hacerlo con los punots directos
+        map.fitBounds(waypoints, {
+            paddingTopLeft: [50, 50],
+            paddingBottomRight: [50, padBottom]
+        });
     }
 
     // Función para limpiar ruta

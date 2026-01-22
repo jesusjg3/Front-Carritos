@@ -137,6 +137,13 @@ export const mapaHtml = `
         }
     }
 
+    function removeUserMarker() {
+        if (userMarker && map) {
+            map.removeLayer(userMarker);
+            userMarker = null;
+        }
+    }
+
     function addDestinationMarkers(destinations) {
         clearDestinationMarkers();
         var destinationIcon = L.divIcon({
@@ -161,60 +168,31 @@ export const mapaHtml = `
         destinationMarkers = [];
     }
 
-    function drawRoute(startLat, startLng, endLat, endLng) {
-        clearRoute();
-        routingControl = L.Routing.control({
-            waypoints: [
-                L.latLng(startLat, startLng),
-                L.latLng(endLat, endLng)
-            ],
-            routeWhileDragging: false,
-            addWaypoints: false, // Do not allow adding new waypoints
-            show: false, // Hide itinerary
-            lineOptions: {
-                styles: [{color: '#1E88E5', opacity: 0.8, weight: 6}]
-            }
-        }).addTo(map);
-    }
+    // --- GESTIÓN DE CONDUCTORES ---
 
-    function clearRoute() {
-        if (routingControl) {
-            map.removeControl(routingControl);
-            routingControl = null;
-        }
-    }
-
-    // Variables para gestionar marcadores de conductores
     var driverMarkers = {};
     var carritoIconUrl = null;
 
-    // Función para configurar la URL del icono del carrito para conductores
+    // Función para configurar la URL del icono del carrito
     function setCarritoIcon(iconUrl) {
         carritoIconUrl = iconUrl;
     }
 
     // Función para actualizar conductores cercanos en el mapa
     function updateNearbyDrivers(drivers) {
-        console.log("updateNearbyDrivers llamado con:", drivers ? drivers.length : 'null');
-        
-        if (!drivers || !Array.isArray(drivers)) {
-            console.error("Drivers debe ser un array");
-            return;
-        }
+        if (!drivers || !Array.isArray(drivers)) return;
 
-        // Si no hay conductores, limpiar todo explícitamente
+        // Si no hay conductores, limpiar todo
         if (drivers.length === 0) {
             clearDriverMarkers();
             return;
         }
 
-        // IDs de conductores actuales
         var currentDriverIds = drivers.map(d => d.id);
         
-        // Remover conductores que ya no están en la lista
+        // Remover conductores que ya no están
         Object.keys(driverMarkers).forEach(id => {
-            if (!currentDriverIds.includes(parseInt(id)) && !currentDriverIds.includes(id)) { // Check both types just in case
-                console.log("Removiendo conductor id:", id);
+            if (!currentDriverIds.includes(parseInt(id)) && !currentDriverIds.includes(id)) {
                 map.removeLayer(driverMarkers[id]);
                 delete driverMarkers[id];
             }
@@ -224,7 +202,6 @@ export const mapaHtml = `
         drivers.forEach(driver => {
             if (!driver.lat || !driver.lng) return;
 
-            // Usar SOLO la imagen PNG del carrito
             var iconUrl = carritoIconUrl || driver.iconUrl;
             if (!iconUrl) return;
             
@@ -236,24 +213,28 @@ export const mapaHtml = `
             });
 
             if (driverMarkers[driver.id]) {
+                // Animar movimiento si lo soporta el CSS inyectado, sino setLatLng directo
                 driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]).setIcon(carritoIcon);
             } else {
                 var marker = L.marker([driver.lat, driver.lng], { icon: carritoIcon })
-                    .addTo(map)
-                    .bindPopup((driver.name || 'Conductor disponible') + '<br><small>' + (driver.distance ? driver.distance + ' km' : '') + '</small>');
+                    .addTo(map);
                 driverMarkers[driver.id] = marker;
             }
         });
     }
 
-    // Función para limpiar todos los conductores del mapa
+    // Función para limpiar todos los conductores
     function clearDriverMarkers() {
         Object.values(driverMarkers).forEach(marker => map.removeLayer(marker));
         driverMarkers = {};
     }
 
+    // --- FIN GESTIÓN CONDUCTORES ---
+
+
     // Función para dibujar ruta entre dos puntos
-    function drawRoute(startLat, startLng, endLat, endLng, paddingBottom) {
+    // animateZoom: Si es false, solo dibuja la línea sin mover la cámara (para actualizaciones suaves)
+    function drawRoute(startLat, startLng, endLat, endLng, paddingBottom, animateZoom) {
         if (!map || !startLat || !startLng || !endLat || !endLng) return;
 
         var waypoints = [
@@ -262,30 +243,32 @@ export const mapaHtml = `
         ];
 
         if (routingControl) {
-            // Si ya existe, solo actualizamos los puntos para evitar parpadeos y recargas
+            // Si ya existe, actualizamos los puntos y forzamos el recálculo
             routingControl.setWaypoints(waypoints);
         } else {
             // Si no existe, lo creamos
             routingControl = L.Routing.control({
                 waypoints: waypoints,
-                routeWhileDragging: false,
+                routeWhileDragging: true, 
                 showAlternatives: false,
+                addWaypoints: true,
+                fitSelectedRoutes: false, 
                 lineOptions: {
-                    styles: [{color: '#144985', opacity: 0.8, weight: 4}]
+                    styles: [{color: '#144985', opacity: 0.8, weight: 6}]
                 }
+                // createMarker removido
             }).addTo(map);
         }
 
-        // Ajustar vista considerando el modal (padding inferior)
-        // Solo ajustamos si es la primera vez o si cambia drásticamente para no molestar al usuario si mueve el mapa
-        // Por simplicidad, lo haremos siempre que se llame explícitamente, pero podrías condicionarlo.
-        var padBottom = paddingBottom || 50;
-        // Pequeño delay para dejar que OSRM calcule y Leaflet renderice antes de hacer fitBounds
-        // o simplemente hacerlo con los punots directos
-        map.fitBounds(waypoints, {
-            paddingTopLeft: [50, 50],
-            paddingBottomRight: [50, padBottom]
-        });
+        if (animateZoom !== false) {
+            var padBottom = paddingBottom || 50;
+            map.fitBounds(waypoints, {
+                paddingTopLeft: [50, 50],
+                paddingBottomRight: [50, padBottom],
+                animate: true,
+                duration: 1
+            });
+        }
     }
 
     // Función para limpiar ruta

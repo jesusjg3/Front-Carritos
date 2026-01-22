@@ -55,17 +55,44 @@ export default function InicioScreen() {
         cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
 
+    // Efecto de Limpieza Robusta (Si no hay viaje, mapa limpio)
+    React.useEffect(() => {
+        if (!activeTrip && webViewRef.current) {
+            webViewRef.current.injectJavaScript(`
+                if (typeof clearRoute === 'function') clearRoute();
+                if (typeof clearDriverMarkers === 'function') clearDriverMarkers();
+                if (typeof clearDestinationMarkers === 'function') clearDestinationMarkers();
+            `);
+        }
+    }, [activeTrip]);
+
     // Limpiar destino seleccionado cuando finaliza el viaje (hay algo para calificar)
     useEffect(() => {
-        if (tripToRate) {
+        if (tripToRate && ubicacion && webViewRef.current) {
             setDestinoSeleccionado(null);
+            // Inyectamos los conductores que ya tengamos en memoria para evitar el "blink" de vacío
+            const cachedDrivers = JSON.stringify(nearbyDrivers || []);
+            webViewRef.current.injectJavaScript(`
+                if (typeof clearRoute === 'function') clearRoute();
+                // Limpiamos la ruta pero tratamos de mantener los conductores visibles o restaurarlos rápido
+                if (typeof clearDestinationMarkers === 'function') clearDestinationMarkers();
+                // Opcional: No limpiar conductores si vamos a repintarlos inmediatamente, pero para asegurar consistencia:
+                // if (typeof clearDriverMarkers === 'function') clearDriverMarkers(); 
+                
+                if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
+                
+                // Restaurar conductores inmediatamente
+                if (typeof updateNearbyDrivers === 'function') {
+                    updateNearbyDrivers(${cachedDrivers});
+                }
+            `);
         }
-    }, [tripToRate]);
+    }, [tripToRate, ubicacion, nearbyDrivers]);
 
     const {
         ubicacion,
         obtenerUbicacion
-    } = useLocationLogic(user, isPasajero, activeTrip, webViewRef);
+    } = useLocationLogic(user, isPasajero);
 
     const {
         destinos,
@@ -98,6 +125,7 @@ export default function InicioScreen() {
 
     // Ref para el webview del radar
     const radarWebViewRef = useRef(null);
+    const hasCenteredRef = useRef(false);
 
     useEffect(() => {
         // Limpiar animaciones previas
@@ -432,14 +460,17 @@ export default function InicioScreen() {
     // Efecto para limpiar ruta cuando se cancela selección
     React.useEffect(() => {
         if (isPasajero && !destinoSeleccionado && webViewRef.current) {
-            webViewRef.current.injectJavaScript(`
-                if (typeof clearRoute === 'function') {
-                    clearRoute();
-                }
-                true;
-            `);
+            // Asegurarnos que no hay viaje activo antes de limpiar, para no borrar la ruta del viaje
+            if (!activeTrip) {
+                webViewRef.current.injectJavaScript(`
+                    if (typeof clearRoute === 'function') {
+                        clearRoute();
+                    }
+                    true;
+                `);
+            }
         }
-    }, [destinoSeleccionado, isPasajero]);
+    }, [destinoSeleccionado, isPasajero, activeTrip]);
 
     const tripIsAccepted = (trip) => {
         if (!trip) return false;
@@ -452,143 +483,163 @@ export default function InicioScreen() {
         return trip.status === 'en_progreso' || trip.status === 'in_progress' || trip.state === 'in_progress' || trip.state_id === 4;
     };
 
-    // ========== EFECTO CRÍTICO: Actualizar marcador del pasajero en tiempo real durante viaje ==========
+    // ========== EFECTO UNIFICADO DE MAPA (CONDUCTOR Y PASAJERO) ==========
+    // Un solo cerebro para controlar la navegación. "Lo que ve el conductor, lo ve el pasajero".
+    // ========== EFECTO UNIFICADO DE MAPA (CONDUCTOR Y PASAJERO) ==========
     React.useEffect(() => {
-        if (isPasajero && activeTrip && ubicacion && webViewRef.current) {
-            console.log('[MAP] Pasajero - Actualizando marcador en tiempo real', {
-                lat: ubicacion.latitude,
-                lng: ubicacion.longitude,
-                state_id: activeTrip.state_id,
-                status: activeTrip.status,
-                state: activeTrip.state
-            });
+        if (!webViewRef.current) return;
 
-            // Actualizar el marcador del pasajero y centrar el mapa
-            webViewRef.current.injectJavaScript(`
+        const isPhase1 = tripIsAccepted(activeTrip); // Yendo al Pickup
+        const isPhase2 = tripInProgress(activeTrip); // Yendo al Destino
+        const isIdle = !isPhase1 && !isPhase2;
+
+        if (isIdle) {
+            // --- MODO IDLE (Sin viaje activo) ---
+            // Solo actualizamos la posición del usuario y centramos el mapa
+            if (ubicacion) {
+                const lat = parseFloat(ubicacion.latitude);
+                const lng = parseFloat(ubicacion.longitude);
+
+                webViewRef.current.injectJavaScript(`
+                    if (typeof placeUserMarker === 'function') {
+                        placeUserMarker(${lat}, ${lng}, null, ${isConductor});
+                    }
+                    if (typeof centerMap === 'function') {
+                        centerMap(${lat}, ${lng});
+                    }
+                `);
+            }
+            return; // Terminamos aquí para Modo Idle
+        }
+
+        // --- MODO VIAJE (Phase 1 o Phase 2) ---
+        let start = { lat: 0, lng: 0 };
+        let end = { lat: 0, lng: 0 };
+        let padding = 100;
+        let validCoords = false;
+
+        // Helper para parsear
+        const getVal = (v) => parseFloat(v) || 0;
+
+        if (isPhase1) {
+            // --- FASE 1: Recogida ---
+            // Destino: Punto de recogida (Pickup)
+            end = {
+                lat: getVal(activeTrip.origin_lat || activeTrip.origin?.lat),
+                lng: getVal(activeTrip.origin_lng || activeTrip.origin?.lng)
+            };
+
+            if (isConductor) {
+                // Conductor: Mi origen es mi GPS
+                start = { lat: getVal(ubicacion?.latitude), lng: getVal(ubicacion?.longitude) };
+            } else {
+                // Pasajero: Mi origen es el Conductor Remoto (Normalizado en useTripLifecycle)
+                start = {
+                    lat: getVal(activeTrip.driver?.latitude),
+                    lng: getVal(activeTrip.driver?.longitude)
+                };
+            }
+            // Más padding abajo para que el modal "Conductor en camino" no tape el carrito
+            padding = 180;
+
+        } else if (isPhase2) {
+            // --- FASE 2: Viaje ---
+            // Destino: Destino final (Dropoff)
+            end = {
+                lat: getVal(activeTrip.destination_lat || activeTrip.destination?.lat),
+                lng: getVal(activeTrip.destination_lng || activeTrip.destination?.lng)
+            };
+
+            // Origen: Prioridad a UBICACIÓN DEL CONDUCTOR (Servidor/Backend)
+            const driverLat = getVal(activeTrip.driver?.latitude);
+            const driverLng = getVal(activeTrip.driver?.longitude);
+
+            start = { lat: driverLat, lng: driverLng };
+
+            // Fallback: Si el servidor no manda nada (0), usar GPS local
+            if (start.lat === 0 && ubicacion) {
+                start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
+            }
+
+            // Padding normal
+            padding = 100;
+        }
+
+        // Validación final para la RUTA: Solo si tenemos coordenadas de inicio y fin reales
+        validCoords = (start.lat !== 0 && start.lng !== 0 && end.lat !== 0 && end.lng !== 0);
+
+        // ====== EJECUCIÓN EN EL MAPA ======
+
+        let script = '';
+
+        // 1. TU MARCADOR (Siempre visible si tenemos GPS y la lógica lo permite)
+        const showUserMarker = isConductor || !isPhase2;
+        if (showUserMarker && ubicacion) {
+            script += `
                 if (typeof placeUserMarker === 'function') {
-                    placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, false);
+                    placeUserMarker(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)}, null, ${isConductor});
                 }
+            `;
+        } else {
+            // Si NO debemos mostrar el marcador, asegurarnos de eliminarlo (Fase 2 unificación)
+            script += `
+                if (typeof removeUserMarker === 'function') {
+                    removeUserMarker();
+                }
+            `;
+        }
+
+        // 2. RUTA Y CONDUCTOR REMOTO (Solo si validCoords es true)
+        if (validCoords) {
+            const driverInfo = JSON.stringify([{
+                id: activeTrip.driver?.id || 'driver',
+                lat: start.lat,
+                lng: start.lng,
+                name: activeTrip.driver?.name || 'Conductor',
+                iconUrl: activeTrip.driver?.iconUrl || CARRITO_MARKER_BASE64
+            }]);
+
+            const shouldAnimateZoom = isPhase1;
+
+            script += `
+                // Dibujar ruta
+                if (typeof drawRoute === 'function') {
+                    drawRoute(${start.lat}, ${start.lng}, ${end.lat}, ${end.lng}, ${padding}, ${shouldAnimateZoom});
+                }
+                
+                // Mostrar conductor remoto (si soy pasajero)
+                if (!${isConductor} && typeof updateNearbyDrivers === 'function') {
+                    updateNearbyDrivers(${driverInfo});
+                }
+
+                // Cámara (Fase 2: Seguir conductor)
+                if (${isPhase2} && typeof centerMap === 'function') {
+                    centerMap(${start.lat}, ${start.lng});
+                }
+            `;
+        } else if (ubicacion && !hasCenteredRef.current) {
+            // Fallback: Si no hay ruta válida aún pero tenemos GPS, centrar en usuario una vez
+            script += `
                 if (typeof centerMap === 'function') {
-                    centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
+                    centerMap(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)});
                 }
-            `);
+             `;
+            hasCenteredRef.current = true; // Necesitamos un ref para esto o simplemente dejar que el usuario mueva
         }
-    }, [isPasajero, activeTrip, ubicacion]);
 
-    // Efecto para dibujar ruta del conductor hacia el pasajero (Fase 1)
-    React.useEffect(() => {
-        if (isConductor && activeTrip && tripIsAccepted(activeTrip) && ubicacion && webViewRef.current) {
-            const pickupLat = activeTrip.origin_lat || activeTrip.origin?.lat;
-            const pickupLng = activeTrip.origin_lng || activeTrip.origin?.lng;
-
-            if (pickupLat && pickupLng) {
-                webViewRef.current.injectJavaScript(`
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${pickupLat}, ${pickupLng});
-                    }
-                    true;
-                `);
-            }
+        // Inyectar todo el script acumulado
+        if (script) {
+            webViewRef.current.injectJavaScript(script + 'true;');
         }
-    }, [isConductor, activeTrip, ubicacion]);
-
-    // Efecto para actualizar ruta del conductor hacia el destino (Fase 2)
-    React.useEffect(() => {
-        if (isConductor && activeTrip && tripInProgress(activeTrip) && ubicacion && webViewRef.current) {
-            const destLat = activeTrip.destination_lat || activeTrip.destination?.lat;
-            const destLng = activeTrip.destination_lng || activeTrip.destination?.lng;
-
-            if (destLat && destLng) {
-                webViewRef.current.injectJavaScript(`
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${destLat}, ${destLng});
-                    }
-                    true;
-                `);
-            }
-        }
-    }, [isConductor, activeTrip, ubicacion]);
-
-    // Efecto para que el pasajero vea la ruta del conductor hacia él (Fase 1)
-    React.useEffect(() => {
-        if (isPasajero && activeTrip && tripIsAccepted(activeTrip) && webViewRef.current) {
-            const conductorLat = activeTrip.driver?.latitude;
-            const conductorLng = activeTrip.driver?.longitude;
-            const pickupLat = activeTrip.origin_lat || activeTrip.origin?.lat;
-            const pickupLng = activeTrip.origin_lng || activeTrip.origin?.lng;
-
-            console.log('[MAP] Pasajero Fase 1 - state_id:', activeTrip.state_id, 'Datos:', {
-                conductorLat,
-                conductorLng,
-                pickupLat,
-                pickupLng
-            });
-
-            if (conductorLat && conductorLng && pickupLat && pickupLng) {
-                console.log('[MAP] Pasajero Fase 1 - Dibujando ruta conductor→pickup');
-                const driverInfo = JSON.stringify([{
-                    id: activeTrip.driver?.id || 'driver',
-                    lat: parseFloat(conductorLat),
-                    lng: parseFloat(conductorLng),
-                    name: activeTrip.driver?.name || 'Conductor'
-                }]);
-
-                webViewRef.current.injectJavaScript(`
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${conductorLat}, ${conductorLng}, ${pickupLat}, ${pickupLng});
-                    }
-                    if (typeof updateNearbyDrivers === 'function') {
-                        updateNearbyDrivers(${driverInfo});
-                    }
-                    true;
-                `);
-            }
-        } else if (isPasajero && activeTrip && tripInProgress(activeTrip) && webViewRef.current) {
-            console.log('[MAP] Pasajero pasó a Fase 2, limpiando Fase 1');
-            webViewRef.current.injectJavaScript(`
-                if (typeof clearRoute === 'function') {
-                    clearRoute();
-                }
-            `);
-        }
-    }, [isPasajero, activeTrip]);
-
-    // Efecto para que el pasajero vea la ruta del conductor hacia el destino (Fase 2)
-    React.useEffect(() => {
-        if (isPasajero && activeTrip && tripInProgress(activeTrip) && webViewRef.current) {
-            const conductorLat = activeTrip.driver?.latitude;
-            const conductorLng = activeTrip.driver?.longitude;
-            const destLat = activeTrip.destination_lat || activeTrip.destination?.lat;
-            const destLng = activeTrip.destination_lng || activeTrip.destination?.lng;
-
-            console.log('[MAP] Pasajero Fase 2 - state_id:', activeTrip.state_id, 'Datos:', {
-                conductorLat,
-                conductorLng,
-                destLat,
-                destLng
-            });
-
-            if (conductorLat && conductorLng && destLat && destLng) {
-                console.log('[MAP] Pasajero Fase 2 - Dibujando ruta conductor→destino');
-                const driverInfo = JSON.stringify([{
-                    id: activeTrip.driver?.id || 'driver',
-                    lat: parseFloat(conductorLat),
-                    lng: parseFloat(conductorLng),
-                    name: activeTrip.driver?.name || 'Conductor'
-                }]);
-
-                webViewRef.current.injectJavaScript(`
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${conductorLat}, ${conductorLng}, ${destLat}, ${destLng});
-                    }
-                    if (typeof updateNearbyDrivers === 'function') {
-                        updateNearbyDrivers(${driverInfo});
-                    }
-                    true;
-                `);
-            }
-        }
-    }, [isPasajero, activeTrip]);
+    }, [
+        activeTrip?.driver?.latitude,
+        activeTrip?.driver?.longitude,
+        activeTrip?.driver?.location?.last_update, // ¡CLAVE PARA SINCRONIZACIÓN!
+        activeTrip?.state_id,
+        isConductor,
+        isPasajero,
+        ubicacion
+    ]); // Dependencias granulares para asegurar actualización en cada cambio de coordenada // Dependencias unificadas
 
     // Handlers
     const handleToggleStatus = () => setIsOnline(!isOnline);

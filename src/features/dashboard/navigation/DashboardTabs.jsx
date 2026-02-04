@@ -6,14 +6,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import InicioScreen from "../screens/InicioScreen";
 import PerfilScreen from "../screens/PerfilScreen";
-import CarrerasScreen from "../screens/CarrerasScreen";
+import HistoryScreen from "../screens/HistoryScreen";
+import CommentsScreen from "../screens/CommentsScreen";
 import { ROUTES } from "../../../core/constants/routes";
+import { useAppContext } from "../../../shared/contexts/AppContext";
 
 const Tab = createBottomTabNavigator();
 
 export default function DashboardTabs() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
+    const { user } = useAppContext();
+
+    const isPasajero = user?.role === 'pasajero';
 
     return (
         <Tab.Navigator
@@ -40,7 +45,7 @@ export default function DashboardTabs() {
                             iconName = "home";
                             break;
                         case ROUTES.CARRERAS:
-                            iconName = "plus";
+                            iconName = isPasajero ? "history" : "comment";
                             break;
                         case ROUTES.PERFIL:
                             iconName = "user";
@@ -58,9 +63,23 @@ export default function DashboardTabs() {
                 },
             })}
         >
-            <Tab.Screen name={ROUTES.INICIO} component={InicioScreen} />
-            <Tab.Screen name={ROUTES.CARRERAS} component={CarrerasScreen} />
-            <Tab.Screen name={ROUTES.PERFIL} component={PerfilScreen} />
+            <Tab.Screen
+                name={ROUTES.INICIO}
+                component={InicioScreen}
+                options={{ tabBarLabel: "Inicio" }}
+            />
+            <Tab.Screen
+                name={ROUTES.CARRERAS}
+                component={isPasajero ? HistoryScreen : CommentsScreen}
+                options={{
+                    tabBarLabel: isPasajero ? "Historial" : "Comentarios"
+                }}
+            />
+            <Tab.Screen
+                name={ROUTES.PERFIL}
+                component={PerfilScreen}
+                options={{ tabBarLabel: "Perfil" }}
+            />
         </Tab.Navigator>
     );
 }

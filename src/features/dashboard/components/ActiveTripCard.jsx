@@ -2,13 +2,13 @@ import React from 'react';
 import { View, StyleSheet } from "react-native";
 import { Card, Text, Button, Divider, ActivityIndicator, useTheme } from "react-native-paper";
 
-export default function ActiveTripCard({ 
-    activeTrip, 
-    isPasajero, 
-    onContact, 
-    onCancel, 
-    onStartTrip, 
-    onFinishTrip 
+export default function ActiveTripCard({
+    activeTrip,
+    isPasajero,
+    onContact,
+    onCancel,
+    onStartTrip,
+    onFinishTrip
 }) {
     const theme = useTheme();
 
@@ -16,7 +16,7 @@ export default function ActiveTripCard({
     const getStateTitle = () => activeTrip.state_id == 4 ? "Viaje en curso" : "Conductor en camino";
     const getStateSubtitle = () => activeTrip.state_id == 4 ? "Disfruta tu viaje" : "Tu viaje ha sido aceptado";
     const getDriverIcon = () => isPasajero ? "car" : "account";
-    
+
     // Driver specific Titles
     const getDriverTitle = () => activeTrip.state_id == 4 ? "En camino al destino" : "Recogiendo al pasajero";
     const getDriverSubtitle = () => activeTrip.state_id == 4 ? "Rumbo al destino final" : "Dirígete al punto de partida";
@@ -27,18 +27,18 @@ export default function ActiveTripCard({
     return (
         <Card style={styles.tripCard}>
             <View>
-                <Card.Title 
+                <Card.Title
                     title={title}
                     subtitle={subtitle}
-                    left={(props) => <ActivityIndicator {...props} icon={getDriverIcon()} />} 
+                    left={(props) => <ActivityIndicator {...props} icon={getDriverIcon()} />}
                 />
                 <Card.Content>
                     <View style={styles.userInfo}>
                         <View style={styles.avatar}>
                             <Text style={styles.initials}>
-                                {isPasajero 
-                                    ? (activeTrip.driver?.name?.substring(0,2).toUpperCase() || 'CH')
-                                    : (activeTrip.passenger?.name?.substring(0,2).toUpperCase() || 'PA')
+                                {isPasajero
+                                    ? (activeTrip.driver?.name?.substring(0, 2).toUpperCase() || 'CH')
+                                    : (activeTrip.passenger?.name?.substring(0, 2).toUpperCase() || 'PA')
                                 }
                             </Text>
                         </View>
@@ -50,9 +50,13 @@ export default function ActiveTripCard({
                                 {isPasajero ? "Carrito #12" : "Universidad Laica Eloy Alfaro"}
                             </Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text>⭐ {isPasajero ? "4.9" : "4.8"}</Text>
+                                {isPasajero && (
+                                    <>
+                                        <Text>⭐ {Number(activeTrip.driver?.rating || activeTrip.driver?.score || 5).toFixed(1)}</Text>
+                                    </>
+                                )}
                                 {!isPasajero && activeTrip.passengers_count && (
-                                    <Text style={{ marginLeft: 12, color: 'gray' }}>
+                                    <Text style={{ color: 'gray' }}>
                                         👥 {activeTrip.passengers_count} {activeTrip.passengers_count === 1 ? 'pasajero' : 'pasajeros'}
                                     </Text>
                                 )}
@@ -60,7 +64,7 @@ export default function ActiveTripCard({
                         </View>
                     </View>
                     <Divider style={{ marginVertical: 10 }} />
-                    
+
                     {isPasajero ? (
                         <View>
                             <Text variant="labelLarge" style={{ marginBottom: 4 }}>Origen: {activeTrip.origin?.address || activeTrip.origin_address}</Text>
@@ -72,8 +76,8 @@ export default function ActiveTripCard({
                                 {activeTrip.state_id == 4 ? "Destino:" : "Recoger en:"}
                             </Text>
                             <Text variant="bodyMedium">
-                                {activeTrip.state_id == 4 
-                                    ? (activeTrip.destination?.address || activeTrip.destination_address) 
+                                {activeTrip.state_id == 4
+                                    ? (activeTrip.destination?.address || activeTrip.destination_address)
                                     : (activeTrip.origin?.address || activeTrip.origin_address)
                                 }
                             </Text>
@@ -106,8 +110,8 @@ export default function ActiveTripCard({
                         </View>
                     )}
                 </Card.Actions>
-            </View>
-        </Card>
+            </View >
+        </Card >
     );
 }
 

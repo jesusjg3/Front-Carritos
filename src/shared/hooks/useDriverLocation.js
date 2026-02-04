@@ -50,9 +50,10 @@ export const useDriverLocation = (user, token, isOnline) => {
             // Configurar seguimiento de ubicación en tiempo real
             watchSubscription.current = await Location.watchPositionAsync(
                 {
+                    // Configuración optimizada para no saturar el mapa ni el servidor
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 3000, // Cada 3 segundos
-                    distanceInterval: 1, // Sensibilidad máxima (1 metro)
+                    timeInterval: 5000, // Enviar cada 5 segundos (antes 3s)
+                    distanceInterval: 10, // Solo si se movió 10 metros (antes 3-5m)
                 },
                 (newLocation) => {
                     const { latitude, longitude } = newLocation.coords;

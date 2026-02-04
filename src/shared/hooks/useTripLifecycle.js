@@ -11,20 +11,44 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const [lastRequestParams, setLastRequestParams] = useState(null);
     const [requestAttempt, setRequestAttempt] = useState(0);
     const tripTimeoutRef = useRef(null);
+    const [tripToRate, setTripToRate] = useState(null);
+
+    // Helper para normalizar la estructura del viaje y asegurar coordenadas accesibles
+    const normalizeTripData = (trip, extraDriverData = {}) => {
+        if (!trip || !trip.driver) return trip;
+
+        // Prioridad: 1. Datos explícitos extra, 2. Coordenadas planas, 3. Objeto location
+        const lat = parseFloat(extraDriverData.latitude || trip.driver.latitude || trip.driver.location?.latitude || 0);
+        const lng = parseFloat(extraDriverData.longitude || trip.driver.longitude || trip.driver.location?.longitude || 0);
+
+        return {
+            ...trip,
+            driver: {
+                ...trip.driver,
+                ...extraDriverData,
+                location: {
+                    ...(trip.driver.location || {}),
+                    latitude: lat,
+                    longitude: lng,
+                    last_update: extraDriverData.timestamp || new Date().toISOString()
+                },
+                // Propiedades raíz normalizadas para la UI
+                latitude: lat,
+                longitude: lng
+            }
+        };
+    };
 
     // Conexión Websocket (Echo)
     useEffect(() => {
         if (token && (isOnline || isPasajero)) {
             const echo = createEcho(token);
             setEchoInstance(echo);
-            
-            console.log('Echo connected, subscribing to drivers...');
-
             const channel = echo.private('drivers');
 
             channel.listen('.NewTripRequest', (event) => {
+                // (código existente NewTripRequest)
                 const passengersCount = event.passengers_count || event.passenger_count || 1;
-                console.log('NewTripRequest received - passengers_count:', passengersCount, 'event:', event);
                 setRequestQueue(prev => [...prev, {
                     ...event,
                     origin: event.origin_address || 'Ubicación desconocida',
@@ -33,123 +57,66 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     passengers_count: passengersCount
                 }]);
             })
-            .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-            .listen('TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-            .listen('.TripRequestExpired', (event) => {
-                setRequestQueue(prev => prev.filter(req => req.id != event.id));
-            })
-            .listen('.TripRequestCancelled', (event) => {
-                setRequestQueue(prev => prev.filter(req => req.id != event.id));
-            })
-            .listen('.TripCancelled', (event) => {
-                setRequestQueue(prev => prev.filter(req => req.id != event.id));
-            })
-            .listen('.RequestCancelled', (event) => {
-                setRequestQueue(prev => prev.filter(req => req.id != event.id || req.trip_request_id != event.trip_request_id));
-            });
+                // ... (keep existing filters for other events)
+                .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+                .listen('.TripRequestExpired', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+                .listen('.TripRequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+                .listen('.TripCancelled', (event) => {
+                    // ... (keep existing TripCancelled logic)
+                    setRequestQueue(prev => prev.filter(req => req.id != event.id));
+                    setActiveTrip(prev => {
+                        if (prev && prev.id == event.id) {
+                            alert("El viaje ha sido cancelado.");
+                            setIsSearching(false);
+                            return null;
+                        }
+                        return prev;
+                    });
+                })
+                .listen('.RequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)));
 
             // Escuchar canal privado del pasajero
             if (isPasajero && user?.id) {
                 const passengerChannel = echo.private(`passenger.${user.id}`);
                 console.log(`[TRIP] Pasajero escuchando canal: passenger.${user.id}`);
-                
-                passengerChannel.listen('.TripAccepted', (event) => {
-                    console.log('[TRIP] EVENT RECEIVED: TripAccepted', event);
+
+                const handleTripUpdate = (event, statusMsg) => {
+                    console.log(`[TRIP] EVENT RECEIVED: ${statusMsg}`, event);
                     if (tripTimeoutRef.current) {
                         clearTimeout(tripTimeoutRef.current);
                         tripTimeoutRef.current = null;
                     }
                     setIsSearching(false);
-                    // Asegurar que driver.location existe si el backend lo proporciona
-                    const tripData = {
-                        ...event.trip,
-                        driver: {
-                            ...event.trip.driver,
-                            location: event.trip.driver?.location || {
-                                latitude: event.trip.driver?.latitude,
-                                longitude: event.trip.driver?.longitude
-                            }
+                    // USAMOS EL NORMALIZADOR
+                    setActiveTrip(normalizeTripData(event.trip));
+                    if (statusMsg === 'TripAccepted') alert("¡Tu conductor va en camino!");
+                };
+
+                passengerChannel.listen('.TripAccepted', (e) => handleTripUpdate(e, 'TripAccepted'))
+                    .listen('.TripStarted', (e) => handleTripUpdate(e, 'TripStarted'))
+                    .listen('TripStarted', (e) => handleTripUpdate(e, 'TripStarted')) // Fallback evento sin punto
+                    .listen('.TripFinished', (event) => {
+                        console.log('[TRIP] EVENT RECEIVED: .TripFinished', event);
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
                         }
-                    };
-                    setActiveTrip(tripData);
-                    alert("¡Tu conductor va en camino!");
-                })
-                .listen('.TripStarted', (event) => {
-                    console.log('[TRIP] EVENT RECEIVED: .TripStarted', event);
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    setIsSearching(false);
-                    const tripData = {
-                        ...event.trip,
-                        driver: {
-                            ...event.trip.driver,
-                            location: event.trip.driver?.location || {
-                                latitude: event.trip.driver?.latitude,
-                                longitude: event.trip.driver?.longitude
-                            }
-                        }
-                    };
-                    setActiveTrip(tripData);
-                })
-                .listen('TripStarted', (event) => {
-                    console.log('[TRIP] EVENT RECEIVED: TripStarted', event);
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    const tripData = {
-                        ...event.trip,
-                        driver: {
-                            ...event.trip.driver,
-                            location: event.trip.driver?.location || {
-                                latitude: event.trip.driver?.latitude,
-                                longitude: event.trip.driver?.longitude
-                            }
-                        }
-                    };
-                    setActiveTrip(tripData);
-                })
-                .listen('.TripFinished', (event) => {
-                    console.log('[TRIP] EVENT RECEIVED: .TripFinished', event);
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    resetTripState();
-                    alert("¡Has llegado a tu destino!");
-                })
-                .listen('TripFinished', (event) => {
-                    console.log('[TRIP] EVENT RECEIVED: TripFinished', event);
-                    if (tripTimeoutRef.current) {
-                        clearTimeout(tripTimeoutRef.current);
-                        tripTimeoutRef.current = null;
-                    }
-                    resetTripState();
-                    alert("¡Has llegado a tu destino!");
-                });
+                        setTripToRate(event.trip);
+                        resetTripState();
+                        alert("¡Has llegado a tu destino!");
+                    });
             }
 
             // Escuchar ubicación del conductor en tiempo real (para el pasajero)
             if (activeTrip?.id && isPasajero) {
                 console.log(`[LOCATION] Pasajero escuchando canal: trip.${activeTrip.id}`);
                 const tripChannel = echo.private(`trip.${activeTrip.id}`);
-                tripChannel.listen('.DriverLocationUpdated', (event) => {
-                    console.log('[LOCATION] EVENT RECEIVED: DriverLocationUpdated', event);
+
+                // Escuchar el NUEVO evento unificado
+                tripChannel.listen('.TripLocationUpdated', (event) => {
+                    console.log('[LOCATION] EVENT RECEIVED (TripLocationUpdated):', event);
                     setActiveTrip(prev => {
-                        if (!prev) return prev;
-                        return {
-                            ...prev,
-                            driver: {
-                                ...prev.driver,
-                                location: {
-                                    latitude: event.latitude,
-                                    longitude: event.longitude,
-                                    last_update: event.timestamp
-                                }
-                            }
-                        };
+                        return normalizeTripData(prev, event);
                     });
                 });
             }
@@ -170,7 +137,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 tripTimeoutRef.current = null;
             }
         }
-    }, [token, isOnline, user, isPasajero]);
+    }, [token, isOnline, user, isPasajero, activeTrip?.id]);
 
     // Limpiar timeout cuando el componente se desmonta
     useEffect(() => {
@@ -246,25 +213,25 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
     const handleFinishTrip = async () => {
-         if (!activeTrip) return;
-         try {
-             const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/finish`, {
-                 method: 'POST',
-                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-             });
-             const data = await response.json();
-             if (response.ok) {
-                 resetTripState();
-                 alert("¡Viaje finalizado con éxito!");
-             } else {
-                 alert("Error al finalizar: " + (data.error || "Desconocido"));
-             }
-         } catch (error) {
-             console.error(error);
-             alert("Error de conexión");
-         }
+        if (!activeTrip) return;
+        try {
+            const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/finish`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                resetTripState();
+                alert("¡Viaje finalizado con éxito!");
+            } else {
+                alert("Error al finalizar: " + (data.error || "Desconocido"));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión");
+        }
     };
-    
+
     const requestTrip = async (ubicacion, destinoSeleccionado, distance, passengersCount = 1) => {
         try {
             // Incrementar contador de intentos
@@ -297,14 +264,17 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             const data = await response.json();
 
             if (response.ok) {
+                // UPDATE: Guardar ID del viaje para poder cancelarlo
+                setLastRequestParams(prev => ({ ...prev, tripId: data.id }));
+
                 setIsSearching(true);
-                
+
                 // Configurar timeout de 1 minuto para testing
                 const timeout = setTimeout(() => {
                     console.log('Solicitud expirada');
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
-                    
+
                     // Usar Alert.alert para que tenga callback con dos opciones
                     Alert.alert(
                         'Solicitud Expirada',
@@ -330,7 +300,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                         ]
                     );
                 }, 1 * 60 * 1000); // 1 minuto
-                
+
                 tripTimeoutRef.current = timeout;
                 return true;
             } else {
@@ -353,7 +323,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 clearTimeout(tripTimeoutRef.current);
                 tripTimeoutRef.current = null;
             }
-            
+
             // Si hay una solicitud activa, enviar al backend
             if (lastRequestParams && lastRequestParams.tripId) {
                 const response = await fetch(`${API_ROUTES.TRIPS}/${lastRequestParams.tripId}/cancel`, {
@@ -363,14 +333,14 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 if (response.ok) {
                     console.log('Trip cancelled successfully');
                 } else {
                     console.log('Error cancelling trip:', response.status);
                 }
             }
-            
+
             setIsSearching(false);
             setRequestAttempt(0);
             setLastRequestParams(null);
@@ -387,6 +357,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         activeTrip,
         isSearching,
         requestAttempt,
+        tripToRate,
+        setTripToRate,
         setIsSearching,
         setActiveTrip,
         setRequestQueue,
@@ -398,3 +370,4 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         cancelTrip
     };
 };
+

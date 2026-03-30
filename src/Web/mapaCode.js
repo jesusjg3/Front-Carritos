@@ -59,6 +59,9 @@ export const mapaHtml = `
             color: #1E88E5; /* Blue car icon */
             text-align: center;
         }
+        .car-icon-transition {
+            transition: transform 1.5s linear !important;
+        }
         /* Hide the itinerary instructions */
         .leaflet-routing-container {
             display: none;
@@ -79,13 +82,20 @@ export const mapaHtml = `
     // Desabilitar zoom con doble tap
     map.doubleClickZoom.disable();
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+    // Usamos CartoDB Voyager (Estilo limpio tipo Google Maps) que permite peticiones sin Referer desde WebViews
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB'
     }).addTo(map);
 
     function centerMap(lat, lon) {
         if (map && lat !== undefined && lon !== undefined) {
-            map.setView([lat, lon], 17);
+            // Si el mapa aún tiene el zoom inicial (mundo), hacemos un vuelo cinemático de acercamiento rápido
+            if (map.getZoom() < 15) {
+                map.flyTo([lat, lon], 17, { animate: true, duration: 1.5 });
+            } else {
+                // Empleamos panTo con duración extendida para deslizar la cámara suavemente
+                map.panTo([lat, lon], { animate: true, duration: 1.5, easeLinearity: 0.25 });
+            }
         } else {
             console.error("Error: Mapa no inicializado o coordenadas no válidas.");
         }
@@ -94,43 +104,52 @@ export const mapaHtml = `
     function placeUserMarker(lat, lon, photoBase64, isDriver) {
         if (map && lat !== undefined && lon !== undefined) {
             var iconToUse;
+            var currentIconType = isDriver ? 'car' : (photoBase64 ? 'photo' : 'dot');
             
-                // Si es conductor, usar icono de carrito (usar mismo tamaño que conductores cercanos: 40x40)
-            if (isDriver && carritoIconUrl) {
-                iconToUse = L.icon({
-                    iconUrl: carritoIconUrl,
-                    iconSize: [40, 40], // Mismo tamaño que updateNearbyDrivers
-                    iconAnchor: [20, 20],
-                    popupAnchor: [0, -20]
-                });
-            }
-            // Usar foto de usuario si existe (Pasajero)
-            else if (photoBase64 && !isDriver) {
-                iconToUse = L.divIcon({
-                    html: \`
-                        <div class="user-marker-container">
-                            <div style="background-image: url(data:image/jpeg;base64,\${photoBase64});" class="user-marker-icon"></div>
-                            <div class="user-marker-tail"></div>
-                        </div>\`,
-                    className: '',
-                    iconSize: [46, 56],
-                    iconAnchor: [23, 56]
-                });
-            } else {
-                // Usar puntito azul por defecto (Pasajero sin foto o fallback)
-                iconToUse = L.divIcon({
-                    html: '<div class="user-dot"></div>',
-                    className: '',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                });
+            // CRÍTICO PARA ANIMACIONES: Leaflet destruye el NODO visual si usamos setIcon innecesariamente.
+            // Solo creamos iconToUse si de verdad necesitamos cambiar el TIPO visual del usuario, sino solo re-usamos su div CSS
+            var demandsNewIcon = !userMarker || (userMarker._customIconType !== currentIconType);
+
+            if (demandsNewIcon) {
+                if (isDriver && carritoIconUrl) {
+                    iconToUse = L.icon({
+                        iconUrl: carritoIconUrl,
+                        iconSize: [40, 40], // Mismo tamaño que updateNearbyDrivers
+                        iconAnchor: [20, 20],
+                        popupAnchor: [0, -20],
+                        className: 'car-icon-transition'
+                    });
+                } else if (photoBase64 && !isDriver) {
+                    iconToUse = L.divIcon({
+                        html: \`
+                            <div class="user-marker-container">
+                                <div style="background-image: url(data:image/jpeg;base64,\${photoBase64});" class="user-marker-icon"></div>
+                                <div class="user-marker-tail"></div>
+                            </div>\`,
+                        className: '',
+                        iconSize: [46, 56],
+                        iconAnchor: [23, 56]
+                    });
+                } else {
+                    iconToUse = L.divIcon({
+                        html: '<div class="user-dot"></div>',
+                        className: '',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
+                }
             }
 
             if (userMarker) {
-                userMarker.setLatLng([lat, lon]).setIcon(iconToUse);
+                // Este simple setLatLng detona la magia del CSS hardware 'transform' en vez de recargar texturas
+                userMarker.setLatLng([lat, lon]);
+                if (demandsNewIcon && iconToUse) {
+                    userMarker.setIcon(iconToUse);
+                    userMarker._customIconType = currentIconType;
+                }
             } else {
-                userMarker = L.marker([lat, lon], { icon: iconToUse }).addTo(map)
-                    .bindPopup('Tu ubicación actual');
+                userMarker = L.marker([lat, lon], { icon: iconToUse }).addTo(map).bindPopup('Tu ubicación');
+                userMarker._customIconType = currentIconType;
             }
         } else {
             console.error("Error: Coordenadas no válidas para el marcador.");
@@ -204,18 +223,20 @@ export const mapaHtml = `
 
             var iconUrl = carritoIconUrl || driver.iconUrl;
             if (!iconUrl) return;
-            
-            var carritoIcon = L.icon({
-                iconUrl: iconUrl,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20],
-                popupAnchor: [0, -20]
-            });
 
             if (driverMarkers[driver.id]) {
-                // Animar movimiento si lo soporta el CSS inyectado, sino setLatLng directo
-                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]).setIcon(carritoIcon);
+                // Al igual que con placeUserMarker, solo actualizamos coordenadas para proteger la magia del CSS hardware!
+                // NO usar setIcon() innecesariamente
+                driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]);
             } else {
+                var carritoIcon = L.icon({
+                    iconUrl: iconUrl,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20],
+                    popupAnchor: [0, -20],
+                    className: 'car-icon-transition'
+                });
+
                 var marker = L.marker([driver.lat, driver.lng], { icon: carritoIcon })
                     .addTo(map);
                 driverMarkers[driver.id] = marker;
@@ -231,9 +252,11 @@ export const mapaHtml = `
 
     // --- FIN GESTIÓN CONDUCTORES ---
 
+    var customRouteLine = null;
+    var fullRouteCoords = [];
+    var lastTargetDest = null;
 
     // Función para dibujar ruta entre dos puntos
-    // animateZoom: Si es false, solo dibuja la línea sin mover la cámara (para actualizaciones suaves)
     function drawRoute(startLat, startLng, endLat, endLng, paddingBottom, animateZoom) {
         if (!map || !startLat || !startLng || !endLat || !endLng) return;
 
@@ -243,32 +266,95 @@ export const mapaHtml = `
         ];
 
         if (routingControl) {
-            // Si ya existe, actualizamos los puntos y forzamos el recálculo
+            // Evaluamos contra nuestra propia variable inmutable en vez de oldPl.
+            // OSRM modifica getWaypoints() ajustándolos (snapping) a la calle, 
+            // lo que causaba que fallara el caché para el conductor si el pasajero estaba lejos de la calle.
+            var destDistance = lastTargetDest ? lastTargetDest.distanceTo(waypoints[1]) : Infinity;
+            
+            if (destDistance < 5) {
+                var isOffRoute = false;
+
+                // El destino es el mismo.
+                if (fullRouteCoords && fullRouteCoords.length > 0 && customRouteLine) {
+                    var currentLatLng = L.latLng(startLat, startLng);
+                    var closestIndex = 0;
+                    var minDistance = Infinity;
+
+                    for (var i = 0; i < fullRouteCoords.length; i++) {
+                        var d = currentLatLng.distanceTo(fullRouteCoords[i]);
+                        if (d < minDistance) {
+                            minDistance = d;
+                            closestIndex = i;
+                        }
+                    }
+
+                    // Detector Inteligente: Si la distancia al punto más cercano de la ruta supera 15m
+                    if (minDistance > 15) {
+                        isOffRoute = true;
+                    } else {
+                        var slicedCoords = fullRouteCoords.slice(closestIndex);
+                        slicedCoords.unshift(currentLatLng);
+                        
+                        customRouteLine.setLatLngs(slicedCoords);
+                    }
+                }
+
+                // Si se mantuvo en el camino correcto o dentro del margen, evitamos usar internet.
+                if (!isOffRoute) {
+                    if (animateZoom !== false) {
+                        doCameraFit([L.latLng(startLat, startLng), waypoints[1]], paddingBottom);
+                    } else {
+                        // En vez de congelar la cámara, deslizamos la vista lentamente hacia donde conduce el auto
+                        map.panTo([startLat, startLng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
+                    }
+                    return;
+                }
+            }
             routingControl.setWaypoints(waypoints);
+            addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
         } else {
-            // Si no existe, lo creamos
             routingControl = L.Routing.control({
                 waypoints: waypoints,
-                routeWhileDragging: true, 
+                routeWhileDragging: false, 
                 showAlternatives: false,
-                addWaypoints: true,
+                addWaypoints: false,
                 fitSelectedRoutes: false, 
+                // Matamos los marcadores A y B automáticos del plugin (los arrastrables y estáticos)
+                createMarker: function() { return null; },
+                // Ocultamos la línea original de OSRM pintándola transparente
                 lineOptions: {
-                    styles: [{color: '#144985', opacity: 0.8, weight: 6}]
+                    styles: [{color: 'transparent', opacity: 0, weight: 0}]
                 }
-                // createMarker removido
             }).addTo(map);
-        }
 
-        if (animateZoom !== false) {
-            var padBottom = paddingBottom || 50;
-            map.fitBounds(waypoints, {
-                paddingTopLeft: [50, 50],
-                paddingBottomRight: [50, padBottom],
-                animate: true,
-                duration: 1
+            addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
+
+            // Al descargar la ruta la primera vez, extraemos sus coordenadas para manipularlas localmente!
+            routingControl.on('routesfound', function(e) {
+                var routes = e.routes;
+                if (routes && routes.length > 0) {
+                    fullRouteCoords = routes[0].coordinates;
+                    if (!customRouteLine) {
+                        customRouteLine = L.polyline(fullRouteCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                    } else {
+                        customRouteLine.setLatLngs(fullRouteCoords);
+                    }
+                }
             });
         }
+
+        lastTargetDest = waypoints[1];
+        if (animateZoom !== false) doCameraFit(waypoints, paddingBottom);
+    }
+    
+    function doCameraFit(waypoints, paddingBottom) {
+        var padBottom = paddingBottom || 50;
+        map.fitBounds(waypoints, {
+            paddingTopLeft: [50, 50],
+            paddingBottomRight: [50, padBottom],
+            animate: true,
+            duration: 0.5
+        });
     }
 
     // Función para limpiar ruta
@@ -277,6 +363,11 @@ export const mapaHtml = `
             map.removeControl(routingControl);
             routingControl = null;
         }
+        if (customRouteLine) {
+            map.removeLayer(customRouteLine);
+            customRouteLine = null;
+        }
+        fullRouteCoords = [];
     }
 
     // Capturar doble clic para seleccionar destino personalizado
@@ -287,6 +378,22 @@ export const mapaHtml = `
                 latitude: e.latlng.lat,
                 longitude: e.latlng.lng
             }));
+        } else if (window.parent) {
+            window.parent.postMessage(JSON.stringify({
+                type: 'MAP_DOUBLE_TAP',
+                latitude: e.latlng.lat,
+                longitude: e.latlng.lng
+            }), '*');
+        }
+    });
+
+    window.addEventListener('message', function(event) {
+        try {
+            if (event.data && event.data.type === 'EVAL') {
+                eval(event.data.code);
+            }
+        } catch(e) {
+            console.error('Error evaluando código inyectado en iframe:', e);
         }
     });
 

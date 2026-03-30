@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.137.248:8000/api";
+const API_BASE_URL = "http://192.168.10.96:8000/api";
 
 export const API_ROUTES = {
 	BASE_URL: API_BASE_URL,

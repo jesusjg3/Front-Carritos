@@ -62,7 +62,6 @@ export const useNearbyDrivers = (user, token, currentLocation, isActive = true) 
 
             if (response.data && Array.isArray(response.data.drivers)) {
                 setNearbyDrivers(response.data.drivers);
-                console.log(`Conductores cercanos encontrados: ${response.data.drivers.length}`);
             } else {
                 setNearbyDrivers([]);
             }

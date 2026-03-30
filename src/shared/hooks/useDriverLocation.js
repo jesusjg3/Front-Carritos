@@ -50,30 +50,18 @@ export const useDriverLocation = (user, token, isOnline) => {
             // Configurar seguimiento de ubicación en tiempo real
             watchSubscription.current = await Location.watchPositionAsync(
                 {
-                    // Configuración optimizada para no saturar el mapa ni el servidor
+                    // Configuración equilibrada
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 5000, // Enviar cada 5 segundos (antes 3s)
-                    distanceInterval: 10, // Solo si se movió 10 metros (antes 3-5m)
+                    timeInterval: 3000, // Enviar cada 3 segundos (máximo)
+                    distanceInterval: 3, // Solo si se movió 3 metros
                 },
-                (newLocation) => {
+                async (newLocation) => {
                     const { latitude, longitude } = newLocation.coords;
                     setLocation({ latitude, longitude });
-                    console.log('Nueva ubicación del conductor:', { latitude, longitude });
+                    // Enviar al servidor SOLO de forma reactiva al movimiento
+                    await sendLocationToServer(latitude, longitude);
                 }
             );
-
-            // Enviar ubicación al servidor cada 3 segundos (antes 10s) para mejor tiempo real
-            updateInterval.current = setInterval(async () => {
-                try {
-                    const currentLocation = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                    });
-                    const { latitude, longitude } = currentLocation.coords;
-                    await sendLocationToServer(latitude, longitude);
-                } catch (err) {
-                    console.warn('Error en intervalo de ubicación (reintentando...):', err.message);
-                }
-            }, 3000);
 
         } catch (error) {
             console.error('Error al iniciar seguimiento de ubicación:', error);
@@ -94,7 +82,6 @@ export const useDriverLocation = (user, token, isOnline) => {
                     },
                 }
             );
-            console.log('Driver set to offline in server');
         } catch (error) {
             console.error('Error setting driver offline:', error);
         }
@@ -105,10 +92,7 @@ export const useDriverLocation = (user, token, isOnline) => {
             watchSubscription.current.remove();
             watchSubscription.current = null;
         }
-        if (updateInterval.current) {
-            clearInterval(updateInterval.current);
-            updateInterval.current = null;
-        }
+
         setLocation(null);
         // Notificar al servidor que estamos offline
         setDriverOffline();
@@ -128,7 +112,6 @@ export const useDriverLocation = (user, token, isOnline) => {
                     },
                 }
             );
-            console.log('Ubicación enviada al servidor:', { latitude, longitude });
         } catch (error) {
             console.error('Error al enviar ubicación al servidor:', error.response?.data || error.message);
         }

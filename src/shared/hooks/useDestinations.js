@@ -16,7 +16,6 @@ export const useDestinations = (user, isPasajero) => {
         try {
             setCargando(true);
             setError(null);
-            console.log('Intentando cargar destinos desde:', API_ROUTES.DESTINATIONS);
 
             const response = await fetch(API_ROUTES.DESTINATIONS);
 
@@ -34,7 +33,6 @@ export const useDestinations = (user, isPasajero) => {
             }));
 
             setDestinos(destinosTransformados);
-            console.log('Destinos cargados:', destinosTransformados.length);
         } catch (err) {
             console.error('Error cargando destinos:', err);
             setError(err.message || 'No se pudieron cargar los destinos disponibles');

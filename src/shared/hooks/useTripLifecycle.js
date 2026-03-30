@@ -39,15 +39,14 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         };
     };
 
-    // Conexión Websocket (Echo)
+    // 1. Conexión Websocket Global (Echo) - NO DEPENDE DE activeTrip.id
     useEffect(() => {
         if (token && (isOnline || isPasajero)) {
             const echo = createEcho(token);
             setEchoInstance(echo);
+            
             const channel = echo.private('drivers');
-
             channel.listen('.NewTripRequest', (event) => {
-                // (código existente NewTripRequest)
                 const passengersCount = event.passengers_count || event.passenger_count || 1;
                 setRequestQueue(prev => [...prev, {
                     ...event,
@@ -57,87 +56,92 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     passengers_count: passengersCount
                 }]);
             })
-                // ... (keep existing filters for other events)
-                .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-                .listen('.TripRequestExpired', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-                .listen('.TripRequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
-                .listen('.TripCancelled', (event) => {
-                    // ... (keep existing TripCancelled logic)
-                    setRequestQueue(prev => prev.filter(req => req.id != event.id));
-                    setActiveTrip(prev => {
-                        if (prev && prev.id == event.id) {
-                            alert("El viaje ha sido cancelado.");
-                            setIsSearching(false);
-                            return null;
-                        }
-                        return prev;
-                    });
-                })
-                .listen('.RequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)));
+            .listen('.TripTaken', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+            .listen('.TripRequestExpired', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+            .listen('.TripRequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)))
+            .listen('.TripCancelled', (event) => {
+                setRequestQueue(prev => prev.filter(req => req.id != event.id));
+                setActiveTrip(prev => {
+                    if (prev && prev.id == event.id) {
+                        alert("El viaje ha sido cancelado.");
+                        setIsSearching(false);
+                        return null;
+                    }
+                    return prev;
+                });
+            })
+            .listen('.RequestCancelled', (event) => setRequestQueue(prev => prev.filter(req => req.id != event.id)));
 
-            // Escuchar canal privado del pasajero
             if (isPasajero && user?.id) {
                 const passengerChannel = echo.private(`passenger.${user.id}`);
-                console.log(`[TRIP] Pasajero escuchando canal: passenger.${user.id}`);
 
                 const handleTripUpdate = (event, statusMsg) => {
-                    console.log(`[TRIP] EVENT RECEIVED: ${statusMsg}`, event);
                     if (tripTimeoutRef.current) {
                         clearTimeout(tripTimeoutRef.current);
                         tripTimeoutRef.current = null;
                     }
                     setIsSearching(false);
-                    // USAMOS EL NORMALIZADOR
-                    setActiveTrip(normalizeTripData(event.trip));
+                    // IMPORTANTE: Aseguramos el updater asíncrono preventivo
+                    setActiveTrip(prev => normalizeTripData(event.trip));
                     if (statusMsg === 'TripAccepted') alert("¡Tu conductor va en camino!");
                 };
 
                 passengerChannel.listen('.TripAccepted', (e) => handleTripUpdate(e, 'TripAccepted'))
                     .listen('.TripStarted', (e) => handleTripUpdate(e, 'TripStarted'))
-                    .listen('TripStarted', (e) => handleTripUpdate(e, 'TripStarted')) // Fallback evento sin punto
+                    .listen('TripStarted', (e) => handleTripUpdate(e, 'TripStarted')) 
                     .listen('.TripFinished', (event) => {
-                        console.log('[TRIP] EVENT RECEIVED: .TripFinished', event);
                         if (tripTimeoutRef.current) {
                             clearTimeout(tripTimeoutRef.current);
                             tripTimeoutRef.current = null;
                         }
                         setTripToRate(event.trip);
-                        resetTripState();
+                        // Inline reset
+                        setActiveTrip(null);
+                        setIsSearching(false);
+                        setRequestAttempt(0);
                         alert("¡Has llegado a tu destino!");
                     });
-            }
-
-            // Escuchar ubicación del conductor en tiempo real (para el pasajero)
-            if (activeTrip?.id && isPasajero) {
-                console.log(`[LOCATION] Pasajero escuchando canal: trip.${activeTrip.id}`);
-                const tripChannel = echo.private(`trip.${activeTrip.id}`);
-
-                // Escuchar el NUEVO evento unificado
-                tripChannel.listen('.TripLocationUpdated', (event) => {
-                    console.log('[LOCATION] EVENT RECEIVED (TripLocationUpdated):', event);
-                    setActiveTrip(prev => {
-                        return normalizeTripData(prev, event);
-                    });
-                });
             }
 
             return () => {
                 echo.disconnect();
                 setEchoInstance(null);
-                // Limpiar timeout al desconectar
                 if (tripTimeoutRef.current) {
                     clearTimeout(tripTimeoutRef.current);
                     tripTimeoutRef.current = null;
                 }
             };
         } else {
-            // Si no hay token, limpiar timeout
             if (tripTimeoutRef.current) {
                 clearTimeout(tripTimeoutRef.current);
                 tripTimeoutRef.current = null;
             }
         }
-    }, [token, isOnline, user, isPasajero, activeTrip?.id]);
+    }, [token, isOnline, user, isPasajero]); // ¡Independiente de activeTrip!
+
+    // 2. Suscripciones Dinámicas para un Viaje Activo (Ubicación en Tiempo Real)
+    useEffect(() => {
+        if (!echoInstance || !activeTrip?.id) return;
+
+        const tripChannelName = `trip.${activeTrip.id}`;
+        const channel = echoInstance.private(tripChannelName);
+
+        if (isPasajero) {
+            channel.listen('.TripLocationUpdated', (event) => {
+                setActiveTrip(prev => normalizeTripData(prev, event));
+            });
+        } else {
+            channel.listen('.DriverLocationUpdated', (event) => {
+                setActiveTrip(prev => normalizeTripData(prev, event));
+            });
+        }
+
+        return () => {
+            // Cuando cambie el ID del viaje (o se acabe), en lugar de reiniciar todo Echo, 
+            // solo salimos de la sala de escucha de este viaje específico.
+            echoInstance.leave(tripChannelName);
+        };
+    }, [echoInstance, activeTrip?.id, isPasajero]);
 
     // Limpiar timeout cuando el componente se desmonta
     useEffect(() => {
@@ -271,7 +275,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
                 // Configurar timeout de 1 minuto para testing
                 const timeout = setTimeout(() => {
-                    console.log('Solicitud expirada');
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
 
@@ -283,7 +286,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             {
                                 text: 'No',
                                 onPress: () => {
-                                    console.log('Solicitud cancelada por usuario');
                                     setRequestAttempt(0);
                                     // El estado ya está reseteado, solo se cierra el modal
                                 },
@@ -292,7 +294,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                             {
                                 text: 'Reintentar',
                                 onPress: () => {
-                                    console.log('Reintentando solicitud...');
                                     // Hacer nueva solicitud cuando el usuario presiona Reintentar
                                     requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
                                 }
@@ -335,9 +336,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 });
 
                 if (response.ok) {
-                    console.log('Trip cancelled successfully');
                 } else {
-                    console.log('Error cancelling trip:', response.status);
                 }
             }
 
@@ -345,7 +344,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             setRequestAttempt(0);
             setLastRequestParams(null);
         } catch (error) {
-            console.log('Error in cancelTrip:', error);
             setIsSearching(false);
             setRequestAttempt(0);
             setLastRequestParams(null);

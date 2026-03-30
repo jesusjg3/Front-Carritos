@@ -55,7 +55,6 @@ export const useLocationLogic = (user, isPasajero) => {
                 (newLocation) => {
                     // Filtrar lecturas de baja precisión (> 15m) para evitar "teletransportes"
                     if (newLocation.coords.accuracy && newLocation.coords.accuracy > 15) {
-                        console.log('Ignorando ubicación de baja precisión:', newLocation.coords.accuracy);
                         return;
                     }
                     applyLocationUpdate(newLocation);

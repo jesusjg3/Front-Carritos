@@ -8,6 +8,9 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from "../../../core/constants
 import AdminHeader from "../components/AdminHeader";
 import { API_ROUTES } from "../../../Config/Routes";
 import { getUserRole } from "../../../core/utils/normalization";
+import UniversalMap from "../../../shared/components/UniversalMap";
+import { createEcho } from "../../../core/services/echo";
+import { CARRITO_MARKER_BASE64 } from "../../../Web/carritoMarkerBase64";
 
 const MENU_ITEMS = [
   {
@@ -38,20 +41,22 @@ const MENU_ITEMS = [
     route: ROUTES.DRIVER_MANAGEMENT,
   },
   {
-    id: 'routes',
-    title: 'Rutas y Viajes',
-    description: 'Administrar rutas y seguimiento de viajes',
-    icon: 'map-marker-path',
-    color: COLORS.PRIMARY_DARK,
-    gradient: [COLORS.PRIMARY_DARK, '#01579B'],
+    id: 'destinations',
+    title: 'Gestión de Destinos',
+    description: 'Administrar puntos de referencia',
+    icon: 'map-marker-radius',
+    color: COLORS.SUCCESS,
+    gradient: [COLORS.SUCCESS, '#388E3C'],
+    route: ROUTES.DESTINATION_MANAGEMENT,
   },
   {
-    id: 'schedules',
-    title: 'Horarios',
-    description: 'Configurar horarios de operación',
-    icon: 'calendar-clock',
+    id: 'trips',
+    title: 'Historial de Viajes',
+    description: 'Ver historial completo',
+    icon: 'map-clock',
     color: COLORS.PRIMARY,
     gradient: [COLORS.PRIMARY, COLORS.PRIMARY_DARK],
+    route: ROUTES.TRIP_MANAGEMENT,
   },
 ];
 
@@ -60,6 +65,8 @@ export default function AdminDashboard({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const mapRef = React.useRef(null);
+  const echoInstanceRef = React.useRef(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDrivers: 0,
@@ -84,10 +91,10 @@ export default function AdminDashboard({ navigation }) {
       if (usersRes.ok) {
         const userData = await usersRes.json();
         const users = userData.data || userData;
-        const drivers = Array.isArray(users) 
+        const drivers = Array.isArray(users)
           ? users.filter(u => u.role === 'conductor' || u.rol === 'conductor')
           : [];
-        
+
         setStats((prev) => ({
           ...prev,
           totalUsers: Array.isArray(users) ? users.length : 0,
@@ -101,7 +108,7 @@ export default function AdminDashboard({ navigation }) {
         const activeTrips = Array.isArray(trips)
           ? trips.filter(t => t.status === 'active' || t.estado === 'activo')
           : [];
-        
+
         setStats((prev) => ({
           ...prev,
           totalTrips: Array.isArray(trips) ? trips.length : 0,
@@ -117,10 +124,98 @@ export default function AdminDashboard({ navigation }) {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchStats();
+  const fetchInitialDrivers = async () => {
+    try {
+      const centerLat = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT;
+      const centerLng = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG;
+      const driversRes = await fetch(`${API_ROUTES.NEARBY_DRIVERS}?latitude=${centerLat}&longitude=${centerLng}&radius=50`, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      if (driversRes.ok) {
+        const driversData = await driversRes.json();
+        if (driversData && driversData.drivers && mapRef.current) {
+          driversData.drivers.forEach(driver => {
+            const script = `
+              if (typeof window.updateLiveDriver === 'function') {
+                window.updateLiveDriver({
+                  driver_id: ${driver.id},
+                  latitude: ${driver.lat},
+                  longitude: ${driver.lng}
+                });
+              }
+              true;
+            `;
+            mapRef.current.injectJavaScript(script);
+          });
+        }
+      }
+    } catch(e) {
+      console.log('Error initial drivers', e);
     }
+  };
+
+  const fetchDestinations = async () => {
+    try {
+      const destRes = await fetch(API_ROUTES.DESTINATIONS, {
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      if (destRes.ok) {
+        const payload = await destRes.json();
+        const destinos = payload.data || payload;
+        if (Array.isArray(destinos) && mapRef.current) {
+          const script = `
+            if (typeof window.updateDestinations === 'function') {
+              window.updateDestinations(${JSON.stringify(destinos)});
+            }
+            true;
+          `;
+          mapRef.current.injectJavaScript(script);
+        }
+      }
+    } catch(e) {
+      console.log('Error initial destinations', e);
+    }
+  };
+
+  useEffect(() => {
+    let pollInterval;
+    if (user && user.is_active && getUserRole(user) === 'admin') {
+      fetchStats();
+      fetchInitialDrivers(); // Fetch immediately
+      fetchDestinations();   // Fetch destinations
+
+      // Iniciar el polling de limpieza
+      pollInterval = setInterval(() => {
+        fetchInitialDrivers();
+        fetchDestinations();
+      }, 30000);
+
+      // Iniciar Radar Tracker Global
+      const echo = createEcho(user.token);
+      echoInstanceRef.current = echo;
+
+      const channel = echo.channel('drivers.live');
+      channel.listen('.DriverGlobalLocationUpdated', (e) => {
+        if (mapRef.current) {
+          const script = `
+                  if (typeof window.updateLiveDriver === 'function') {
+                      window.updateLiveDriver(${JSON.stringify(e)});
+                  }
+                  true;
+              `;
+          mapRef.current.injectJavaScript(script);
+        }
+      });
+    }
+
+    return () => {
+      if (echoInstanceRef.current) {
+        echoInstanceRef.current.disconnect();
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, []);
 
   const onRefresh = () => {
@@ -149,7 +244,7 @@ export default function AdminDashboard({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.headerWrapper}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.hamburgerButton}
           onPress={() => setSidebarVisible(!sidebarVisible)}
         >
@@ -203,10 +298,10 @@ export default function AdminDashboard({ navigation }) {
                   }
                 }}
               >
-                <MaterialCommunityIcons 
-                  name={item.icon} 
-                  size={24} 
-                  color={item.color} 
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={24}
+                  color={item.color}
                   style={styles.sidebarMenuIcon}
                 />
                 <View style={styles.sidebarMenuContent}>
@@ -223,16 +318,106 @@ export default function AdminDashboard({ navigation }) {
         </View>
       )}
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Contenido vacío - Por definir */}
-      </ScrollView>
+      <View style={{ flex: 1, backgroundColor: '#e5e9f0', position: 'relative' }}>
+        <UniversalMap
+          ref={mapRef}
+          onLoadEnd={() => {
+            fetchInitialDrivers();
+            fetchDestinations();
+          }}
+          source={{
+            html: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <style>
+                  body { margin: 0; padding: 0; }
+                  #map { width: 100vw; height: 100vh; }
+                  .carrito-marker {
+                      text-align: center;
+                      transition: transform 1.5s linear;
+                      filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+                  }
+                </style>
+              </head>
+              <body>
+                <div id="map"></div>
+                <script>
+                  // AQUI ABAJO AJUSTAS EL ZOOM: Cambia el '15' al final de setView al número que mejor te quede a ojo 
+                  var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT};
+                  var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG};
+                  var map = L.map('map', {zoomControl: false}).setView([centerLat, centerLng], 17);
+                  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                      maxZoom: 19
+                  }).addTo(map);
+                  
+                  // Zoom control bottom right
+                  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                  // Base de datos local de Iconos
+                  var liveDrivers = {};
+                  var destinationMarkers = [];
+                  
+                  var carIcon = L.icon({
+                      iconUrl: '${CARRITO_MARKER_BASE64}',
+                      iconSize: [46, 46],
+                      iconAnchor: [23, 23],
+                      className: 'dummy-car-icon carrito-marker'
+                  });
+
+                  // Ícono de destino (rojo como en el móvil)
+                  var destSvg = '<svg width="32" height="32" viewBox="0 0 24 24" fill="#d32f2f" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
+                  var destIcon = L.divIcon({
+                      html: '<div style="text-align: center; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.4));">' + destSvg + '</div>',
+                      className: 'dummy-dest-icon destination-marker',
+                      iconSize: [32, 32],
+                      iconAnchor: [16, 32]
+                  });
+
+                  // Motor Live Radar para Vehículos
+                  window.updateLiveDriver = function(data) {
+                      var dId = data.driver_id;
+                      if (!liveDrivers[dId]) {
+                          liveDrivers[dId] = L.marker([data.latitude, data.longitude], {icon: carIcon}).addTo(map);
+                      } else {
+                          liveDrivers[dId].setLatLng([data.latitude, data.longitude]);
+                      }
+                  };
+
+                  // Control de Destinos
+                  window.updateDestinations = function(dests) {
+                      destinationMarkers.forEach(function(m) { map.removeLayer(m); });
+                      destinationMarkers = [];
+                      if (Array.isArray(dests)) {
+                          dests.forEach(function(d) {
+                              var marker = L.marker([d.latitude, d.longitude], {icon: destIcon}).addTo(map)
+                                  .bindPopup(d.name || 'Punto de Interés');
+                              destinationMarkers.push(marker);
+                          });
+                      }
+                  };
+
+                  // 🔥 MAGIC FIX: Listener especial para capturar comandos (injectJavaScript) desde Expo en la Web
+                  window.addEventListener('message', function(e) {
+                      if (e.data && e.data.type === 'EVAL') {
+                          try {
+                              eval(e.data.code);
+                          } catch(err) {
+                              console.error("Eval Error:", err);
+                          }
+                      }
+                  });
+                </script>
+              </body>
+              </html>
+            `}}
+          style={{ width: '100%', height: '100%' }}
+        />
+
+      </View>
     </View>
   );
 }
@@ -360,4 +545,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.LG,
     gap: SPACING.MD,
   },
+  floatingStats: {
+    position: 'absolute',
+    top: SPACING.MD,
+    right: SPACING.MD,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: SPACING.MD,
+    borderRadius: BORDER_RADIUS.MD,
+    ...SHADOWS.MEDIUM,
+    minWidth: 180,
+  }
 });

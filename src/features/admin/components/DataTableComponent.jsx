@@ -21,6 +21,7 @@ export default function DataTableComponent({
   columns = [],
   onEdit,
   onDelete,
+  onRestore,
   onToggleStatus,
   renderAvatar,
   currentUserId,
@@ -112,6 +113,13 @@ export default function DataTableComponent({
                   />
                   <Menu.Item
                     onPress={() => {
+                      onFilterStatusChange?.('deleted');
+                      setStatusMenuVisible(false);
+                    }}
+                    title="✓ Eliminados"
+                  />
+                  <Menu.Item
+                    onPress={() => {
                       onFilterStatusChange?.('all');
                       setStatusMenuVisible(false);
                     }}
@@ -140,9 +148,6 @@ export default function DataTableComponent({
                 <View>
                   <Text variant="titleSmall" style={styles.nameText}>
                     {item.name}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.idText}>
-                    ID: {item.id}
                   </Text>
                 </View>
               </DataTable.Cell>
@@ -215,11 +220,21 @@ export default function DataTableComponent({
                   <IconButton
                     icon="delete"
                     size={20}
-                    iconColor={currentUserId === item.id ? COLORS.GRAY_400 : "#f83737"}
-                    disabled={currentUserId === item.id}
+                    iconColor={currentUserId === item.id || item.deleted_at ? COLORS.GRAY_400 : "#f83737"}
+                    disabled={currentUserId === item.id || !!item.deleted_at}
                     onPress={() => onDelete && onDelete(item.id)}
-                    style={[styles.actionButton, currentUserId === item.id && { opacity: 0.5 }]}
+                    style={[styles.actionButton, (currentUserId === item.id || item.deleted_at) && { opacity: 0.5 }]}
                   />
+                  {/* Restore Button (Solo visible si onRestore se pasó como Prop y hay deleted_at) */}
+                  {onRestore && item.deleted_at && (
+                    <IconButton
+                      icon="restore"
+                      size={20}
+                      iconColor={COLORS.SUCCESS}
+                      onPress={() => onRestore(item.id)}
+                      style={styles.actionButton}
+                    />
+                  )}
                   <Menu
                     visible={menuVisible[item.id]}
                     onDismiss={() => closeMenu(item.id)}

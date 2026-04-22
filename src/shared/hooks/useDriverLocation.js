@@ -39,13 +39,32 @@ export const useDriverLocation = (user, token, isOnline) => {
             }
 
             // Obtener ubicación inicial
-            const initialLocation = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
+            let initialLocation = null;
+            try {
+                // Usar la última ubicación conocida evita timeouts de Expo
+                initialLocation = await Location.getLastKnownPositionAsync();
+            } catch (err) {
+                console.warn('Error al obtener última ubicación conocida (conductor):', err);
+            }
 
-            const { latitude, longitude } = initialLocation.coords;
-            setLocation({ latitude, longitude });
-            await sendLocationToServer(latitude, longitude);
+            if (!initialLocation) {
+                try {
+                    initialLocation = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced, // Menores exigencias evitan error de timeout
+                    });
+                } catch (err) {
+                    console.error('Error fallback getCurrentPositionAsync:', err);
+                    setLocationError('Timeout al obtener la ubicación precisa.');
+                    return;
+                }
+            }
+
+            if (initialLocation && initialLocation.coords) {
+                const { latitude, longitude } = initialLocation.coords;
+                setLocation({ latitude, longitude });
+                // Enviamos sin detener la ejecución en caso de que la red local sufra de timeout
+                sendLocationToServer(latitude, longitude).catch(err => console.error('Error log catch:', err.message));
+            }
 
             // Configurar seguimiento de ubicación en tiempo real
             watchSubscription.current = await Location.watchPositionAsync(

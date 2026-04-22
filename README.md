@@ -22,6 +22,23 @@
     npm install
     ```
 
+3.  **Configurar Variables de Entorno (.env)**
+    Crea un archivo `.env` en la raíz del proyecto (`Front-Carritos/`) y agrega las siguientes variables adaptándolas a tu entorno local (recuerda usar tu IP local en lugar de `192.168.x.x`):
+
+    ```env
+    # URL de tu Backend de Laravel
+    EXPO_PUBLIC_API_URL=http://192.168.x.x:8000/api
+    
+    # Configuración de Laravel Reverb (WebSockets)
+    EXPO_PUBLIC_REVERB_APP_KEY=app-key
+    EXPO_PUBLIC_REVERB_PORT=8080
+    
+    # Geofencing: Centro y Radio permitido del Campus
+    EXPO_PUBLIC_CAMPUS_CENTER_LAT=-0.9525
+    EXPO_PUBLIC_CAMPUS_CENTER_LNG=-80.7450
+    EXPO_PUBLIC_CAMPUS_RADIUS_KM=1.5
+    ```
+
 ### ▶️ Ejecutar la aplicación
 
 Para iniciar el servidor de desarrollo:
@@ -123,12 +140,12 @@ src/
 ### 4. **Convenciones de Importación**
 
 ```javascript
-// ✅ Bueno - Usando barrel exports
+// Bueno - Usando barrel exports
 import { useAppContext } from "../../../shared/contexts";
 import { isValidEmail, formatDate } from "../../core/utils";
 import { LoginScreen } from "../features/auth/screens";
 
-// ❌ Evitar - Importaciones directas largas
+// Evitar - Importaciones directas largas
 import { useAppContext } from "../../../shared/contexts/AppContext";
 ```
 

@@ -1,6 +1,7 @@
 /**
  * Utilidades para normalización de datos del usuario y rol
  */
+import { Platform } from 'react-native';
 
 /**
  * Normaliza la información del rol de un usuario
@@ -42,17 +43,23 @@ export const normalizeUserRole = (user) => {
 export const getUserRole = (user) => {
   if (!user) return null;
   
+  let role = null;
+
   // Estructura del backend en /users endpoint
   if (user.rol && typeof user.rol === 'object') {
-    return user.rol.rol_name;
+    role = user.rol.rol_name;
   }
-  
   // Estructura del backend en login/register endpoint
-  if (user.role && typeof user.role === 'string') {
-    return user.role;
+  else if (user.role && typeof user.role === 'string') {
+    role = user.role;
   }
   
-  return null;
+  // Degradar al Administrador para que tenga un uso y vista de Pasajero si ingresa desde su Celular (App nativa)
+  if (role === 'admin' && Platform.OS !== 'web') {
+      return 'pasajero';
+  }
+
+  return role;
 };
 
 /**

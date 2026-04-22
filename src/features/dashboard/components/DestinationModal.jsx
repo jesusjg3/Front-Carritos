@@ -77,12 +77,15 @@ export default function DestinationModal({
                                         >
                                             <RadioButton.Android value={destino.id.toString()} />
                                             <View style={styles.destinoInfo}>
-                                                <Text
-                                                    variant="bodyLarge"
-                                                    style={[styles.destinoText, destinoSeleccionado?.id === destino.id && { color: theme.colors.primary, fontWeight: 'bold' }]}
-                                                >
-                                                    {destino.nombre}
-                                                </Text>
+                                                <View style={styles.destinoRow}>
+                                                    <View style={styles.listRedDot} />
+                                                    <Text
+                                                        variant="bodyLarge"
+                                                        style={[styles.destinoText, destinoSeleccionado?.id === destino.id && { color: theme.colors.primary, fontWeight: 'bold' }]}
+                                                    >
+                                                        {destino.nombre}
+                                                    </Text>
+                                                </View>
                                                 {distancia !== null && (
                                                     <Text
                                                         variant="bodySmall"
@@ -161,7 +164,9 @@ const styles = StyleSheet.create({
     emptyText: { },
     destinoItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 },
     destinoInfo: { marginLeft: 12, flex: 1 },
-    destinoText: { marginBottom: 4 },
+    destinoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    listRedDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d32f2f', marginRight: 8, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 1 },
+    destinoText: { flex: 1 },
     destinoDistance: { marginTop: 2 },
     passengersContainer: { 
         paddingHorizontal: 24, 

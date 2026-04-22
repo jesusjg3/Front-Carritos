@@ -35,11 +35,27 @@ export const useLocationLogic = (user, isPasajero) => {
             setPermisoUbicacion(true);
 
             // Obtener ubicación inicial
-            const initialLocation = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
+            let initialLocation = null;
+            try {
+                // Usar la última ubicación conocida evita timeouts de Expo en internet o móviles lentos
+                initialLocation = await Location.getLastKnownPositionAsync();
+            } catch (err) {
+                console.warn('Error al obtener última ubicación conocida (pasajero):', err);
+            }
 
-            applyLocationUpdate(initialLocation);
+            if (!initialLocation) {
+                try {
+                    initialLocation = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced, // Reducir a Balanced para evitar timeout
+                    });
+                } catch (err) {
+                    console.error('Error en fallback de getCurrentPositionAsync:', err);
+                }
+            }
+
+            if (initialLocation) {
+                applyLocationUpdate(initialLocation);
+            }
 
             // Comenzar seguimiento continuo
             if (watchSubscription.current) {

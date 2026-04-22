@@ -12,6 +12,7 @@ import {
 } from 'react-native-paper';
 import { Text } from 'react-native-paper';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../../core/constants/theme';
+import UniversalMap from '../../../shared/components/UniversalMap';
 
 /**
  * Modal genérico reutilizable para crear/editar cualquier entidad
@@ -229,6 +230,82 @@ export default function GenericFormModal({
               editable={!isLoading}
               error={!!fieldError}
             />
+            {fieldError && <Text style={styles.errorText}>{fieldError}</Text>}
+          </View>
+        );
+
+      case 'map_picker':
+        return (
+          <View key={field.name} style={{ height: 500, marginBottom: SPACING.MD }}>
+            <Text variant="labelMedium" style={styles.label}>
+              {field.label}
+              {field.required && <Text style={{ color: COLORS.ERROR }}>*</Text>}
+            </Text>
+            <View style={{ flex: 1, borderRadius: BORDER_RADIUS.MD, overflow: 'hidden', borderWidth: 1, borderColor: errors[field.name] ? COLORS.ERROR : COLORS.GRAY_400 }}>
+              <UniversalMap
+                source={{
+                  html: `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <style>
+                      body { margin: 0; padding: 0; }
+                      #map { width: 100%; height: 100vh; }
+                    </style>
+                  </head>
+                  <body>
+                    <div id="map"></div>
+                    <script>
+                      // AQUI ABAJO AJUSTAS EL ZOOM: Cambia el '14' (después de las coordenadas) al tamaño de zoom ideal a ojo
+                      var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT || -0.9527840150449474};
+                      var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG || -80.74548840522768};
+                      var map = L.map('map').setView([centerLat, centerLng], 17); // Centro Localizado
+                      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                      
+                      var marker;
+                      
+                      var initLat = ${formData.latitude ? formData.latitude : 'null'};
+                      var initLng = ${formData.longitude ? formData.longitude : 'null'};
+                      if(initLat !== null && initLng !== null) {
+                          marker = L.marker([initLat, initLng]).addTo(map);
+                          map.setView([initLat, initLng], 15);
+                      }
+
+                      map.on('click', function(e) {
+                        if (marker) {
+                          map.removeLayer(marker);
+                        }
+                        marker = L.marker(e.latlng).addTo(map);
+                        
+                        var message = JSON.stringify({ type: 'location_selected', lat: e.latlng.lat, lng: e.latlng.lng });
+                        if (window.ReactNativeWebView) {
+                          window.ReactNativeWebView.postMessage(message);
+                        } else {
+                          window.parent.postMessage(message, '*');
+                        }
+                      });
+                    </script>
+                  </body>
+                  </html>
+                `}}
+                onMessage={(event) => {
+                  try {
+                    const parsedData = JSON.parse(event.nativeEvent.data);
+                    if (parsedData.type === 'location_selected' && field.onSelect) {
+                      const updates = field.onSelect(parsedData.lat, parsedData.lng);
+                      setFormData((prev) => ({ ...prev, ...updates }));
+                      if (errors[field.name]) {
+                        setErrors({ ...errors, [field.name]: '' });
+                      }
+                    }
+                  } catch (e) { }
+                }}
+              />
+            </View>
+            <Text style={{ fontSize: 11, color: COLORS.GRAY_600, marginTop: 4 }}>Toca el mapa para establecer las coordenadas automáticamente.</Text>
             {fieldError && <Text style={styles.errorText}>{fieldError}</Text>}
           </View>
         );

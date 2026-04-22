@@ -17,6 +17,8 @@ import AdminDashboard from "./src/features/admin/pages/AdminDashboard";
 import UserManagement from "./src/features/admin/pages/UserManagement";
 import AdminManagement from "./src/features/admin/pages/AdminManagement";
 import DriverManagement from "./src/features/admin/pages/DriverManagement";
+import DestinationManagement from "./src/features/admin/pages/DestinationManagement";
+import TripManagement from "./src/features/admin/pages/TripManagement";
 
 const Stack = createNativeStackNavigator();
 
@@ -65,6 +67,8 @@ function AppContent() {
               <Stack.Screen name={ROUTES.USER_MANAGEMENT} component={UserManagement} />
               <Stack.Screen name={ROUTES.ADMIN_MANAGEMENT} component={AdminManagement} />
               <Stack.Screen name={ROUTES.DRIVER_MANAGEMENT} component={DriverManagement} />
+              <Stack.Screen name={ROUTES.DESTINATION_MANAGEMENT} component={DestinationManagement} />
+              <Stack.Screen name={ROUTES.TRIP_MANAGEMENT} component={TripManagement} />
             </>
           ) : (
             <Stack.Screen

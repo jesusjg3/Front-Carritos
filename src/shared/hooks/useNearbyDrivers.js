@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_ROUTES } from '../../Config/Routes';
+import { createEcho } from '../../core/services/echo';
 
 /**
  * Hook para obtener conductores cercanos en tiempo real
@@ -26,16 +27,41 @@ export const useNearbyDrivers = (user, token, currentLocation, isActive = true) 
         // Obtener conductores inicialmente
         fetchNearbyDrivers();
 
-        // Actualizar cada 3 segundos (antes 8s) para ver desconexiones más rápido
+        // Crear conexión para escuchar el radar global
+        const echo = createEcho(token);
+        const channel = echo.channel('drivers.live'); // Canal público
+
+        channel.listen('.DriverGlobalLocationUpdated', (event) => {
+            setNearbyDrivers(prev => {
+                const driverExists = prev.find(d => d.id === event.driver_id);
+                if (driverExists) {
+                    return prev.map(d => 
+                        d.id === event.driver_id 
+                            ? { ...d, lat: event.latitude, lng: event.longitude } 
+                            : d
+                    );
+                }
+                // Si preferimos agregarlo porque entró a la zona:
+                return [...prev, {
+                    id: event.driver_id,
+                    lat: event.latitude,
+                    lng: event.longitude,
+                    name: "Conductor " + event.driver_id
+                }];
+            });
+        });
+
+        // Solo necesitamos limpiar los caídos de vez en cuando (cada 30s en lugar de 3s)
         pollInterval.current = setInterval(() => {
             fetchNearbyDrivers();
-        }, 3000);
+        }, 30000);
 
         return () => {
             if (pollInterval.current) {
                 clearInterval(pollInterval.current);
                 pollInterval.current = null;
             }
+            if (echo) echo.disconnect();
         };
     }, [user, token, currentLocation, isActive]);
 

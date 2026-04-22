@@ -88,7 +88,9 @@ export default function ActiveTripCard({
                     {isPasajero ? (
                         <View style={{ flexDirection: 'row', flex: 1 }}>
                             <Button mode="contained" style={{ flex: 1 }} onPress={onContact}>Contactar</Button>
-                            <Button mode="outlined" textColor={theme.colors.error} style={{ flex: 1, marginLeft: 10 }} onPress={onCancel}>Cancelar</Button>
+                            {activeTrip.state_id != 4 && (
+                                <Button mode="outlined" textColor={theme.colors.error} style={{ flex: 1, marginLeft: 10 }} onPress={onCancel}>Cancelar</Button>
+                            )}
                         </View>
                     ) : (
                         <View style={{ flexDirection: 'row', flex: 1 }}>

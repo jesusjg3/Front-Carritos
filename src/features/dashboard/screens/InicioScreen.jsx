@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, ScrollView } from "react-native";
+import { View, StyleSheet, Platform, ScrollView, Alert } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -119,6 +119,18 @@ export default function InicioScreen() {
         }
     }, [nearbyDrivers, isPasajero]);
 
+    // Efecto para renderizar Destinos / Puntos de Interés (Solo si no hay viaje activo)
+    React.useEffect(() => {
+        if (!activeTrip && webViewRef.current) {
+            const destData = JSON.stringify(destinos || []);
+            webViewRef.current.injectJavaScript(`
+                if (typeof addDestinationMarkers === 'function') {
+                    addDestinationMarkers(${destData});
+                }
+            `);
+        }
+    }, [destinos, activeTrip]);
+
     // Efecto de limpieza temprana de estado para que no sobreviva un destino tras un viaje
     React.useEffect(() => {
         if (activeTrip) setDestinoSeleccionado(null);
@@ -145,15 +157,19 @@ export default function InicioScreen() {
     React.useEffect(() => {
         if (isPasajero && !destinoSeleccionado && webViewRef.current) {
             if (!activeTrip) {
+                const destData = JSON.stringify(destinos || []);
                 webViewRef.current.injectJavaScript(`
                     if (typeof clearRoute === 'function') {
                         clearRoute();
+                    }
+                    if (typeof addDestinationMarkers === 'function') {
+                        addDestinationMarkers(${destData});
                     }
                     true;
                 `);
             }
         }
-    }, [destinoSeleccionado, isPasajero, activeTrip]);
+    }, [destinoSeleccionado, isPasajero, activeTrip, destinos]);
 
     const tripIsAccepted = (trip) => {
         if (!trip) return false;
@@ -343,6 +359,18 @@ export default function InicioScreen() {
             alert("Necesitamos tu ubicación y un destino.");
             return;
         }
+
+        // --- Geofence check: Verificar si está dentro de la zona permitida ---
+        const centerLat = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT) : -0.9525;
+        const centerLng = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG) : -80.7450;
+        const radiusKm = process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM) : 1.5;
+
+        const distFromCenter = calculateDistance(ubicacion.latitude, ubicacion.longitude, centerLat, centerLng);
+        if (distFromCenter > radiusKm) {
+            Alert.alert("Fuera de zona", "Estás fuera de la zona de servicio permitida para pedir carritos.");
+            return;
+        }
+
         const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
 
         const success = await requestTrip(ubicacion, destinoSeleccionado, dist, passengersCount);
@@ -367,7 +395,7 @@ export default function InicioScreen() {
                     <Text variant="bodySmall" style={[styles.searchingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                         Intento #{requestAttempt}
                     </Text>
-                    <Button mode="contained" onPress={cancelTrip} style={styles.cancelButton} buttonColor={theme.colors.error}>
+                    <Button mode="contained" onPress={() => { cancelTrip(); setDestinoSeleccionado(null); }} style={styles.cancelButton} buttonColor={theme.colors.error}>
                         Cancelar Solicitud
                     </Button>
                 </View>
@@ -398,7 +426,16 @@ export default function InicioScreen() {
                     activeTrip={activeTrip}
                     isPasajero={isPasajero}
                     onContact={() => alert('Contactando...')}
-                    onCancel={() => alert('Cancel feature pending')}
+                    onCancel={() => {
+                        Alert.alert(
+                            "Cancelar Viaje",
+                            "¿Estás seguro de que deseas cancelar este viaje?",
+                            [
+                                { text: "No", style: "cancel" },
+                                { text: "Sí, cancelar", onPress: () => cancelTrip() }
+                            ]
+                        );
+                    }}
                     onStartTrip={handleStartTrip}
                     onFinishTrip={handleFinishTrip}
                 />

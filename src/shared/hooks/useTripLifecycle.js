@@ -89,6 +89,16 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 passengerChannel.listen('.TripAccepted', (e) => handleTripUpdate(e, 'TripAccepted'))
                     .listen('.TripStarted', (e) => handleTripUpdate(e, 'TripStarted'))
                     .listen('TripStarted', (e) => handleTripUpdate(e, 'TripStarted')) 
+                    .listen('.TripCancelled', (event) => {
+                        if (tripTimeoutRef.current) {
+                            clearTimeout(tripTimeoutRef.current);
+                            tripTimeoutRef.current = null;
+                        }
+                        setActiveTrip(null);
+                        setIsSearching(false);
+                        setRequestAttempt(0);
+                        alert("El viaje ha sido cancelado.");
+                    })
                     .listen('.TripFinished', (event) => {
                         if (tripTimeoutRef.current) {
                             clearTimeout(tripTimeoutRef.current);
@@ -325,9 +335,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 tripTimeoutRef.current = null;
             }
 
+            const tripIdToCancel = (activeTrip && activeTrip.id) || (lastRequestParams && lastRequestParams.tripId);
+
             // Si hay una solicitud activa, enviar al backend
-            if (lastRequestParams && lastRequestParams.tripId) {
-                const response = await fetch(`${API_ROUTES.TRIPS}/${lastRequestParams.tripId}/cancel`, {
+            if (tripIdToCancel) {
+                const response = await fetch(`${API_ROUTES.TRIPS}/${tripIdToCancel}/cancel`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -336,14 +348,19 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 });
 
                 if (response.ok) {
+                    // Opcionalmente podrías añadir lógica si es exitoso
                 } else {
+                    console.error("Error al cancelar el viaje en el servidor.");
                 }
             }
 
+            setActiveTrip(null);
             setIsSearching(false);
             setRequestAttempt(0);
             setLastRequestParams(null);
         } catch (error) {
+            console.error("Error al cancelar:", error);
+            setActiveTrip(null);
             setIsSearching(false);
             setRequestAttempt(0);
             setLastRequestParams(null);

@@ -64,10 +64,13 @@ export default function UserManagement({ navigation }) {
     }
 
     // Filtrar por estado
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(
-        (u) => (filterStatus === 'active' ? u.is_active : !u.is_active)
-      );
+    if (filterStatus === 'deleted') {
+      filtered = filtered.filter((u) => u.deleted_at !== null);
+    } else if (filterStatus !== 'all') {
+      filtered = filtered.filter((u) => {
+        if (u.deleted_at !== null) return false;
+        return filterStatus === 'active' ? u.is_active : !u.is_active;
+      });
     }
 
     setFilteredUsers(filtered);
@@ -149,6 +152,25 @@ export default function UserManagement({ navigation }) {
       await fetchUsers();
     } catch (err) {
       setSnackbar({ visible: true, message: 'Error al cambiar estado del usuario' });
+    }
+  };
+
+  const handleRestore = async (userId) => {
+    try {
+      const res = await fetch(`${API_ROUTES.USERS}/${userId}/restore`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) throw new Error('Error al restaurar estado');
+
+      setSnackbar({ visible: true, message: 'Usuario restaurado correctamente' });
+      await fetchUsers();
+    } catch (err) {
+      setSnackbar({ visible: true, message: 'Error al restaurar al usuario' });
     }
   };
 
@@ -348,6 +370,14 @@ export default function UserManagement({ navigation }) {
             >
               Inactivos
             </Chip>
+            <Chip
+              selected={filterStatus === 'deleted'}
+              onPress={() => setFilterStatus('deleted')}
+              style={styles.filterChip}
+              icon={() => <MaterialCommunityIcons name="delete-restore" size={18} />}
+            >
+              Eliminados
+            </Chip>
           </View>
 
           <SegmentedButtons
@@ -380,6 +410,7 @@ export default function UserManagement({ navigation }) {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onToggleStatus={handleToggleStatus}
+            onRestore={handleRestore}
             currentUserId={user?.id}
             onFilterStatusChange={setFilterStatus}
             emptyMessage="No se encontraron usuarios con los filtros aplicados"

@@ -50,9 +50,18 @@ export const mapaHtml = `
         .destination-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 40px;
-            color: #d32f2f; /* Red color for the pin */
-            text-align: center;
         }
+        
+        /* Estilar Puntos de Interés como punto rojo simple */
+        .simple-red-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #d32f2f;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+
         .carrito-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 46px;
@@ -165,18 +174,25 @@ export const mapaHtml = `
 
     function addDestinationMarkers(destinations) {
         clearDestinationMarkers();
-        var destinationIcon = L.divIcon({
-            html: '<span class="material-symbols-outlined">home_pin</span>',
-            className: 'destination-marker',
-            iconSize: [40, 40],
-            iconAnchor: [20, 40], // Anchor at the bottom center
-            popupAnchor: [0, -40]
-        });
 
         if (map && destinations) {
             destinations.forEach(dest => {
-                var marker = L.marker([dest.lat, dest.lng], { icon: destinationIcon }).addTo(map)
-                    .bindPopup(dest.title);
+                var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
+                var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
+                var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
+                
+                if (lat === undefined || lng === undefined) return;
+
+                var destinationIcon = L.divIcon({
+                    html: '<div class="simple-red-dot"></div>',
+                    className: '', // quitar clases de leaflet por defecto
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7], // Centro
+                    popupAnchor: [0, -7]
+                });
+
+                var marker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map)
+                    .bindPopup(title);
                 destinationMarkers.push(marker);
             });
         }

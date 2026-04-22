@@ -126,8 +126,8 @@ export default function AdminDashboard({ navigation }) {
 
   const fetchInitialDrivers = async () => {
     try {
-      const centerLat = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT || "-0.95278";
-      const centerLng = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG || "-80.74548";
+      const centerLat = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT;
+      const centerLng = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG;
       const driversRes = await fetch(`${API_ROUTES.NEARBY_DRIVERS}?latitude=${centerLat}&longitude=${centerLng}&radius=50`, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
@@ -347,8 +347,8 @@ export default function AdminDashboard({ navigation }) {
                 <div id="map"></div>
                 <script>
                   // AQUI ABAJO AJUSTAS EL ZOOM: Cambia el '15' al final de setView al número que mejor te quede a ojo 
-                  var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT || -0.9527840150449474};
-                  var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG || -80.74548840522768};
+                  var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT};
+                  var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG};
                   var map = L.map('map', {zoomControl: false}).setView([centerLat, centerLng], 17);
                   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                       maxZoom: 19

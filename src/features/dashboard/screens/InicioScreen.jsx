@@ -361,9 +361,9 @@ export default function InicioScreen() {
         }
 
         // --- Geofence check: Verificar si está dentro de la zona permitida ---
-        const centerLat = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT) : -0.9525;
-        const centerLng = process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG) : -80.7450;
-        const radiusKm = process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM ? parseFloat(process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM) : 1.5;
+        const centerLat = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT);
+        const centerLng = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG);
+        const radiusKm = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM);
 
         const distFromCenter = calculateDistance(ubicacion.latitude, ubicacion.longitude, centerLat, centerLng);
         if (distFromCenter > radiusKm) {

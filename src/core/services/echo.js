@@ -12,10 +12,10 @@ export const createEcho = (token) => {
 
     return new Echo({
         broadcaster: 'reverb',
-        key: process.env.EXPO_PUBLIC_REVERB_APP_KEY || 'app-key',
+        key: process.env.EXPO_PUBLIC_REVERB_APP_KEY,
         wsHost: host,
-        wsPort: process.env.EXPO_PUBLIC_REVERB_PORT ? parseInt(process.env.EXPO_PUBLIC_REVERB_PORT) : 8080,
-        wssPort: process.env.EXPO_PUBLIC_REVERB_PORT ? parseInt(process.env.EXPO_PUBLIC_REVERB_PORT) : 8080,
+        wsPort: parseInt(process.env.EXPO_PUBLIC_REVERB_PORT),
+        wssPort: parseInt(process.env.EXPO_PUBLIC_REVERB_PORT),
         forceTLS: false,
         enabledTransports: ['ws', 'wss'],
         authEndpoint: `${API_ROUTES.BASE_URL}/broadcasting/auth`,

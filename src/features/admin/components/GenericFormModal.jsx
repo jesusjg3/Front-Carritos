@@ -260,8 +260,8 @@ export default function GenericFormModal({
                     <div id="map"></div>
                     <script>
                       // AQUI ABAJO AJUSTAS EL ZOOM: Cambia el '14' (después de las coordenadas) al tamaño de zoom ideal a ojo
-                      var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT || -0.9527840150449474};
-                      var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG || -80.74548840522768};
+                      var centerLat = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT};
+                      var centerLng = ${process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG};
                       var map = L.map('map').setView([centerLat, centerLng], 17); // Centro Localizado
                       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                       

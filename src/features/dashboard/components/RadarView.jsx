@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing } from "react-native";
 import { useTheme } from "react-native-paper";
+import { SHADOWS } from '../../../core/constants/theme';
 import UniversalMap from "../../../shared/components/UniversalMap";
 import { mapaHtml } from "../../../Web/mapaCode";
 import { CARRITO_MARKER_BASE64 } from "../../../Web/carritoMarkerBase64";
@@ -238,7 +239,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginVertical: 28,
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        borderWidth: 3,
+        borderColor: '#14498525',
+        shadowColor: '#144985',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 6,
     },
     radarMapBackground: {
         position: 'absolute',
@@ -252,7 +260,7 @@ const styles = StyleSheet.create({
         width: 210,
         height: 210,
         borderRadius: 105,
-        borderWidth: 2
+        borderWidth: 1.5,
     },
     radarCenter: {
         width: 56,
@@ -261,12 +269,23 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'transparent',
-        zIndex: 10
+        backgroundColor: 'rgba(20, 73, 133, 0.1)',
+        zIndex: 10,
+        borderColor: '#144985',
+        shadowColor: '#144985',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     radarCenterInner: {
-        width: 32,
-        height: 32,
-        borderRadius: 16
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        shadowColor: '#144985',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+        elevation: 2,
     }
 });

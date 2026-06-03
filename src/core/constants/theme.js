@@ -75,18 +75,28 @@ export const BORDER_RADIUS = {
   ROUND: 50,
 };
 
-// Sombras
+// Sombras nativas premium tridimensionales con tinte corporativo
 export const SHADOWS = {
   SMALL: {
-    boxShadow: '0px 1px 1px rgba(0,0,0,0.18)',
-    elevation: 1,
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   MEDIUM: {
-    boxShadow: '0px 2px 2.22px rgba(0,0,0,0.22)',
-    elevation: 3,
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
   },
   LARGE: {
-    boxShadow: '0px 4px 4.65px rgba(0,0,0,0.30)',
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
     elevation: 8,
   },
 };
+

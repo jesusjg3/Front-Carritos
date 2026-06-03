@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from "react-native";
-import { Text, Button, RadioButton, Divider, ActivityIndicator, useTheme, SegmentedButtons, IconButton } from "react-native-paper";
+import { Text, Button, Divider, ActivityIndicator, useTheme, IconButton } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function DestinationModal({ 
     visible, 
@@ -37,109 +39,135 @@ export default function DestinationModal({
         >
             <Pressable style={styles.modalOverlay} onPress={onDismiss}>
                 <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
-                    <View style={[styles.dragIndicator, { backgroundColor: theme.colors.outlineVariant }]} />
-                    <Text variant="titleLarge" style={styles.modalTitle}>Selecciona tu destino</Text>
+                    {/* Sliding drag indicator bar */}
+                    <View style={styles.dragIndicator} />
+                    
+                    <Text variant="titleLarge" style={[styles.modalTitle, { color: theme.colors.primary }]}>
+                        ¿A dónde quieres ir?
+                    </Text>
+                    <Text variant="bodySmall" style={styles.modalSubtitle}>
+                        Selecciona un punto de destino autorizado en el campus
+                    </Text>
+                    
                     <Divider style={styles.divider} />
 
                     <ScrollView style={styles.destinosList} showsVerticalScrollIndicator={false}>
                         {cargando ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator animating={true} size="large" />
-                                <Text style={styles.loadingText}>Cargando destinos...</Text>
+                                <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+                                <Text style={styles.loadingText}>Cargando destinos del campus...</Text>
                             </View>
                         ) : error ? (
                             <View style={styles.errorContainer}>
+                                <MaterialCommunityIcons name="alert-circle-outline" size={32} color={theme.colors.error} />
                                 <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
                                 <Button mode="outlined" onPress={onRetry} style={styles.retryButton}>Reintentar</Button>
                             </View>
                         ) : destinos.length === 0 ? (
                             <View style={styles.emptyContainer}>
+                                <MaterialCommunityIcons name="map-marker-off-outline" size={32} color="#CCC" />
                                 <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No hay destinos disponibles</Text>
                             </View>
                         ) : (
-                            <RadioButton.Group
-                                onValueChange={(value) => {
-                                    const destino = destinos.find(d => d.id.toString() === value);
-                                    onSelect(destino);
-                                }}
-                                value={destinoSeleccionado?.id.toString() || ''}
-                            >
+                            <View style={styles.listWrapper}>
                                 {destinos.map((destino) => {
                                     const distancia = ubicacionActual 
                                         ? calculateDistance(ubicacionActual.latitude, ubicacionActual.longitude, destino.latitude, destino.longitude)
                                         : null;
+                                    const isSelected = destinoSeleccionado?.id === destino.id;
+
                                     return (
                                         <TouchableOpacity
                                             key={destino.id}
-                                            style={styles.destinoItem}
+                                            style={[
+                                                styles.destinoItemCard,
+                                                isSelected && [styles.selectedCard, { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '05' }]
+                                            ]}
                                             onPress={() => onSelect(destino)}
-                                            activeOpacity={0.7}
+                                            activeOpacity={0.8}
                                         >
-                                            <RadioButton.Android value={destino.id.toString()} />
+                                            <View style={[styles.itemLeftIconBg, { backgroundColor: isSelected ? theme.colors.primary + '15' : '#F8F9FA' }]}>
+                                                <MaterialCommunityIcons 
+                                                    name="map-marker-radius" 
+                                                    size={22} 
+                                                    color={isSelected ? theme.colors.primary : '#6C757D'} 
+                                                />
+                                            </View>
+
                                             <View style={styles.destinoInfo}>
-                                                <View style={styles.destinoRow}>
-                                                    <View style={styles.listRedDot} />
-                                                    <Text
-                                                        variant="bodyLarge"
-                                                        style={[styles.destinoText, destinoSeleccionado?.id === destino.id && { color: theme.colors.primary, fontWeight: 'bold' }]}
-                                                    >
-                                                        {destino.nombre}
-                                                    </Text>
-                                                </View>
-                                                {distancia !== null && (
-                                                    <Text
-                                                        variant="bodySmall"
-                                                        style={[styles.destinoDistance, { color: theme.colors.onSurfaceVariant }]}
-                                                    >
+                                                <Text style={[styles.destinoText, isSelected && { color: theme.colors.primary, fontWeight: 'bold' }]}>
+                                                    {destino.nombre}
+                                                </Text>
+                                                <Text style={styles.destinoSubtext} numberOfLines={1}>
+                                                    {destino.description || 'Punto de destino en el campus'}
+                                                </Text>
+                                            </View>
+
+                                            {distancia !== null && (
+                                                <View style={[styles.distanceBadge, { backgroundColor: isSelected ? theme.colors.primary + '10' : '#EAEAEA' }]}>
+                                                    <Text style={[styles.distanceText, { color: isSelected ? theme.colors.primary : '#495057' }]}>
                                                         {distancia} km
                                                     </Text>
-                                                )}
-                                            </View>
+                                                </View>
+                                            )}
                                         </TouchableOpacity>
                                     );
                                 })}
-                            </RadioButton.Group>
+                            </View>
                         )}
                     </ScrollView>
 
                     {/* Selector de número de pasajeros */}
-                    <View style={[styles.passengersContainer, { backgroundColor: theme.colors.surfaceVariant, borderTopColor: theme.colors.outlineVariant }]}>
-                        <Text variant="titleMedium" style={[styles.passengersTitle, { color: theme.colors.onSurface }]}>Número de pasajeros</Text>
+                    <View style={[styles.passengersContainer, { backgroundColor: '#F8F9FA', borderTopColor: '#EEEEEE' }]}>
+                        <Text style={styles.passengersTitle}>Número de pasajeros a bordo</Text>
+                        
                         <View style={styles.passengerCounter}>
-                            <IconButton
-                                icon="minus-circle"
-                                size={32}
+                            <TouchableOpacity
+                                style={[styles.counterButton, passengersCount <= 1 && styles.counterButtonDisabled]}
                                 onPress={() => setPassengersCount(Math.max(1, passengersCount - 1))}
                                 disabled={passengersCount <= 1}
-                                iconColor={passengersCount <= 1 ? theme.colors.disabled : theme.colors.primary}
-                            />
+                            >
+                                <MaterialCommunityIcons name="minus" size={20} color={passengersCount <= 1 ? '#CCC' : theme.colors.primary} />
+                            </TouchableOpacity>
+
                             <View style={styles.counterDisplay}>
-                                <Text variant="headlineMedium" style={[styles.counterText, { color: theme.colors.primary }]}>
+                                <Text style={[styles.counterText, { color: theme.colors.primary }]}>
                                     {passengersCount}
                                 </Text>
-                                <Text variant="bodySmall" style={[styles.counterLabel, { color: theme.colors.onSurfaceVariant }]}>
-                                    {passengersCount === 1 ? 'pasajero' : 'pasajeros'}
+                                <Text style={styles.counterLabel}>
+                                    {passengersCount === 1 ? 'Persona' : 'Personas'}
                                 </Text>
                             </View>
-                            <IconButton
-                                icon="plus-circle"
-                                size={32}
+
+                            <TouchableOpacity
+                                style={[styles.counterButton, passengersCount >= 5 && styles.counterButtonDisabled]}
                                 onPress={() => setPassengersCount(Math.min(5, passengersCount + 1))}
                                 disabled={passengersCount >= 5}
-                                iconColor={passengersCount >= 5 ? theme.colors.disabled : theme.colors.primary}
-                            />
+                            >
+                                <MaterialCommunityIcons name="plus" size={20} color={passengersCount >= 5 ? '#CCC' : theme.colors.primary} />
+                            </TouchableOpacity>
                         </View>
                     </View>
 
+                    {/* Dialog Buttons */}
                     <View style={styles.modalActions}>
-                        <Button mode="outlined" onPress={onDismiss} style={styles.actionButton}>Cancelar</Button>
+                        <Button 
+                            mode="outlined" 
+                            onPress={onDismiss} 
+                            style={[styles.actionButton, { borderColor: theme.colors.primary + '30' }]}
+                            textColor={theme.colors.primary}
+                            contentStyle={styles.actionButtonContent}
+                        >
+                            Cancelar
+                        </Button>
                         <Button 
                             mode="contained" 
                             onPress={() => onConfirm(passengersCount)} 
-                            style={styles.actionButton} 
+                            style={[styles.actionButton, { backgroundColor: theme.colors.primary }]} 
+                            contentStyle={styles.actionButtonContent}
                             disabled={!destinoSeleccionado}
                         >
-                            Confirmar
+                            Pedir Carrito
                         </Button>
                     </View>
                 </Pressable>
@@ -149,51 +177,150 @@ export default function DestinationModal({
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, maxHeight: '75%', elevation: 5 },
-    dragIndicator: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 16 },
-    modalTitle: { fontWeight: 'bold', textAlign: 'center', marginBottom: 8, paddingHorizontal: 24 },
-    divider: { marginBottom: 16 },
-    destinosList: { maxHeight: 400, paddingHorizontal: 16 },
-    loadingContainer: { padding: 20, alignItems: 'center' },
-    loadingText: { marginTop: 10 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' },
+    modalContent: { 
+        borderTopLeftRadius: 28, 
+        borderTopRightRadius: 28, 
+        paddingBottom: 32, 
+        maxHeight: '80%', 
+        ...SHADOWS.LARGE,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+    },
+    dragIndicator: { 
+        width: 44, 
+        height: 5, 
+        borderRadius: 2.5, 
+        backgroundColor: '#E0E0E0', 
+        alignSelf: 'center', 
+        marginTop: 10, 
+        marginBottom: 16 
+    },
+    modalTitle: { 
+        fontWeight: 'bold', 
+        textAlign: 'center', 
+        paddingHorizontal: 24 
+    },
+    modalSubtitle: {
+        textAlign: 'center',
+        color: '#6C757D',
+        marginTop: 4,
+        paddingHorizontal: 24,
+    },
+    divider: { marginTop: 12, marginBottom: 16 },
+    destinosList: { maxHeight: 320, paddingHorizontal: 16 },
+    loadingContainer: { padding: 30, alignItems: 'center' },
+    loadingText: { marginTop: 12, color: 'gray' },
     errorContainer: { padding: 20, alignItems: 'center' },
-    errorText: { textAlign: 'center', marginBottom: 10 },
-    retryButton: { marginTop: 10 },
-    emptyContainer: { padding: 20, alignItems: 'center' },
-    emptyText: { },
-    destinoItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 },
-    destinoInfo: { marginLeft: 12, flex: 1 },
-    destinoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-    listRedDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d32f2f', marginRight: 8, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 1 },
-    destinoText: { flex: 1 },
-    destinoDistance: { marginTop: 2 },
+    errorText: { textAlign: 'center', marginVertical: 8 },
+    retryButton: { marginTop: 8 },
+    emptyContainer: { padding: 30, alignItems: 'center' },
+    emptyText: { marginTop: 8 },
+    listWrapper: {
+        gap: 12,
+        paddingBottom: 16,
+    },
+    destinoItemCard: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        padding: 12, 
+        backgroundColor: '#FFFFFF',
+        borderRadius: BORDER_RADIUS.LG,
+        borderWidth: 1.5,
+        borderColor: '#EEEEEE',
+        ...SHADOWS.SMALL,
+    },
+    selectedCard: {
+        ...SHADOWS.MEDIUM,
+    },
+    itemLeftIconBg: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    destinoInfo: { flex: 1 },
+    destinoText: { 
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    destinoSubtext: {
+        fontSize: 12,
+        color: '#777',
+        marginTop: 2,
+    },
+    distanceBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        marginLeft: 10,
+    },
+    distanceText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
     passengersContainer: { 
         paddingHorizontal: 24, 
         paddingVertical: 16, 
         borderTopWidth: 1,
     },
     passengersTitle: { 
-        fontWeight: '600', 
+        fontWeight: 'bold', 
+        fontSize: 13,
+        color: '#495057',
         marginBottom: 12, 
         textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     passengerCounter: { 
         flexDirection: 'row', 
         alignItems: 'center', 
         justifyContent: 'center',
-        gap: 16,
+        gap: 24,
+    },
+    counterButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...SHADOWS.SMALL,
+        borderWidth: 1,
+        borderColor: '#EAEAEA',
+    },
+    counterButtonDisabled: {
+        backgroundColor: '#F5F5F5',
+        shadowOpacity: 0,
+        elevation: 0,
     },
     counterDisplay: { 
         alignItems: 'center', 
         minWidth: 80,
     },
     counterText: { 
+        fontSize: 24,
         fontWeight: 'bold',
+        lineHeight: 28,
     },
     counterLabel: { 
-        marginTop: 4,
+        fontSize: 11,
+        color: '#6C757D',
+        marginTop: 2,
     },
-    modalActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16 },
-    actionButton: { flex: 1, marginHorizontal: 8 },
+    modalActions: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        paddingHorizontal: 20, 
+        paddingTop: 16,
+        gap: 12,
+    },
+    actionButton: { flex: 1, borderRadius: BORDER_RADIUS.LG },
+    actionButtonContent: {
+        paddingVertical: 8,
+    },
 });

@@ -13,6 +13,51 @@ export function AppContextProvider({ children }) {
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Global custom alert state
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: "",
+        message: "",
+        type: "info",
+        confirmText: "Aceptar",
+        cancelText: "Cancelar",
+        onConfirm: null,
+        onCancel: null,
+    });
+
+    const showAlert = (titleOrMsg, message = "", type = "info", options = {}) => {
+        let finalTitle = "";
+        let finalMsg = "";
+        
+        if (message === "" && typeof titleOrMsg === "string") {
+            finalMsg = titleOrMsg;
+        } else {
+            finalTitle = titleOrMsg;
+            finalMsg = message;
+        }
+
+        setAlertConfig({
+            visible: true,
+            title: finalTitle,
+            message: finalMsg,
+            type: type || "info",
+            confirmText: options.confirmText || "Aceptar",
+            cancelText: options.cancelText || "Cancelar",
+            onConfirm: () => {
+                if (options.onConfirm) options.onConfirm();
+                hideAlert();
+            },
+            onCancel: options.onCancel ? () => {
+                options.onCancel();
+                hideAlert();
+            } : null,
+        });
+    };
+
+    const hideAlert = () => {
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+    };
+
     useEffect(() => {
         initializeSession();
     }, []);
@@ -166,6 +211,9 @@ export function AppContextProvider({ children }) {
                 toggleNotifications,
                 isLoading,
                 paperTheme: isDarkTheme ? PaperDarkTheme : PaperLightTheme,
+                showAlert,
+                hideAlert,
+                alertConfig,
             }}
         >
             {children}

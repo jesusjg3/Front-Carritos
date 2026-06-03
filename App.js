@@ -8,6 +8,7 @@ import { View } from "react-native";
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
 import { ROUTES } from "./src/core/constants/routes";
 import { getUserRole } from "./src/core/utils/normalization";
+import GlobalAlertDialog from "./src/shared/components/GlobalAlertDialog";
 
 import WelcomeScreen from "./src/features/auth/pages/welcome/WelcomeScreen";
 import LoginScreen from "./src/features/auth/pages/login/LoginScreen";
@@ -23,7 +24,7 @@ import TripManagement from "./src/features/admin/pages/TripManagement";
 const Stack = createNativeStackNavigator();
 
 function AppContent() {
-  const { paperTheme, user, isLoading } = useAppContext();
+  const { paperTheme, user, isLoading, alertConfig, hideAlert } = useAppContext();
 
   if (isLoading) {
     return (
@@ -80,6 +81,7 @@ function AppContent() {
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style={paperTheme.dark ? "light" : "dark"} />
+      <GlobalAlertDialog config={alertConfig} onDismiss={hideAlert} />
     </PaperProvider>
   );
 }

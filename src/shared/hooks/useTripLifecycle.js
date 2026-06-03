@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { createEcho } from '../../core/services/echo';
 import { API_ROUTES } from '../../Config/Routes';
+import { useAppContext } from '../contexts/AppContext';
 
 export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
+    const { showAlert } = useAppContext();
     const [requestQueue, setRequestQueue] = useState([]);
     const [echoInstance, setEchoInstance] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
@@ -63,7 +65,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 setRequestQueue(prev => prev.filter(req => req.id != event.id));
                 setActiveTrip(prev => {
                     if (prev && prev.id == event.id) {
-                        alert("El viaje ha sido cancelado.");
+                        showAlert("Viaje Cancelado", "El viaje ha sido cancelado.", "warning");
                         setIsSearching(false);
                         return null;
                     }
@@ -83,7 +85,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     setIsSearching(false);
                     // IMPORTANTE: Aseguramos el updater asíncrono preventivo
                     setActiveTrip(prev => normalizeTripData(event.trip));
-                    if (statusMsg === 'TripAccepted') alert("¡Tu conductor va en camino!");
+                    if (statusMsg === 'TripAccepted') showAlert("¡Conductor en camino!", "¡Tu conductor va en camino!", "success");
                 };
 
                 passengerChannel.listen('.TripAccepted', (e) => handleTripUpdate(e, 'TripAccepted'))
@@ -97,7 +99,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                         setActiveTrip(null);
                         setIsSearching(false);
                         setRequestAttempt(0);
-                        alert("El viaje ha sido cancelado.");
+                        showAlert("Viaje Cancelado", "El viaje ha sido cancelado.", "warning");
                     })
                     .listen('.TripFinished', (event) => {
                         if (tripTimeoutRef.current) {
@@ -109,7 +111,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                         setActiveTrip(null);
                         setIsSearching(false);
                         setRequestAttempt(0);
-                        alert("¡Has llegado a tu destino!");
+                        showAlert("¡Destino alcanzado!", "¡Has llegado a tu destino!", "success");
                     });
             }
 
@@ -192,13 +194,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 setRequestQueue(prev => prev.slice(1));
                 setActiveTrip(data);
             } else {
-                if (response.status === 409) alert("Este viaje ya fue tomado por otro conductor.");
-                else alert("Error al aceptar el viaje: " + (data.error || "Desconocido"));
+                if (response.status === 409) showAlert("Viaje No Disponible", "Este viaje ya fue tomado por otro conductor.", "error");
+                else showAlert("Error", "Error al aceptar el viaje: " + (data.error || "Desconocido"), "error");
                 setRequestQueue(prev => prev.slice(1));
             }
         } catch (error) {
             console.error(error);
-            alert("Error de conexión al aceptar el viaje.");
+            showAlert("Error de Conexión", "Error de conexión al aceptar el viaje.", "error");
         }
     };
 
@@ -216,13 +218,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             const data = await response.json();
             if (response.ok) {
                 setActiveTrip(data);
-                alert("¡Viaje iniciado!");
+                showAlert("Viaje Iniciado", "¡Viaje iniciado!", "info");
             } else {
-                alert("Error al iniciar: " + (data.error || "Desconocido"));
+                showAlert("Error", "Error al iniciar: " + (data.error || "Desconocido"), "error");
             }
         } catch (error) {
             console.error(error);
-            alert("Error de conexión");
+            showAlert("Error de Conexión", "Error de conexión.", "error");
         }
     };
 
@@ -236,13 +238,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             const data = await response.json();
             if (response.ok) {
                 resetTripState();
-                alert("¡Viaje finalizado con éxito!");
+                showAlert("¡Viaje Completado!", "¡Viaje finalizado con éxito!", "success");
             } else {
-                alert("Error al finalizar: " + (data.error || "Desconocido"));
+                showAlert("Error", "Error al finalizar: " + (data.error || "Desconocido"), "error");
             }
         } catch (error) {
             console.error(error);
-            alert("Error de conexión");
+            showAlert("Error de Conexión", "Error de conexión.", "error");
         }
     };
 
@@ -288,40 +290,34 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
 
-                    // Usar Alert.alert para que tenga callback con dos opciones
-                    Alert.alert(
+                    // Usar el custom showAlert para que tenga callback con dos opciones
+                    showAlert(
                         'Solicitud Expirada',
                         '¿Deseas intentar nuevamente?',
-                        [
-                            {
-                                text: 'No',
-                                onPress: () => {
-                                    setRequestAttempt(0);
-                                    // El estado ya está reseteado, solo se cierra el modal
-                                },
-                                style: 'cancel'
+                        'warning',
+                        {
+                            confirmText: 'Reintentar',
+                            cancelText: 'No',
+                            onConfirm: () => {
+                                requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
                             },
-                            {
-                                text: 'Reintentar',
-                                onPress: () => {
-                                    // Hacer nueva solicitud cuando el usuario presiona Reintentar
-                                    requestTrip(ubicacion, destinoSeleccionado, distance, passengersCount);
-                                }
+                            onCancel: () => {
+                                setRequestAttempt(0);
                             }
-                        ]
+                        }
                     );
                 }, 1 * 60 * 1000); // 1 minuto
 
                 tripTimeoutRef.current = timeout;
                 return true;
             } else {
-                alert("Error al solicitar viaje: " + (data.message || "Desconocido"));
+                showAlert("Error al solicitar", "Error al solicitar viaje: " + (data.message || "Desconocido"), "error");
                 setRequestAttempt(0);
                 return false;
             }
         } catch (error) {
             console.error(error);
-            alert("No se pudo conectar con el servidor.");
+            showAlert("Error de Conexión", "No se pudo conectar con el servidor.", "error");
             setRequestAttempt(0);
             return false;
         }

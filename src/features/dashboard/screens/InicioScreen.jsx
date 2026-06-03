@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, Platform, ScrollView, Alert, TouchableOpacity } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from 'expo-linear-gradient';
+import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { mapaHtml } from "../../../Web/mapaCode";
@@ -24,7 +27,7 @@ import { useDriverLocation } from "../../../shared/hooks/useDriverLocation";
 import { useNearbyDrivers } from "../../../shared/hooks/useNearbyDrivers";
 
 export default function InicioScreen() {
-    const { user, token } = useAppContext();
+    const { user, token, showAlert } = useAppContext();
     const theme = useTheme();
 
     // Local UI State
@@ -356,11 +359,12 @@ export default function InicioScreen() {
 
     const confirmRequestTrip = async (passengersCount) => {
         if (!destinoSeleccionado || !ubicacion) {
-            alert("Necesitamos tu ubicación y un destino.");
+            showAlert("Ubicación Requerida", "Necesitamos tu ubicación y un destino.", "warning");
             return;
         }
 
-        // --- Geofence check: Verificar si está dentro de la zona permitida ---
+        // --- Geofence check desactivado temporalmente para pruebas desde casa/desarrollo ---
+        /*
         const centerLat = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT);
         const centerLng = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG);
         const radiusKm = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM);
@@ -370,6 +374,7 @@ export default function InicioScreen() {
             Alert.alert("Fuera de zona", "Estás fuera de la zona de servicio permitida para pedir carritos.");
             return;
         }
+        */
 
         const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
 
@@ -383,22 +388,104 @@ export default function InicioScreen() {
 
     if (isSearching) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-                <View style={styles.searchingContainer}>
-                    <Text variant="headlineMedium" style={styles.searchingTitle}>Buscando conductores...</Text>
-                    <Text variant="bodySmall" style={[styles.searchingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                        Tiempo estimado de espera: ~2 min
-                    </Text>
+            <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]} edges={['top']}>
+                <LinearGradient
+                    colors={['#14498518', '#F8FAFC', '#F8FAFC']}
+                    style={styles.searchingWrapper}
+                >
+                    {/* Header: Title and connecting text */}
+                    <View style={styles.searchingHeader}>
+                        <Text variant="headlineMedium" style={[styles.searchingTitle, { color: '#144985' }]}>
+                            Buscando Conductor
+                        </Text>
+                        <Text variant="bodyMedium" style={styles.searchingSubtitle}>
+                            Conectando con el carrito más cercano a tu ubicación...
+                        </Text>
+                    </View>
 
-                    <RadarView ubicacion={ubicacion} />
+                    {/* Radar Map Section with glowing halos */}
+                    <View style={styles.radarCard}>
+                        <View style={styles.radarGlowContainer}>
+                            <View style={styles.radarGlowRing1} />
+                            <View style={styles.radarGlowRing2} />
+                            <RadarView ubicacion={ubicacion} />
+                        </View>
+                    </View>
 
-                    <Text variant="bodySmall" style={[styles.searchingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                        Intento #{requestAttempt}
-                    </Text>
-                    <Button mode="contained" onPress={() => { cancelTrip(); setDestinoSeleccionado(null); }} style={styles.cancelButton} buttonColor={theme.colors.error}>
-                        Cancelar Solicitud
-                    </Button>
-                </View>
+                    {/* Boarding Pass Ride Ticket */}
+                    <View style={styles.searchingTicket}>
+                        {/* Ticket Header: Brand and Trip Title */}
+                        <LinearGradient
+                            colors={['#144985', '#1E88E5']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.ticketHeader}
+                        >
+                            <View style={styles.ticketHeaderLeft}>
+                                <MaterialCommunityIcons name="ticket-confirmation" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                                <Text style={styles.ticketHeaderTitle}>PASE DE VIAJE ACTIVO</Text>
+                            </View>
+                            <Text style={styles.ticketHeaderCode}>#{requestAttempt}</Text>
+                        </LinearGradient>
+
+                        {/* Route Segment */}
+                        <View style={styles.ticketRouteContainer}>
+                            <View style={styles.searchingTimeline}>
+                                <View style={styles.searchingOriginDot} />
+                                <View style={styles.searchingDashedLine} />
+                                <View style={styles.searchingDestSquare} />
+                            </View>
+                            
+                            <View style={styles.searchingRouteTexts}>
+                                <View style={styles.searchingRoutePoint}>
+                                    <Text style={styles.searchingRouteLabel}>PUNTO DE PARTIDA (ORIGEN)</Text>
+                                    <Text numberOfLines={1} style={styles.searchingRouteValue}>
+                                        {ubicacion ? 'Mi Ubicación Actual' : 'Buscando GPS...'}
+                                    </Text>
+                                </View>
+                                <View style={styles.searchingRoutePoint}>
+                                    <Text style={styles.searchingRouteLabel}>PUNTO DE LLEGADA (DESTINO)</Text>
+                                    <Text numberOfLines={1} style={styles.searchingRouteValue}>
+                                        {destinoSeleccionado ? destinoSeleccionado.nombre : "Bienestar, Campus"}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Ticket Punch Notches and Separator */}
+                        <View style={styles.ticketNotchContainer}>
+                            <View style={styles.ticketLeftNotch} />
+                            <View style={styles.ticketDashedDivider} />
+                            <View style={styles.ticketRightNotch} />
+                        </View>
+
+                        {/* Ticket Footer details */}
+                        <View style={styles.ticketFooter}>
+                            <View style={styles.ticketInfoRow}>
+                                <View style={styles.ticketInfoPill}>
+                                    <MaterialCommunityIcons name="clock-outline" size={15} color="#1E88E5" style={{ marginRight: 6 }} />
+                                    <Text style={styles.ticketInfoPillText}>~2 min esp.</Text>
+                                </View>
+                                <View style={[styles.ticketInfoPill, { backgroundColor: '#10B98110', borderColor: '#10B98125' }]}>
+                                    <MaterialCommunityIcons name="sync" size={15} color="#10B981" style={{ marginRight: 6 }} />
+                                    <Text style={[styles.ticketInfoPillText, { color: '#059669' }]}>Conectando...</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Action buttons (Clean and modern Cancel Button) */}
+                    <View style={styles.searchingFooter}>
+                        <TouchableOpacity
+                            style={styles.cancelRequestPill}
+                            onPress={() => { cancelTrip(); setDestinoSeleccionado(null); }}
+                            activeOpacity={0.85}
+                        >
+                            <MaterialCommunityIcons name="close-circle" size={16} color="#EF4444" style={{ marginRight: 6 }} />
+                            <Text style={styles.cancelRequestPillText}>CANCELAR SOLICITUD</Text>
+                        </TouchableOpacity>
+                    </View>
+                </LinearGradient>
             </SafeAreaView>
         );
     }
@@ -425,15 +512,17 @@ export default function InicioScreen() {
                 <ActiveTripCard
                     activeTrip={activeTrip}
                     isPasajero={isPasajero}
-                    onContact={() => alert('Contactando...')}
+                    onContact={() => showAlert("Contacto", "Contactando al conductor...", "info")}
                     onCancel={() => {
-                        Alert.alert(
+                        showAlert(
                             "Cancelar Viaje",
                             "¿Estás seguro de que deseas cancelar este viaje?",
-                            [
-                                { text: "No", style: "cancel" },
-                                { text: "Sí, cancelar", onPress: () => cancelTrip() }
-                            ]
+                            "warning",
+                            {
+                                confirmText: "Sí, cancelar",
+                                cancelText: "No",
+                                onConfirm: () => cancelTrip()
+                            }
                         );
                     }}
                     onStartTrip={handleStartTrip}
@@ -488,18 +577,26 @@ export default function InicioScreen() {
                 )}
 
                 {isPasajero && (
-                    <View style={styles.floatingButtonContainer}>
-                        <Button
-                            mode="contained"
-                            icon="map-marker-radius"
-                            onPress={() => setModalVisible(true)}
-                            style={[styles.floatingButton, { backgroundColor: theme.colors.primary }]}
-                            contentStyle={styles.floatingButtonContent}
-                            labelStyle={styles.floatingButtonLabel}
-                        >
-                            {destinoSeleccionado ? destinoSeleccionado.nombre : "Seleccionar Destino"}
-                        </Button>
-                    </View>
+                    <TouchableOpacity 
+                        style={[styles.searchCardContainer, { backgroundColor: theme.colors.surface }]}
+                        onPress={() => setModalVisible(true)}
+                        activeOpacity={0.9}
+                    >
+                        <View style={styles.searchCardInner}>
+                            <View style={[styles.searchIconBg, { backgroundColor: theme.colors.primary + '10' }]}>
+                                <MaterialCommunityIcons name="magnify" size={24} color={theme.colors.primary} />
+                            </View>
+                            <View style={styles.searchTextContainer}>
+                                <Text style={styles.searchTextLabel}>¿A dónde vas?</Text>
+                                <Text numberOfLines={1} style={[styles.searchTextValue, destinoSeleccionado ? { color: theme.colors.primary, fontWeight: 'bold' } : { color: '#888' }]}>
+                                    {destinoSeleccionado ? destinoSeleccionado.nombre : "Seleccionar Destino..."}
+                                </Text>
+                            </View>
+                            <View style={[styles.searchCircleIndicator, { backgroundColor: theme.colors.secondary }]}>
+                                <MaterialCommunityIcons name="arrow-right" size={18} color="#FFF" />
+                            </View>
+                        </View>
+                    </TouchableOpacity>
                 )}
             </View>
 
@@ -532,17 +629,295 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     mapContainer: { flex: 1, position: 'relative' },
     map: { flex: 1 },
-    floatingButtonContainer: { position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 100 },
-    floatingButton: { borderRadius: 12, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-    floatingButtonContent: { paddingVertical: 12 },
-    floatingButtonLabel: { fontSize: 16, fontWeight: '600' },
-    searchingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-    searchingTitle: { fontWeight: 'bold', textAlign: 'center' },
-    searchingSubtitle: { textAlign: 'center' },
-    cancelButton: { width: '100%', maxWidth: 300, paddingVertical: 8 },
+    
+    // Bottom Search Card styled similar to Uber/DiDi
+    searchCardContainer: {
+        position: 'absolute',
+        bottom: 24,
+        left: 20,
+        right: 20,
+        borderRadius: BORDER_RADIUS.XL,
+        ...SHADOWS.LARGE,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+        zIndex: 100,
+        overflow: 'hidden',
+    },
+    searchCardInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+    },
+    searchIconBg: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
+    },
+    searchTextContainer: {
+        flex: 1,
+    },
+    searchTextLabel: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#6C757D',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    searchTextValue: {
+        fontSize: 15,
+        marginTop: 2,
+    },
+    searchCircleIndicator: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...SHADOWS.SMALL,
+    },
+
+    // Searching and matching screen
+    searchingWrapper: {
+        flex: 1,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 32,
+        paddingHorizontal: 24,
+    },
+    searchingHeader: {
+        alignItems: 'center',
+        width: '100%',
+    },
+    searchingTitle: {
+        fontWeight: '900',
+        letterSpacing: -0.5,
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    searchingSubtitle: {
+        textAlign: 'center',
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#64748B',
+        paddingHorizontal: 16,
+    },
+    radarCard: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    radarGlowContainer: {
+        position: 'relative',
+        width: 300,
+        height: 300,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    radarGlowRing1: {
+        position: 'absolute',
+        width: 290,
+        height: 290,
+        borderRadius: 145,
+        borderWidth: 1,
+        borderColor: 'rgba(30, 136, 229, 0.12)',
+        backgroundColor: 'rgba(30, 136, 229, 0.02)',
+    },
+    radarGlowRing2: {
+        position: 'absolute',
+        width: 310,
+        height: 310,
+        borderRadius: 155,
+        borderWidth: 1.5,
+        borderColor: 'rgba(30, 136, 229, 0.06)',
+        backgroundColor: 'rgba(30, 136, 229, 0.01)',
+    },
+    searchingTicket: {
+        width: '100%',
+        maxWidth: 340,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        ...SHADOWS.LARGE,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        overflow: 'hidden',
+    },
+    ticketHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+    },
+    ticketHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    ticketHeaderTitle: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: 1.2,
+    },
+    ticketHeaderCode: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        opacity: 0.9,
+    },
+    ticketRouteContainer: {
+        flexDirection: 'row',
+        paddingVertical: 18,
+        paddingHorizontal: 20,
+        backgroundColor: '#FFFFFF',
+    },
+    searchingTimeline: {
+        width: 14,
+        alignItems: 'center',
+        marginRight: 14,
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    searchingOriginDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#10B981',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        ...SHADOWS.SMALL,
+    },
+    searchingDashedLine: {
+        width: 1.5,
+        height: 34,
+        backgroundColor: '#CBD5E1',
+    },
+    searchingDestSquare: {
+        width: 10,
+        height: 10,
+        borderRadius: 2,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        ...SHADOWS.SMALL,
+    },
+    searchingRouteTexts: {
+        flex: 1,
+        height: 62,
+        justifyContent: 'space-between',
+    },
+    searchingRoutePoint: {
+        justifyContent: 'center',
+    },
+    searchingRouteLabel: {
+        fontSize: 8,
+        fontWeight: '900',
+        color: '#64748B',
+        letterSpacing: 0.8,
+    },
+    searchingRouteValue: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        marginTop: 1,
+    },
+    ticketNotchContainer: {
+        height: 16,
+        backgroundColor: '#FFFFFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'relative',
+    },
+    ticketLeftNotch: {
+        width: 12,
+        height: 16,
+        backgroundColor: '#F8FAFC',
+        borderTopRightRadius: 8,
+        borderBottomRightRadius: 8,
+        marginLeft: -6,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+    },
+    ticketRightNotch: {
+        width: 12,
+        height: 16,
+        backgroundColor: '#F8FAFC',
+        borderTopLeftRadius: 8,
+        borderBottomLeftRadius: 8,
+        marginRight: -6,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+    },
+    ticketDashedDivider: {
+        flex: 1,
+        height: 1,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        marginHorizontal: 8,
+    },
+    ticketFooter: {
+        paddingHorizontal: 20,
+        paddingBottom: 18,
+        paddingTop: 8,
+        backgroundColor: '#FFFFFF',
+        borderBottomLeftRadius: 22,
+        borderBottomRightRadius: 22,
+    },
+    ticketInfoRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    ticketInfoPill: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#EFF6FF',
+        borderWidth: 1,
+        borderColor: '#DBEAFE',
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    ticketInfoPillText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E40AF',
+    },
+    searchingFooter: {
+        width: '100%',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    cancelRequestPill: {
+        width: '100%',
+        maxWidth: 280,
+        height: 48,
+        borderRadius: 30,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 2,
+        borderColor: '#EF4444',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.MEDIUM,
+    },
+    cancelRequestPillText: {
+        color: '#EF4444',
+        fontWeight: '900',
+        fontSize: 13,
+        letterSpacing: 0.8,
+    },
+
+    // Driver Requests
     requestsContainer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 24,
         left: 20,
         right: 20,
         maxHeight: '65%',

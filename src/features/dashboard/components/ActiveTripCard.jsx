@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from "react-native";
 import { Card, Text, Button, Divider, ActivityIndicator, useTheme } from "react-native-paper";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SHADOWS, COLORS, BORDER_RADIUS } from '../../../core/constants/theme';
 
 export default function ActiveTripCard({
     activeTrip,
@@ -24,102 +26,353 @@ export default function ActiveTripCard({
     const title = isPasajero ? getStateTitle() : getDriverTitle();
     const subtitle = isPasajero ? getStateSubtitle() : getDriverSubtitle();
 
+    const getInitials = (name) => {
+        if (!name) return isPasajero ? "CH" : "PA";
+        return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+    };
+
     return (
-        <Card style={styles.tripCard}>
-            <View>
-                <Card.Title
-                    title={title}
-                    subtitle={subtitle}
-                    left={(props) => <ActivityIndicator {...props} icon={getDriverIcon()} />}
-                />
-                <Card.Content>
-                    <View style={styles.userInfo}>
-                        <View style={styles.avatar}>
+        <Card style={[styles.tripCard, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.sheetIndicator} />
+            
+            <View style={styles.headerRow}>
+                <View style={styles.iconContainer}>
+                    <ActivityIndicator animating={true} size="small" color={theme.colors.primary} />
+                </View>
+                <View style={styles.headerText}>
+                    <Text style={styles.titleText}>{title}</Text>
+                    <Text style={styles.subtitleText}>{subtitle}</Text>
+                </View>
+            </View>
+
+            <Divider style={styles.headerDivider} />
+
+            <Card.Content style={styles.cardContent}>
+                {/* User/Driver profile section */}
+                <View style={styles.userInfo}>
+                    <View style={[styles.avatarGlow, { borderColor: theme.colors.primary }]}>
+                        <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
                             <Text style={styles.initials}>
                                 {isPasajero
-                                    ? (activeTrip.driver?.name?.substring(0, 2).toUpperCase() || 'CH')
-                                    : (activeTrip.passenger?.name?.substring(0, 2).toUpperCase() || 'PA')
+                                    ? getInitials(activeTrip.driver?.name)
+                                    : getInitials(activeTrip.passenger?.name)
                                 }
                             </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text variant="titleMedium">
-                                {isPasajero ? (activeTrip.driver?.name || 'Conductor') : (activeTrip.passenger?.name || 'Pasajero')}
-                            </Text>
-                            <Text variant="bodyMedium" style={{ color: 'gray' }}>
-                                {isPasajero ? "Carrito #12" : "Universidad Laica Eloy Alfaro"}
-                            </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                {isPasajero && (
-                                    <>
-                                        <Text>⭐ {Number(activeTrip.driver?.rating || activeTrip.driver?.score || 5).toFixed(1)}</Text>
-                                    </>
-                                )}
-                                {!isPasajero && activeTrip.passengers_count && (
-                                    <Text style={{ color: 'gray' }}>
-                                        👥 {activeTrip.passengers_count} {activeTrip.passengers_count === 1 ? 'pasajero' : 'pasajeros'}
-                                    </Text>
-                                )}
-                            </View>
                         </View>
                     </View>
-                    <Divider style={{ marginVertical: 10 }} />
+                    
+                    <View style={styles.userDetails}>
+                        <Text style={styles.userName}>
+                            {isPasajero ? (activeTrip.driver?.name || 'Conductor') : (activeTrip.passenger?.name || 'Pasajero')}
+                        </Text>
+                        <Text style={styles.userSubtext}>
+                            {isPasajero ? "Carrito Eléctrico #12" : "Universidad Eloy Alfaro"}
+                        </Text>
+                        
+                        <View style={styles.metadataContainer}>
+                            {isPasajero && (
+                                <View style={styles.ratingBadge}>
+                                    <MaterialCommunityIcons name="star" size={12} color="#FFD700" style={{ marginRight: 2 }} />
+                                    <Text style={styles.ratingText}>
+                                        {Number(activeTrip.driver?.rating || activeTrip.driver?.score || 5).toFixed(1)}
+                                    </Text>
+                                </View>
+                            )}
+                            {!isPasajero && activeTrip.passengers_count && (
+                                <View style={styles.passengerBadge}>
+                                    <MaterialCommunityIcons name="account-group" size={12} color="#6C757D" style={{ marginRight: 4 }} />
+                                    <Text style={styles.passengerText}>
+                                        {activeTrip.passengers_count} {activeTrip.passengers_count === 1 ? 'pasajero' : 'pasajeros'}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                </View>
 
-                    {isPasajero ? (
-                        <View>
-                            <Text variant="labelLarge" style={{ marginBottom: 4 }}>Origen: {activeTrip.origin?.address || activeTrip.origin_address}</Text>
-                            <Text variant="labelLarge">Destino: {activeTrip.destination?.address || activeTrip.destination_address}</Text>
-                        </View>
-                    ) : (
-                        <View>
-                            <Text variant="labelLarge" style={{ marginBottom: 4 }}>
-                                {activeTrip.state_id == 4 ? "Destino:" : "Recoger en:"}
-                            </Text>
-                            <Text variant="bodyMedium">
-                                {activeTrip.state_id == 4
-                                    ? (activeTrip.destination?.address || activeTrip.destination_address)
-                                    : (activeTrip.origin?.address || activeTrip.origin_address)
-                                }
+                {/* Vertical route map nodes instead of plain text */}
+                <View style={styles.routeContainer}>
+                    <View style={styles.routeIndicators}>
+                        <View style={styles.dotOrigin} />
+                        <View style={styles.routeLine} />
+                        <View style={styles.squareDestination} />
+                    </View>
+                    
+                    <View style={styles.routeDetails}>
+                        <View style={styles.routeBlock}>
+                            <Text style={styles.routeLabel}>Punto de Partida</Text>
+                            <Text style={styles.routeValue} numberOfLines={1}>
+                                {activeTrip.origin?.address || activeTrip.origin_address || 'Ubicación actual'}
                             </Text>
                         </View>
-                    )}
-                </Card.Content>
-                <Card.Actions style={{ padding: 16 }}>
-                    {isPasajero ? (
-                        <View style={{ flexDirection: 'row', flex: 1 }}>
-                            <Button mode="contained" style={{ flex: 1 }} onPress={onContact}>Contactar</Button>
-                            {activeTrip.state_id != 4 && (
-                                <Button mode="outlined" textColor={theme.colors.error} style={{ flex: 1, marginLeft: 10 }} onPress={onCancel}>Cancelar</Button>
-                            )}
+                        
+                        <View style={styles.routeBlock}>
+                            <Text style={styles.routeLabel}>Punto de Destino</Text>
+                            <Text style={styles.routeValue} numberOfLines={1}>
+                                {activeTrip.destination?.address || activeTrip.destination_address || 'Destino seleccionado'}
+                            </Text>
                         </View>
-                    ) : (
-                        <View style={{ flexDirection: 'row', flex: 1 }}>
-                            {activeTrip.state_id != 4 && (
-                                <Button mode="contained" style={{ flex: 1, backgroundColor: theme.colors.primary }} onPress={onContact}>
-                                    Contactar
-                                </Button>
-                            )}
-                            {activeTrip.state_id != 4 && (
-                                <Button mode="contained" style={{ flex: 1, marginLeft: 10, backgroundColor: '#4CAF50' }} onPress={onStartTrip}>
-                                    Llegué / Recogí
-                                </Button>
-                            )}
-                            {activeTrip.state_id == 4 && (
-                                <Button mode="contained" style={{ flex: 1, backgroundColor: '#4CAF50' }} onPress={onFinishTrip}>
-                                    Finalizar Viaje
-                                </Button>
-                            )}
-                        </View>
-                    )}
-                </Card.Actions>
-            </View >
+                    </View>
+                </View>
+            </Card.Content>
+
+            {/* Premium action buttons with clean shapes */}
+            <Card.Actions style={styles.cardActions}>
+                {isPasajero ? (
+                    <View style={styles.buttonRow}>
+                        <Button 
+                            mode="contained" 
+                            style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                            contentStyle={styles.actionButtonContent}
+                            onPress={onContact}
+                            icon="phone"
+                        >
+                            Contactar
+                        </Button>
+                        {activeTrip.state_id != 4 && (
+                            <Button 
+                                mode="outlined" 
+                                textColor={theme.colors.error} 
+                                style={[styles.actionButton, { borderColor: theme.colors.error + '50' }]} 
+                                contentStyle={styles.actionButtonContent}
+                                onPress={onCancel}
+                                icon="close"
+                            >
+                                Cancelar
+                            </Button>
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.buttonRow}>
+                        {activeTrip.state_id != 4 && (
+                            <Button 
+                                mode="contained-tonal" 
+                                style={[styles.actionButton, { backgroundColor: theme.colors.primary + '15' }]} 
+                                textColor={theme.colors.primary}
+                                contentStyle={styles.actionButtonContent}
+                                onPress={onContact}
+                                icon="phone"
+                            >
+                                Contactar
+                            </Button>
+                        )}
+                        {activeTrip.state_id != 4 && (
+                            <Button 
+                                mode="contained" 
+                                style={[styles.actionButton, { backgroundColor: '#2E7D32', marginLeft: 10 }]} 
+                                contentStyle={styles.actionButtonContent}
+                                onPress={onStartTrip}
+                                icon="check-bold"
+                            >
+                                Recogí Pasajero
+                            </Button>
+                        )}
+                        {activeTrip.state_id == 4 && (
+                            <Button 
+                                mode="contained" 
+                                style={[styles.actionButton, { backgroundColor: '#2E7D32' }]} 
+                                contentStyle={styles.actionButtonContent}
+                                onPress={onFinishTrip}
+                                icon="flag-checkered"
+                            >
+                                Finalizar Viaje
+                            </Button>
+                        )}
+                    </View>
+                )}
+            </Card.Actions>
         </Card >
     );
 }
 
 const styles = StyleSheet.create({
-    tripCard: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, elevation: 8 },
-    userInfo: { flexDirection: 'row', alignItems: 'center' },
-    avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    initials: { fontSize: 20, fontWeight: 'bold', color: '#757575' },
+    tripCard: { 
+        position: 'absolute', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        borderTopLeftRadius: 24, 
+        borderTopRightRadius: 24, 
+        ...SHADOWS.LARGE,
+        borderWidth: 1.5,
+        borderColor: '#EEEEEE',
+        paddingTop: 8,
+    },
+    sheetIndicator: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E0E0E0',
+        alignSelf: 'center',
+        marginBottom: 12,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 10,
+    },
+    iconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#1E88E510',
+        marginRight: 12,
+    },
+    headerText: {
+        flex: 1,
+    },
+    titleText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#212529',
+    },
+    subtitleText: {
+        fontSize: 12,
+        color: '#6C757D',
+        marginTop: 1,
+    },
+    headerDivider: {
+        opacity: 0.5,
+    },
+    cardContent: {
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+    },
+    userInfo: { 
+        flexDirection: 'row', 
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    avatarGlow: {
+        borderWidth: 2,
+        borderColor: '#1E88E530',
+        padding: 3,
+        borderRadius: 28,
+        marginRight: 14,
+    },
+    avatar: { 
+        width: 44, 
+        height: 44, 
+        borderRadius: 22, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+    },
+    initials: { 
+        fontSize: 16, 
+        fontWeight: 'bold', 
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+    userDetails: {
+        flex: 1,
+    },
+    userName: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#212529',
+    },
+    userSubtext: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 1,
+    },
+    metadataContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    ratingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF9C4',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    ratingText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#F57F17',
+    },
+    passengerBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    passengerText: {
+        fontSize: 11,
+        color: '#6C757D',
+        fontWeight: 'bold',
+    },
+    routeContainer: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        backgroundColor: '#F8F9FA',
+        padding: 12,
+        borderRadius: BORDER_RADIUS.LG,
+    },
+    routeIndicators: {
+        width: 16,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+        marginRight: 10,
+    },
+    dotOrigin: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#1E88E5',
+    },
+    routeLine: {
+        width: 1.5,
+        flex: 1,
+        backgroundColor: '#E0E0E0',
+        marginVertical: 2,
+    },
+    squareDestination: {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+        backgroundColor: '#FF6B6B',
+    },
+    routeDetails: {
+        flex: 1,
+        justifyContent: 'space-between',
+        height: 60,
+    },
+    routeBlock: {
+        justifyContent: 'center',
+    },
+    routeLabel: {
+        fontSize: 9,
+        color: '#888',
+        textTransform: 'uppercase',
+        fontWeight: 'bold',
+    },
+    routeValue: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    cardActions: { 
+        paddingHorizontal: 20, 
+        paddingBottom: 20, 
+        paddingTop: 0,
+    },
+    buttonRow: { 
+        flexDirection: 'row', 
+        flex: 1,
+        gap: 12,
+    },
+    actionButton: { 
+        flex: 1, 
+        borderRadius: BORDER_RADIUS.LG,
+        ...SHADOWS.SMALL,
+    },
+    actionButtonContent: {
+        paddingVertical: 6,
+    },
 });

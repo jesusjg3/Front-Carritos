@@ -113,8 +113,10 @@ export const useDriverLocation = (user, token, isOnline) => {
         }
 
         setLocation(null);
-        // Notificar al servidor que estamos offline
-        setDriverOffline();
+        // Notificar al servidor que estamos offline solo si somos conductores
+        if (user && user.role === 'conductor') {
+            setDriverOffline();
+        }
     };
 
     const sendLocationToServer = async (latitude, longitude) => {

@@ -21,7 +21,6 @@ export const APP_CONFIG = {
   USER_ROLES: {
     STUDENT: 'Estudiante',
     DRIVER: 'Conductor',
-    ADMIN: 'Admin',
   },
 };
 

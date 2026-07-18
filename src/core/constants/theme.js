@@ -19,7 +19,6 @@ export const COLORS = {
   INFO: '#2196F3',
   
   // Roles
-  ADMIN: '#d32f2f',
   PASSENGER: '#144985',
   DRIVER: '#1E88E5',
   

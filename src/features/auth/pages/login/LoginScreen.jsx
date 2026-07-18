@@ -28,14 +28,8 @@ export default function LoginScreen({ navigation }) {
             return;
         }
         if (result.user && result.user.rol && result.user.rol.toLowerCase() === 'admin') {
-            if (!result.user.is_active) {
-                setError('Tu cuenta ha sido desactivada. Contacta a un administrador.');
-                return;
-            }
-            navigation.reset({
-                index: 0,
-                routes: [{ name: ROUTES.ADMIN_DASHBOARD }],
-            });
+            setError('Los administradores deben iniciar sesión en el panel web.');
+            return;
         }
     };
 

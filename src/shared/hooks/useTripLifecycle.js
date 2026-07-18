@@ -248,6 +248,46 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         }
     };
 
+    const handleBoardPassenger = async (passengerId) => {
+        if (!activeTrip) return;
+        try {
+            const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/board/${passengerId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setActiveTrip(data);
+                showAlert("Pasajero a bordo", "El pasajero ha subido al vehículo.", "success");
+            } else {
+                showAlert("Error", "Error al subir pasajero: " + (data.error || "Desconocido"), "error");
+            }
+        } catch (error) {
+            console.error(error);
+            showAlert("Error de Conexión", "Error de conexión.", "error");
+        }
+    };
+
+    const handleDropOffPassenger = async (passengerId) => {
+        if (!activeTrip) return;
+        try {
+            const response = await fetch(`${API_ROUTES.TRIPS}/${activeTrip.id}/dropoff/${passengerId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setActiveTrip(data);
+                showAlert("Pasajero bajó", "El pasajero ha llegado a su destino.", "info");
+            } else {
+                showAlert("Error", "Error al bajar pasajero: " + (data.error || "Desconocido"), "error");
+            }
+        } catch (error) {
+            console.error(error);
+            showAlert("Error de Conexión", "Error de conexión.", "error");
+        }
+    };
+
     const requestTrip = async (ubicacion, destinoSeleccionado, distance, passengersCount = 1) => {
         try {
             // Incrementar contador de intentos
@@ -377,6 +417,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         handleRejectRequest,
         handleStartTrip,
         handleFinishTrip,
+        handleBoardPassenger,
+        handleDropOffPassenger,
         requestTrip,
         cancelTrip
     };

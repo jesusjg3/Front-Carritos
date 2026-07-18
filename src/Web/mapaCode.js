@@ -117,7 +117,8 @@ export const mapaHtml = `
             
             // CRÍTICO PARA ANIMACIONES: Leaflet destruye el NODO visual si usamos setIcon innecesariamente.
             // Solo creamos iconToUse si de verdad necesitamos cambiar el TIPO visual del usuario, sino solo re-usamos su div CSS
-            var demandsNewIcon = !userMarker || (userMarker._customIconType !== currentIconType);
+            var isFallback = userMarker && userMarker._isFallback;
+            var demandsNewIcon = !userMarker || (userMarker._customIconType !== currentIconType) || (isFallback && isDriver && carritoIconUrl);
 
             if (demandsNewIcon) {
                 if (isDriver && carritoIconUrl) {
@@ -146,6 +147,11 @@ export const mapaHtml = `
                         iconSize: [20, 20],
                         iconAnchor: [10, 10]
                     });
+                    
+                    // Mark as fallback if we wanted a car but iconUrl wasn't ready
+                    if (isDriver && !carritoIconUrl) {
+                        iconToUse._isFallback = true;
+                    }
                 }
             }
 
@@ -155,10 +161,12 @@ export const mapaHtml = `
                 if (demandsNewIcon && iconToUse) {
                     userMarker.setIcon(iconToUse);
                     userMarker._customIconType = currentIconType;
+                    userMarker._isFallback = iconToUse._isFallback || false;
                 }
             } else {
                 userMarker = L.marker([lat, lon], { icon: iconToUse }).addTo(map).bindPopup('Tu ubicación');
                 userMarker._customIconType = currentIconType;
+                userMarker._isFallback = iconToUse._isFallback || false;
             }
         } else {
             console.error("Error: Coordenadas no válidas para el marcador.");

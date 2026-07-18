@@ -10,7 +10,9 @@ export default function ActiveTripCard({
     onContact,
     onCancel,
     onStartTrip,
-    onFinishTrip
+    onFinishTrip,
+    onBoardPassenger,
+    onDropOffPassenger
 }) {
     const theme = useTheme();
 
@@ -49,46 +51,90 @@ export default function ActiveTripCard({
 
             <Card.Content style={styles.cardContent}>
                 {/* User/Driver profile section */}
-                <View style={styles.userInfo}>
-                    <View style={[styles.avatarGlow, { borderColor: theme.colors.primary }]}>
-                        <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-                            <Text style={styles.initials}>
-                                {isPasajero
-                                    ? getInitials(activeTrip.driver?.name)
-                                    : getInitials(activeTrip.passenger?.name)
-                                }
-                            </Text>
+                {isPasajero ? (
+                    <View style={styles.userInfo}>
+                        <View style={[styles.avatarGlow, { borderColor: theme.colors.primary }]}>
+                            <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+                                <Text style={styles.initials}>
+                                    {getInitials(activeTrip.driver?.name)}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                    
-                    <View style={styles.userDetails}>
-                        <Text style={styles.userName}>
-                            {isPasajero ? (activeTrip.driver?.name || 'Conductor') : (activeTrip.passenger?.name || 'Pasajero')}
-                        </Text>
-                        <Text style={styles.userSubtext}>
-                            {isPasajero ? "Carrito Eléctrico #12" : "Universidad Eloy Alfaro"}
-                        </Text>
                         
-                        <View style={styles.metadataContainer}>
-                            {isPasajero && (
+                        <View style={styles.userDetails}>
+                            <Text style={styles.userName}>
+                                {activeTrip.driver?.name || 'Conductor'}
+                            </Text>
+                            <Text style={styles.userSubtext}>
+                                Vehículo Asignado
+                            </Text>
+                            
+                            <View style={styles.metadataContainer}>
                                 <View style={styles.ratingBadge}>
                                     <MaterialCommunityIcons name="star" size={12} color="#FFD700" style={{ marginRight: 2 }} />
                                     <Text style={styles.ratingText}>
                                         {Number(activeTrip.driver?.rating || activeTrip.driver?.score || 5).toFixed(1)}
                                     </Text>
                                 </View>
-                            )}
-                            {!isPasajero && activeTrip.passengers_count && (
-                                <View style={styles.passengerBadge}>
-                                    <MaterialCommunityIcons name="account-group" size={12} color="#6C757D" style={{ marginRight: 4 }} />
-                                    <Text style={styles.passengerText}>
-                                        {activeTrip.passengers_count} {activeTrip.passengers_count === 1 ? 'pasajero' : 'pasajeros'}
-                                    </Text>
-                                </View>
-                            )}
+                            </View>
                         </View>
                     </View>
-                </View>
+                ) : (
+                    // Driver View - List of passengers
+                    <View style={{ marginBottom: 16 }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#666', marginBottom: 8 }}>
+                            PASAJEROS ({activeTrip.passengers?.length || 0})
+                        </Text>
+                        {activeTrip.passengers && activeTrip.passengers.map((p) => (
+                            <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, backgroundColor: '#f8f9fa', padding: 8, borderRadius: 12 }}>
+                                <View style={[styles.avatar, { backgroundColor: theme.colors.primary, width: 36, height: 36, borderRadius: 18, marginRight: 10 }]}>
+                                    <Text style={[styles.initials, { fontSize: 13 }]}>
+                                        {getInitials(p.name)}
+                                    </Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>{p.name}</Text>
+                                    <Text style={{ fontSize: 11, color: '#888' }}>{p.phone || 'Sin número'}</Text>
+                                </View>
+                                <View>
+                                    {p.status === 'accepted' && (
+                                        <Button 
+                                            mode="contained" 
+                                            compact 
+                                            style={{ backgroundColor: '#2E7D32', borderRadius: 8 }}
+                                            labelStyle={{ fontSize: 10, marginHorizontal: 8, marginVertical: 4 }}
+                                            onPress={() => onBoardPassenger(p.id)}
+                                        >
+                                            Subió
+                                        </Button>
+                                    )}
+                                    {p.status === 'boarded' && (
+                                        <Button 
+                                            mode="outlined" 
+                                            compact 
+                                            style={{ borderColor: '#FF6B6B', borderRadius: 8 }}
+                                            textColor="#FF6B6B"
+                                            labelStyle={{ fontSize: 10, marginHorizontal: 8, marginVertical: 4 }}
+                                            onPress={() => onDropOffPassenger(p.id)}
+                                        >
+                                            Bajó
+                                        </Button>
+                                    )}
+                                    {p.status === 'dropped_off' && (
+                                        <Text style={{ fontSize: 11, color: '#9E9E9E', fontStyle: 'italic', marginRight: 4 }}>
+                                            Finalizado
+                                        </Text>
+                                    )}
+                                    {p.status === 'cancelled' && (
+                                        <Text style={{ fontSize: 11, color: '#F44336', fontStyle: 'italic', marginRight: 4 }}>
+                                            Cancelado
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
 
                 {/* Vertical route map nodes instead of plain text */}
                 <View style={styles.routeContainer}>
@@ -153,18 +199,18 @@ export default function ActiveTripCard({
                                 onPress={onContact}
                                 icon="phone"
                             >
-                                Contactar
+                                Llamar a todos
                             </Button>
                         )}
                         {activeTrip.state_id != 4 && (
                             <Button 
                                 mode="contained" 
-                                style={[styles.actionButton, { backgroundColor: '#2E7D32', marginLeft: 10 }]} 
+                                style={[styles.actionButton, { backgroundColor: '#1E88E5' }]} 
                                 contentStyle={styles.actionButtonContent}
                                 onPress={onStartTrip}
-                                icon="check-bold"
+                                icon="play-circle"
                             >
-                                Recogí Pasajero
+                                Iniciar Ruta
                             </Button>
                         )}
                         {activeTrip.state_id == 4 && (
@@ -175,7 +221,7 @@ export default function ActiveTripCard({
                                 onPress={onFinishTrip}
                                 icon="flag-checkered"
                             >
-                                Finalizar Viaje
+                                Finalizar Viaje Completo
                             </Button>
                         )}
                     </View>

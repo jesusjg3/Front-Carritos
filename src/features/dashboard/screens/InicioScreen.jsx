@@ -56,6 +56,8 @@ export default function InicioScreen() {
         handleRejectRequest,
         handleStartTrip,
         handleFinishTrip,
+        handleBoardPassenger,
+        handleDropOffPassenger,
         requestTrip,
         cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
@@ -363,18 +365,18 @@ export default function InicioScreen() {
             return;
         }
 
-        // --- Geofence check desactivado temporalmente para pruebas desde casa/desarrollo ---
-        /*
+        // --- Geofence check activo ---
         const centerLat = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LAT);
         const centerLng = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_CENTER_LNG);
         const radiusKm = parseFloat(process.env.EXPO_PUBLIC_CAMPUS_RADIUS_KM);
 
         const distFromCenter = calculateDistance(ubicacion.latitude, ubicacion.longitude, centerLat, centerLng);
         if (distFromCenter > radiusKm) {
-            Alert.alert("Fuera de zona", "Estás fuera de la zona de servicio permitida para pedir carritos.");
+            Alert.alert("Fuera de zona", `Estás fuera de la zona de servicio permitida (${radiusKm} km).`);
             return;
         }
-        */
+
+
 
         const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
 
@@ -527,6 +529,8 @@ export default function InicioScreen() {
                     }}
                     onStartTrip={handleStartTrip}
                     onFinishTrip={handleFinishTrip}
+                    onBoardPassenger={handleBoardPassenger}
+                    onDropOffPassenger={handleDropOffPassenger}
                 />
             </SafeAreaView>
         );

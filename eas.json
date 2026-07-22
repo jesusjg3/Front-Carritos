@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 21.0.2",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.10.96:8000/api",
+        "EXPO_PUBLIC_REVERB_APP_KEY": "app-key",
+        "EXPO_PUBLIC_REVERB_PORT": "8080",
+        "EXPO_PUBLIC_CAMPUS_CENTER_LAT": "-0.9525",
+        "EXPO_PUBLIC_CAMPUS_CENTER_LNG": "-80.7450",
+        "EXPO_PUBLIC_CAMPUS_RADIUS_KM": "1.5"
+      }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -186,6 +186,24 @@ Esta arquitectura está inspirada en:
 - **Clean Architecture**: Separación de capas y responsabilidades
 - **React Best Practices**: Hooks, Context API, composition
 
+**Nota**: Esta estructura es flexible y puede adaptarse según las necesidades del proyecto. El objetivo es mantener el código organizado y fácil de escalar.
+
 ---
 
-**Nota**: Esta estructura es flexible y puede adaptarse según las necesidades del proyecto. El objetivo es mantener el código organizado y fácil de escalar.
+## 🔔 Configuración de Notificaciones Push (Expo + Firebase)
+
+Para que las notificaciones en segundo plano funcionen correctamente en dispositivos Android (APK), el proyecto debe estar vinculado con **Firebase Cloud Messaging (FCM)**. Sigue estos pasos si configuras el proyecto desde cero:
+
+### 1. Archivo del Cliente (En este repositorio)
+El archivo `google-services.json` le dice a la aplicación cómo conectarse a tu proyecto de Firebase.
+- Descárgalo desde la consola de Firebase (`Configuración del proyecto` > `General` > `Tus apps` > `Android`).
+- Colócalo en la raíz del proyecto (`Front-Carritos/google-services.json`).
+- **Importante:** Este archivo contiene llaves de API. Está incluido en el `.gitignore` por defecto para evitar filtraciones de seguridad. Si alguien clona el proyecto, debe colocar su propio `google-services.json`.
+
+### 2. Archivo del Servidor (En la web de Expo)
+El archivo **Service Account Key** (FCM V1) es el que le da permiso a los servidores de Expo para enviar notificaciones a los dispositivos a través de Google.
+- En la consola de Firebase, ve a `Configuración del proyecto` > `Cuentas de servicio` > `Generar nueva clave privada`. Se descargará un archivo `.json` (ej: `*-firebase-adminsdk-*.json`).
+- Entra a tu cuenta en [expo.dev](https://expo.dev) > Selecciona tu proyecto > `Credentials` > `Android` > Selecciona tu paquete (ej: `com.anonymous.FrontCarritos`).
+- En la sección **Push Notifications**, haz clic en **"Add a service account key"** (debajo de FCM V1) y sube el archivo `.json` que acabas de descargar.
+
+*No es necesario subir la llave de Service Account a este repositorio. Nunca la subas a GitHub.*

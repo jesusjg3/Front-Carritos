@@ -16,6 +16,7 @@ import StatusToggleButton from "../components/StatusToggleButton";
 import ActiveTripCard from "../components/ActiveTripCard";
 import DestinationModal from "../components/DestinationModal";
 import RateDriverModal from "../components/RateDriverModal";
+import RatePassengerModal from "../components/RatePassengerModal";
 import UniversalMap from "../../../shared/components/UniversalMap";
 import RadarView from "../components/RadarView";
 
@@ -38,6 +39,7 @@ export default function InicioScreen() {
     // Crear ref del UniversalMap
     const webViewRef = useRef(null);
     const hasCenteredRef = useRef(false);
+    const lastRouteRef = useRef({ startLat: 0, startLng: 0, endLat: 0, endLng: 0, phase: null });
 
     // Derived Roles
     const isPasajero = user && user.role === 'pasajero';
@@ -114,7 +116,7 @@ export default function InicioScreen() {
 
     // Efecto para actualizar conductores en el mapa
     React.useEffect(() => {
-        if (isPasajero && webViewRef.current) {
+        if (isPasajero && webViewRef.current && !activeTrip) {
             const driversData = JSON.stringify(nearbyDrivers || []);
             webViewRef.current.injectJavaScript(`
                 if (typeof updateNearbyDrivers === 'function') {
@@ -122,7 +124,7 @@ export default function InicioScreen() {
                 }
             `);
         }
-    }, [nearbyDrivers, isPasajero]);
+    }, [nearbyDrivers, isPasajero, activeTrip]);
 
     // Efecto para renderizar Destinos / Puntos de Interés (Solo si no hay viaje activo)
     React.useEffect(() => {
@@ -241,10 +243,8 @@ export default function InicioScreen() {
             };
 
             if (isConductor && ubicacion) {
-                // El conductor CONFÍA en su propio GPS para trazar/recortar la ruta localmente sin lag
                 start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
             } else {
-                // El pasajero confía en la base de datos retransmitida
                 start = { 
                     lat: getVal(activeTrip.driver?.latitude), 
                     lng: getVal(activeTrip.driver?.longitude) 
@@ -252,7 +252,9 @@ export default function InicioScreen() {
             }
 
             if (start.lat === 0 && ubicacion) {
-                start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
+                if (isConductor || isPhase2) {
+                    start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
+                }
             }
             padding = 100;
         }
@@ -264,7 +266,6 @@ export default function InicioScreen() {
         const showUserMarker = isConductor || !isPhase2;
         if (showUserMarker && ubicacion) {
             if (isConductor) {
-                // Forzar inyección del carrito global para evitar que se ponga el puntito azul estático
                 const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 script += `if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');`;
             }
@@ -291,12 +292,22 @@ export default function InicioScreen() {
             }]);
 
             const shouldAnimateZoom = isPhase1;
+            const currentPhase = isPhase1 ? 1 : 2;
+            
+            const routeChanged = Math.abs(lastRouteRef.current.endLat - end.lat) > 0.0001 ||
+                                 Math.abs(lastRouteRef.current.endLng - end.lng) > 0.0001 ||
+                                 lastRouteRef.current.phase !== currentPhase;
+
+            if (routeChanged) {
+                script += `
+                    if (typeof drawRoute === 'function') {
+                        drawRoute(${start.lat}, ${start.lng}, ${end.lat}, ${end.lng}, ${padding}, ${shouldAnimateZoom});
+                    }
+                `;
+                lastRouteRef.current = { startLat: start.lat, startLng: start.lng, endLat: end.lat, endLng: end.lng, phase: currentPhase };
+            }
 
             script += `
-                if (typeof drawRoute === 'function') {
-                    drawRoute(${start.lat}, ${start.lng}, ${end.lat}, ${end.lng}, ${padding}, ${shouldAnimateZoom});
-                }
-                
                 if (!${isConductor} && typeof updateNearbyDrivers === 'function') {
                     updateNearbyDrivers(${driverInfo});
                 }
@@ -620,7 +631,14 @@ export default function InicioScreen() {
             />
 
             <RateDriverModal
-                visible={!!tripToRate}
+                visible={!!tripToRate && !isConductor}
+                trip={tripToRate}
+                onDismiss={() => setTripToRate(null)}
+                onRateSuccess={() => setTripToRate(null)}
+            />
+
+            <RatePassengerModal
+                visible={!!tripToRate && isConductor}
                 trip={tripToRate}
                 onDismiss={() => setTripToRate(null)}
                 onRateSuccess={() => setTripToRate(null)}

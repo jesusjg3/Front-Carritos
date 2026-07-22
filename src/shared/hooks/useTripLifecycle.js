@@ -237,7 +237,9 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             });
             const data = await response.json();
             if (response.ok) {
+                const finishedTrip = activeTrip;
                 resetTripState();
+                setTripToRate(finishedTrip);
                 showAlert("¡Viaje Completado!", "¡Viaje finalizado con éxito!", "success");
             } else {
                 showAlert("Error", "Error al finalizar: " + (data.error || "Desconocido"), "error");
@@ -329,6 +331,17 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 const timeout = setTimeout(() => {
                     // Resetear estado para mostrar mapa
                     setIsSearching(false);
+
+                    // NOTIFICAR AL BACKEND QUE EXPIRÓ LA BÚSQUEDA
+                    // Cancelamos la petición en el servidor silenciosamente para que
+                    // desaparezca de la pantalla de los conductores.
+                    fetch(`${API_ROUTES.TRIPS}/${data.id}/cancel`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }).catch(e => console.log('Silently failed to cancel expired trip:', e));
 
                     // Usar el custom showAlert para que tenga callback con dos opciones
                     showAlert(

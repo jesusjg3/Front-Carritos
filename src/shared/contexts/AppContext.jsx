@@ -192,9 +192,15 @@ export function AppContextProvider({ children }) {
     };
 
     const logout = async () => {
-        setUser(null);
-        setToken(null);
-        await clearSession();
+        try {
+            // Primero limpiamos de AsyncStorage
+            await clearSession();
+            // Luego, limpiamos en memoria
+            setUser(null);
+            setToken(null);
+        } catch (error) {
+            console.error('Error al hacer logout:', error);
+        }
     };
 
     return (

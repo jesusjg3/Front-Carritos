@@ -55,6 +55,10 @@ $RECYCLE.BIN/
 .env.test.local
 .env.production.local
 
+# Firebase & Push Notifications (DO NOT COMMIT SECRETS)
+google-services.json
+*firebase-adminsdk*.json
+
 # TypeScript
 *.tsbuildinfo
 tsconfig.tsbuildinfo

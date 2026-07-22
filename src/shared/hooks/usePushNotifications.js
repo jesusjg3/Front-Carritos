@@ -42,11 +42,15 @@ export const usePushNotifications = () => {
         });
 
         return () => {
-            if (notificationListener.current) {
-                Notifications.removeNotificationSubscription(notificationListener.current);
-            }
-            if (responseListener.current) {
-                Notifications.removeNotificationSubscription(responseListener.current);
+            try {
+                if (notificationListener.current) {
+                    Notifications.removeNotificationSubscription(notificationListener.current);
+                }
+                if (responseListener.current) {
+                    Notifications.removeNotificationSubscription(responseListener.current);
+                }
+            } catch (e) {
+                console.warn('Error removing notification subscription:', e);
             }
         };
     }, [user, token]);
@@ -99,8 +103,10 @@ export const usePushNotifications = () => {
             }
             
             try {
-                // Obtenemos el Expo Push Token. No necesitamos projectId de Expo para pruebas simples.
-                token = (await Notifications.getExpoPushTokenAsync()).data;
+                // Obtenemos el Expo Push Token con el projectId del app.json
+                token = (await Notifications.getExpoPushTokenAsync({
+                    projectId: "dcd105ec-ff3f-48eb-8d33-11cf9dbe647e"
+                })).data;
                 console.log("Expo Push Token obtenido: ", token);
             } catch (error) {
                 console.error("Error al obtener Expo Push Token: ", error);

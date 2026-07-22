@@ -108,7 +108,13 @@ export const useDriverLocation = (user, token, isOnline) => {
 
     const stopLocationTracking = () => {
         if (watchSubscription.current) {
-            watchSubscription.current.remove();
+            try {
+                if (typeof watchSubscription.current.remove === 'function') {
+                    watchSubscription.current.remove();
+                }
+            } catch (e) {
+                console.warn('Error removing location subscription:', e);
+            }
             watchSubscription.current = null;
         }
 

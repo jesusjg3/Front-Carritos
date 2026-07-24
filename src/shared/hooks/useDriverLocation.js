@@ -13,6 +13,8 @@ export const useDriverLocation = (user, token, isOnline) => {
     const watchSubscription = useRef(null);
     const updateInterval = useRef(null);
 
+    const wasOnline = useRef(false);
+
     useEffect(() => {
         if (!user || user.role !== 'conductor' || !token || !isOnline) {
             // Si no es conductor o está offline, limpiar
@@ -20,6 +22,7 @@ export const useDriverLocation = (user, token, isOnline) => {
             return;
         }
 
+        wasOnline.current = true;
         startLocationTracking();
 
         return () => {
@@ -119,8 +122,9 @@ export const useDriverLocation = (user, token, isOnline) => {
         }
 
         setLocation(null);
-        // Notificar al servidor que estamos offline solo si somos conductores
-        if (user && user.role === 'conductor') {
+        // Notificar al servidor que estamos offline solo si somos conductores y estábamos online
+        if (user && user.role === 'conductor' && wasOnline.current) {
+            wasOnline.current = false;
             setDriverOffline();
         }
     };

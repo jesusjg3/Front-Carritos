@@ -83,7 +83,7 @@ export const mapaHtml = `
 <div id="map"></div>
 
 <script>
-    var map = L.map('map').setView([0, 0], 2);
+    var map = L.map('map').setView([-0.9676533, -80.737754], 14);
     var userMarker;
     var destinationMarkers = [];
     var routingControl;
@@ -312,14 +312,16 @@ export const mapaHtml = `
                         }
                     }
 
-                    // Detector Inteligente: Si la distancia al punto más cercano de la ruta supera 15m
-                    if (minDistance > 15) {
+                    // Detector Inteligente: Si la distancia al punto más cercano de la ruta supera 50m
+                    if (minDistance > 50) {
                         isOffRoute = true;
                     } else {
-                        var slicedCoords = fullRouteCoords.slice(closestIndex);
-                        slicedCoords.unshift(currentLatLng);
+                        // Cortamos permanentemente las coordenadas que ya pasamos
+                        // para que el mapa se "coma" la línea y nunca dibuje hacia atrás.
+                        fullRouteCoords = fullRouteCoords.slice(closestIndex);
                         
-                        customRouteLine.setLatLngs(slicedCoords);
+                        var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                        customRouteLine.setLatLngs(lineCoords);
                     }
                 }
 
@@ -335,6 +337,7 @@ export const mapaHtml = `
                 }
             }
             routingControl.setWaypoints(waypoints);
+            clearDestinationMarkers();
             addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
         } else {
             routingControl = L.Routing.control({
@@ -377,11 +380,11 @@ export const mapaHtml = `
             paddingTopLeft: [50, 50],
             paddingBottomRight: [50, padBottom],
             animate: true,
-            duration: 0.5
+            duration: 0.5,
+            maxZoom: 16
         });
     }
 
-    // Función para limpiar ruta
     function clearRoute() {
         if (routingControl) {
             map.removeControl(routingControl);
@@ -392,6 +395,7 @@ export const mapaHtml = `
             customRouteLine = null;
         }
         fullRouteCoords = [];
+        lastTargetDest = null;
     }
 
     // Capturar doble clic para seleccionar destino personalizado

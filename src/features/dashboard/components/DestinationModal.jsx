@@ -96,7 +96,7 @@ export default function DestinationModal({
 
                                             <View style={styles.destinoInfo}>
                                                 <Text style={[styles.destinoText, isSelected && { color: theme.colors.primary, fontWeight: 'bold' }]}>
-                                                    {destino.nombre}
+                                                    {destino.name || destino.nombre || 'Destino Desconocido'}
                                                 </Text>
                                                 <Text style={styles.destinoSubtext} numberOfLines={1}>
                                                     {destino.description || 'Punto de destino en el campus'}

@@ -100,84 +100,12 @@ export default function InicioScreen() {
 
     // Limpiar destino seleccionado cuando finaliza el viaje
     useEffect(() => {
-        if (tripToRate && ubicacion && webViewRef.current) {
+        if (tripToRate) {
             setDestinoSeleccionado(null);
-            const cachedDrivers = JSON.stringify(nearbyDrivers || []);
-            webViewRef.current.injectJavaScript(`
-                if (typeof clearRoute === 'function') clearRoute();
-                if (typeof clearDestinationMarkers === 'function') clearDestinationMarkers();
-                if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
-                if (typeof updateNearbyDrivers === 'function') {
-                    updateNearbyDrivers(${cachedDrivers});
-                }
-            `);
+            // NOTA: La limpieza visual del mapa (clearRoute, centerMap) 
+            // ahora es manejada por completo por el Cerebro Unificado (isIdle).
         }
-    }, [tripToRate, ubicacion, nearbyDrivers]);
-
-    // Efecto para actualizar conductores en el mapa
-    React.useEffect(() => {
-        if (isPasajero && webViewRef.current && !activeTrip) {
-            const driversData = JSON.stringify(nearbyDrivers || []);
-            webViewRef.current.injectJavaScript(`
-                if (typeof updateNearbyDrivers === 'function') {
-                    updateNearbyDrivers(${driversData});
-                }
-            `);
-        }
-    }, [nearbyDrivers, isPasajero, activeTrip]);
-
-    // Efecto para renderizar Destinos / Puntos de Interés (Solo si no hay viaje activo)
-    React.useEffect(() => {
-        if (!activeTrip && webViewRef.current) {
-            const destData = JSON.stringify(destinos || []);
-            webViewRef.current.injectJavaScript(`
-                if (typeof addDestinationMarkers === 'function') {
-                    addDestinationMarkers(${destData});
-                }
-            `);
-        }
-    }, [destinos, activeTrip]);
-
-    // Efecto de limpieza temprana de estado para que no sobreviva un destino tras un viaje
-    React.useEffect(() => {
-        if (activeTrip) setDestinoSeleccionado(null);
-    }, [activeTrip]);
-
-    // Resetear el bloqueo de cámara en cada cambio de etapa para que encuadre la nueva ruta completa
-    React.useEffect(() => {
-        hasCenteredRef.current = false;
-    }, [activeTrip?.status, activeTrip?.state_id, activeTrip?.id]);
-
-    // Efecto para dibujar ruta cuando se selecciona destino
-    React.useEffect(() => {
-        if (isPasajero && destinoSeleccionado && ubicacion && webViewRef.current && !activeTrip) {
-            webViewRef.current.injectJavaScript(`
-                if (typeof drawRoute === 'function') {
-                    drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${destinoSeleccionado.latitude}, ${destinoSeleccionado.longitude}, 400);
-                }
-                true;
-            `);
-        }
-    }, [destinoSeleccionado, ubicacion, isPasajero, activeTrip]);
-
-    // Efecto para limpiar ruta cuando se cancela selección
-    React.useEffect(() => {
-        if (isPasajero && !destinoSeleccionado && webViewRef.current) {
-            if (!activeTrip) {
-                const destData = JSON.stringify(destinos || []);
-                webViewRef.current.injectJavaScript(`
-                    if (typeof clearRoute === 'function') {
-                        clearRoute();
-                    }
-                    if (typeof addDestinationMarkers === 'function') {
-                        addDestinationMarkers(${destData});
-                    }
-                    true;
-                `);
-            }
-        }
-    }, [destinoSeleccionado, isPasajero, activeTrip, destinos]);
-
+    }, [tripToRate]);
     const tripIsAccepted = (trip) => {
         if (!trip) return false;
         return trip.status === 'aceptado' || trip.status === 'accepted' || trip.state === 'accepted' || trip.state_id === 2 || trip.state_id === 3;
@@ -188,154 +116,210 @@ export default function InicioScreen() {
         return trip.status === 'en_progreso' || trip.status === 'in_progress' || trip.state === 'in_progress' || trip.state_id === 4;
     };
 
-    // ========== EFECTO UNIFICADO DE MAPA ==========
-    React.useEffect(() => {
+    // ========== CEREBRO UNIFICADO DE MAPA ==========
+    // Efecto para Cerebro Unificado de Mapa y Controladores de Estado Visual
+    // NOTA: Se ha consolidado TODA la lógica de inyección a Leaflet aquí
+
+    // Sincronizar estado offline inicial al cargar la pantalla
+    useEffect(() => {
+        if (isConductor && token && !isOnline) {
+            // Forzar offline en el backend al entrar para evitar que aparezca conectado 
+            // en el mapa de pasajeros por cachés de sesiones anteriores.
+            import('axios').then(axios => {
+                axios.default.post(API_ROUTES.SET_DRIVER_OFFLINE, {}, { headers: { Authorization: `Bearer ${token}` } })
+                    .catch(() => {});
+            });
+        }
+    }, [isConductor, token]);
+
+    useEffect(() => {
         if (!webViewRef.current) return;
 
         const isPhase1 = tripIsAccepted(activeTrip); // Yendo al Pickup
         const isPhase2 = tripInProgress(activeTrip); // Yendo al Destino
         const isIdle = !isPhase1 && !isPhase2;
-
-        if (isIdle) {
-            if (ubicacion) {
-                const lat = parseFloat(ubicacion.latitude);
-                const lng = parseFloat(ubicacion.longitude);
-
-                webViewRef.current.injectJavaScript(`
-                    if (typeof placeUserMarker === 'function') {
-                        placeUserMarker(${lat}, ${lng}, null, ${isConductor});
-                    }
-                    if (typeof centerMap === 'function') {
-                        centerMap(${lat}, ${lng});
-                    }
-                    true;
-                `);
-            }
-            return;
-        }
-
-        let start = { lat: 0, lng: 0 };
-        let end = { lat: 0, lng: 0 };
-        let padding = 100;
-        let validCoords = false;
-
-        const getVal = (v) => parseFloat(v) || 0;
-
-        if (isPhase1) {
-            end = {
-                lat: getVal(activeTrip.origin_lat || activeTrip.origin?.lat),
-                lng: getVal(activeTrip.origin_lng || activeTrip.origin?.lng)
-            };
-
-            if (isConductor) {
-                start = { lat: getVal(ubicacion?.latitude), lng: getVal(ubicacion?.longitude) };
-            } else {
-                start = {
-                    lat: getVal(activeTrip.driver?.latitude),
-                    lng: getVal(activeTrip.driver?.longitude)
-                };
-            }
-            padding = 180;
-        } else if (isPhase2) {
-            end = {
-                lat: getVal(activeTrip.destination_lat || activeTrip.destination?.lat),
-                lng: getVal(activeTrip.destination_lng || activeTrip.destination?.lng)
-            };
-
-            if (isConductor && ubicacion) {
-                start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
-            } else {
-                start = { 
-                    lat: getVal(activeTrip.driver?.latitude), 
-                    lng: getVal(activeTrip.driver?.longitude) 
-                };
-            }
-
-            if (start.lat === 0 && ubicacion) {
-                if (isConductor || isPhase2) {
-                    start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
-                }
-            }
-            padding = 100;
-        }
-
-        validCoords = (start.lat !== 0 && start.lng !== 0 && end.lat !== 0 && end.lng !== 0);
+        const isSelectingDestination = isPasajero && destinoSeleccionado && !activeTrip;
 
         let script = '';
 
-        const showUserMarker = isConductor || !isPhase2;
-        if (showUserMarker && ubicacion) {
-            if (isConductor) {
-                const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                script += `if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');`;
-            }
-            script += `
-                if (typeof placeUserMarker === 'function') {
-                    placeUserMarker(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)}, null, ${isConductor});
-                }
-            `;
-        } else {
-            script += `
-                if (typeof removeUserMarker === 'function') {
-                    removeUserMarker();
-                }
-            `;
-        }
-
-        if (validCoords) {
-            const driverInfo = JSON.stringify([{
-                id: activeTrip.driver?.id || 'driver',
-                lat: start.lat,
-                lng: start.lng,
-                name: activeTrip.driver?.name || 'Conductor',
-                iconUrl: activeTrip.driver?.iconUrl || CARRITO_MARKER_BASE64
-            }]);
-
-            const shouldAnimateZoom = isPhase1;
-            const currentPhase = isPhase1 ? 1 : 2;
+        if (isIdle) {
+            // 1. LIMPIEZA OBLIGATORIA
+            script += `if (typeof clearRoute === 'function') clearRoute();`;
+            // Resetear la referencia de la última ruta trazada para permitir un re-trazado si se cancela y se pide de nuevo desde el mismo lugar.
+            lastRouteRef.current = { startLat: 0, startLng: 0, endLat: 0, endLng: 0, phase: null };
             
-            const routeChanged = Math.abs(lastRouteRef.current.endLat - end.lat) > 0.0001 ||
-                                 Math.abs(lastRouteRef.current.endLng - end.lng) > 0.0001 ||
-                                 lastRouteRef.current.phase !== currentPhase;
-
-            if (routeChanged) {
+            // 2. ACTUALIZAR CONDUCTORES EN EL RADAR
+            if (isPasajero && nearbyDrivers) {
+                const driversData = JSON.stringify(nearbyDrivers);
                 script += `
-                    if (typeof drawRoute === 'function') {
-                        drawRoute(${start.lat}, ${start.lng}, ${end.lat}, ${end.lng}, ${padding}, ${shouldAnimateZoom});
+                    if (typeof updateNearbyDrivers === 'function') {
+                        updateNearbyDrivers(${driversData});
                     }
                 `;
-                lastRouteRef.current = { startLat: start.lat, startLng: start.lng, endLat: end.lat, endLng: end.lng, phase: currentPhase };
             }
 
-            script += `
-                if (!${isConductor} && typeof updateNearbyDrivers === 'function') {
-                    updateNearbyDrivers(${driverInfo});
+            // 3. MODO PREVISUALIZACIÓN DE VIAJE (Pasajero Eligiendo Destino)
+            if (isSelectingDestination && ubicacion) {
+                script += `
+                    if (typeof drawRoute === 'function') {
+                        drawRoute(${ubicacion.latitude}, ${ubicacion.longitude}, ${destinoSeleccionado.latitude}, ${destinoSeleccionado.longitude}, 400, ${!hasCenteredRef.current});
+                    }
+                `;
+                hasCenteredRef.current = true;
+            } 
+            // 4. MODO IDLE PURO (Explorando)
+            else {
+                const destData = JSON.stringify(destinos || []);
+                script += `
+                    if (typeof addDestinationMarkers === 'function') addDestinationMarkers(${destData});
+                `;
+                
+                if (ubicacion) {
+                    const lat = parseFloat(ubicacion.latitude) || 0;
+                    const lng = parseFloat(ubicacion.longitude) || 0;
+                    if (lat !== 0 && lng !== 0) {
+                        script += `
+                            if (typeof placeUserMarker === 'function') {
+                                placeUserMarker(${lat}, ${lng}, null, ${isConductor});
+                            }
+                            if (typeof centerMap === 'function' && !${hasCenteredRef.current}) {
+                                centerMap(${lat}, ${lng});
+                            }
+                        `;
+                        hasCenteredRef.current = true;
+                    }
+                }
+            }
+        } else {
+            // VIAJE ACTIVO (Fase 1 o Fase 2)
+            let start = { lat: 0, lng: 0 };
+            let end = { lat: 0, lng: 0 };
+            let padding = 100;
+            
+            const getVal = (v) => parseFloat(v) || 0;
+
+            if (isPhase1) {
+                end = {
+                    lat: getVal(activeTrip.origin_lat || activeTrip.origin?.lat),
+                    lng: getVal(activeTrip.origin_lng || activeTrip.origin?.lng)
+                };
+
+                if (isConductor) {
+                    start = { lat: getVal(ubicacion?.latitude), lng: getVal(ubicacion?.longitude) };
+                } else {
+                    let dLat = getVal(activeTrip.driver?.latitude);
+                    let dLng = getVal(activeTrip.driver?.longitude);
+                    if (dLat === 0 && dLng === 0 && nearbyDrivers && nearbyDrivers.length > 0) {
+                        const knownDriver = nearbyDrivers.find(d => d.id == activeTrip.driver?.id);
+                        if (knownDriver) {
+                            dLat = getVal(knownDriver.latitude);
+                            dLng = getVal(knownDriver.longitude);
+                        }
+                    }
+                    start = { lat: dLat, lng: dLng };
+                }
+                padding = 180;
+            } else if (isPhase2) {
+                end = {
+                    lat: getVal(activeTrip.destination_lat || activeTrip.destination?.lat),
+                    lng: getVal(activeTrip.destination_lng || activeTrip.destination?.lng)
+                };
+
+                if (isConductor && ubicacion) {
+                    start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
+                } else {
+                    start = { 
+                        lat: getVal(activeTrip.driver?.latitude), 
+                        lng: getVal(activeTrip.driver?.longitude) 
+                    };
                 }
 
-                if (${isPhase2} && typeof centerMap === 'function') {
-                    centerMap(${start.lat}, ${start.lng});
+                if (start.lat === 0 && ubicacion) {
+                    if (isConductor || isPhase2) {
+                        start = { lat: getVal(ubicacion.latitude), lng: getVal(ubicacion.longitude) };
+                    }
                 }
-            `;
-        } else if (ubicacion && !hasCenteredRef.current) {
-            script += `
-                if (typeof centerMap === 'function') {
-                    centerMap(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)});
+                padding = 100;
+            }
+
+            const validCoords = (start.lat !== 0 && start.lng !== 0 && end.lat !== 0 && end.lng !== 0);
+            
+            // Marker del usuario (solo si aplica)
+            const showUserMarker = isConductor || !isPhase2;
+            if (showUserMarker && ubicacion) {
+                if (isConductor) {
+                    const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    script += `if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');`;
                 }
-             `;
-            hasCenteredRef.current = true;
+                script += `
+                    if (typeof placeUserMarker === 'function') {
+                        placeUserMarker(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)}, null, ${isConductor});
+                    }
+                `;
+            } else {
+                script += `
+                    if (typeof removeUserMarker === 'function') removeUserMarker();
+                `;
+            }
+
+            if (validCoords) {
+                const driverInfo = JSON.stringify([{
+                    id: activeTrip.driver?.id || 'driver',
+                    lat: start.lat,
+                    lng: start.lng,
+                    name: activeTrip.driver?.name || 'Conductor',
+                    iconUrl: activeTrip.driver?.iconUrl || CARRITO_MARKER_BASE64
+                }]);
+
+                const shouldAnimateZoom = isPhase1;
+                const currentPhase = isPhase1 ? 1 : 2;
+                
+                const routeChanged = Math.abs(lastRouteRef.current.endLat - end.lat) > 0.0001 ||
+                                     Math.abs(lastRouteRef.current.endLng - end.lng) > 0.0001 ||
+                                     lastRouteRef.current.phase !== currentPhase;
+
+                if (routeChanged) {
+                    script += `
+                        if (typeof drawRoute === 'function') {
+                            drawRoute(${start.lat}, ${start.lng}, ${end.lat}, ${end.lng}, ${padding}, ${shouldAnimateZoom});
+                        }
+                    `;
+                    lastRouteRef.current = { startLat: start.lat, startLng: start.lng, endLat: end.lat, endLng: end.lng, phase: currentPhase };
+                }
+
+                script += `
+                    if (!${isConductor} && typeof updateNearbyDrivers === 'function') {
+                        updateNearbyDrivers(${driverInfo});
+                    }
+
+                    if (${isPhase2} && typeof centerMap === 'function') {
+                        centerMap(${start.lat}, ${start.lng});
+                    }
+                `;
+            } else if (ubicacion) {
+                script += `
+                    if (typeof centerMap === 'function') {
+                        centerMap(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)});
+                    }
+                 `;
+                hasCenteredRef.current = true;
+            }
         }
 
         if (script) {
-            webViewRef.current.injectJavaScript(script + 'true;');
+            webViewRef.current.injectJavaScript(script + " true;");
         }
     }, [
-        activeTrip?.driver?.latitude,
-        activeTrip?.driver?.longitude,
-        activeTrip?.driver?.location?.last_update, 
-        activeTrip?.state_id,
-        isConductor,
-        isPasajero,
-        ubicacion
+        activeTrip?.status, 
+        activeTrip?.state_id, 
+        activeTrip?.driver?.latitude, 
+        activeTrip?.driver?.longitude, 
+        destinoSeleccionado, 
+        ubicacion, 
+        nearbyDrivers, 
+        isConductor, 
+        isPasajero, 
+        destinos
     ]);
 
     const handleToggleStatus = () => setIsOnline(!isOnline);
@@ -389,12 +373,12 @@ export default function InicioScreen() {
 
 
 
-        const dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
+        let dist = calculateDistance(ubicacion.latitude, ubicacion.longitude, destinoSeleccionado.latitude, destinoSeleccionado.longitude);
+        if (isNaN(dist)) dist = 0.0; // Fallback por seguridad
 
+        // Ocultar modal primero para que las alertas globales sean visibles
+        setModalVisible(false);
         const success = await requestTrip(ubicacion, destinoSeleccionado, dist, passengersCount);
-        if (success) {
-            setModalVisible(false);
-        }
     };
 
     // --- RENDER ---

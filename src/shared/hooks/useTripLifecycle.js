@@ -304,7 +304,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 origin_address: 'Mi Ubicación Actual',
                 destination_lat: destinoSeleccionado.latitude,
                 destination_lng: destinoSeleccionado.longitude,
-                destination_address: destinoSeleccionado.address || destinoSeleccionado.nombre,
+                destination_address: destinoSeleccionado.name || destinoSeleccionado.nombre || destinoSeleccionado.address || 'Destino Desconocido',
                 distance: distance,
                 passengers_count: passengersCount
             };

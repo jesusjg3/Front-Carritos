@@ -35,6 +35,7 @@ export default function InicioScreen() {
     const [isOnline, setIsOnline] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [destinoSeleccionado, setDestinoSeleccionado] = useState(null);
+    const [mapLoadCount, setMapLoadCount] = useState(0);
 
     // Crear ref del UniversalMap
     const webViewRef = useRef(null);
@@ -271,11 +272,13 @@ export default function InicioScreen() {
                     iconUrl: activeTrip.driver?.iconUrl || CARRITO_MARKER_BASE64
                 }]);
 
-                const shouldAnimateZoom = isPhase1;
                 const currentPhase = isPhase1 ? 1 : 2;
+                const shouldAnimateZoom = lastRouteRef.current.phase !== currentPhase;
                 
                 const routeChanged = Math.abs(lastRouteRef.current.endLat - end.lat) > 0.0001 ||
                                      Math.abs(lastRouteRef.current.endLng - end.lng) > 0.0001 ||
+                                     Math.abs(lastRouteRef.current.startLat - start.lat) > 0.0001 ||
+                                     Math.abs(lastRouteRef.current.startLng - start.lng) > 0.0001 ||
                                      lastRouteRef.current.phase !== currentPhase;
 
                 if (routeChanged) {
@@ -306,10 +309,9 @@ export default function InicioScreen() {
             }
         }
 
-        if (script) {
-            webViewRef.current.injectJavaScript(script + " true;");
-        }
+        webViewRef.current.injectJavaScript(script + " true;");
     }, [
+        mapLoadCount,
         activeTrip?.status, 
         activeTrip?.state_id, 
         activeTrip?.driver?.latitude, 
@@ -502,6 +504,8 @@ export default function InicioScreen() {
                                 webViewRef.current.injectJavaScript(`
                                     if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
                                 `);
+                                lastRouteRef.current.phase = null;
+                                setMapLoadCount(prev => prev + 1);
                             }
                         }}
                     />
@@ -552,6 +556,8 @@ export default function InicioScreen() {
                                     if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, ${isConductor});
                                 `);
                             }
+                            lastRouteRef.current.phase = null;
+                            setMapLoadCount(prev => prev + 1);
                         }
                     }}
                 />

@@ -297,30 +297,42 @@ export const mapaHtml = `
             
             if (destDistance < 5) {
                 var isOffRoute = false;
-
                 // El destino es el mismo.
-                if (fullRouteCoords && fullRouteCoords.length > 0 && customRouteLine) {
+                if (fullRouteCoords && fullRouteCoords.length > 1 && customRouteLine) {
                     var currentLatLng = L.latLng(startLat, startLng);
-                    var closestIndex = 0;
-                    var minDistance = Infinity;
+                    var currentPoint = map.project(currentLatLng, 18);
+                    
+                    var minDistancePx = Infinity;
+                    var closestSegmentIndex = 0;
 
-                    for (var i = 0; i < fullRouteCoords.length; i++) {
-                        var d = currentLatLng.distanceTo(fullRouteCoords[i]);
-                        if (d < minDistance) {
-                            minDistance = d;
-                            closestIndex = i;
+                    for (var i = 0; i < fullRouteCoords.length - 1; i++) {
+                        var p1 = map.project(fullRouteCoords[i], 18);
+                        var p2 = map.project(fullRouteCoords[i+1], 18);
+                        var dPx = L.LineUtil.pointToSegmentDistance(currentPoint, p1, p2);
+                        if (dPx < minDistancePx) {
+                            minDistancePx = dPx;
+                            closestSegmentIndex = i;
                         }
                     }
 
-                    // Detector Inteligente: Si la distancia al punto más cercano de la ruta supera 50m
-                    if (minDistance > 50) {
+                    // Convertir la distancia mínima a metros reales
+                    var cp1 = map.project(fullRouteCoords[closestSegmentIndex], 18);
+                    var cp2 = map.project(fullRouteCoords[closestSegmentIndex+1], 18);
+                    var closestPointPx = L.LineUtil.closestPointOnSegment(currentPoint, cp1, cp2);
+                    var closestLatLng = map.unproject(closestPointPx, 18);
+                    var distanceMeters = currentLatLng.distanceTo(closestLatLng);
+
+                    // Detector Inteligente: Si se aleja más de 50 metros del segmento más cercano
+                    if (distanceMeters > 50) {
                         isOffRoute = true;
                     } else {
-                        // Cortamos permanentemente las coordenadas que ya pasamos
-                        // para que el mapa se "coma" la línea y nunca dibuje hacia atrás.
-                        fullRouteCoords = fullRouteCoords.slice(closestIndex);
+                        // El auto está en el segmento [closestSegmentIndex, closestSegmentIndex+1].
+                        // Eliminamos los puntos anteriores y reconstruimos la ruta desde la posición actual del auto.
+                        var remainingRoute = fullRouteCoords.slice(closestSegmentIndex + 1);
+                        var lineCoords = [currentLatLng].concat(remainingRoute);
                         
-                        var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                        // Actualizamos permanentemente para que el próximo cálculo parta de aquí
+                        fullRouteCoords = lineCoords;
                         customRouteLine.setLatLngs(lineCoords);
                     }
                 }
@@ -361,10 +373,20 @@ export const mapaHtml = `
                 var routes = e.routes;
                 if (routes && routes.length > 0) {
                     fullRouteCoords = routes[0].coordinates;
+                    
+                    // Asegurar que la línea visual SIEMPRE conecte con el carrito, 
+                    // incluso si OSRM hace "snap" a la calle más cercana.
+                    // Usamos e.waypoints para evitar el bug de closure con la variable waypoints original.
+                    var currentLatLng = L.latLng(e.waypoints[0].latLng.lat, e.waypoints[0].latLng.lng);
+                    var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                    
+                    // Aseguramos que fullRouteCoords tenga esta línea para futuros recálculos
+                    fullRouteCoords = lineCoords;
+
                     if (!customRouteLine) {
-                        customRouteLine = L.polyline(fullRouteCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                        customRouteLine = L.polyline(lineCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
                     } else {
-                        customRouteLine.setLatLngs(fullRouteCoords);
+                        customRouteLine.setLatLngs(lineCoords);
                     }
                 }
             });
@@ -387,7 +409,11 @@ export const mapaHtml = `
 
     function clearRoute() {
         if (routingControl) {
-            map.removeControl(routingControl);
+            try {
+                map.removeControl(routingControl);
+            } catch (e) {
+                console.warn('LRM removeControl error:', e);
+            }
             routingControl = null;
         }
         if (customRouteLine) {

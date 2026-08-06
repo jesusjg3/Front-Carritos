@@ -66,11 +66,11 @@ const UniversalMap = forwardRef(({ source, style, onMessage, onLoadEnd, scrollEn
     }
 
     // Retorna WebView solo si no estamos en Web
-    // inyectamos un baseUrl falso para que los servicios de enrutamiento no bloqueen la llamada por Referer nulo
+    // inyectamos un baseUrl falso HTTP para que no bloquee las peticiones http://192.168.10.96:5000 por Mixed Content
     return (
         <WebView
             ref={nativeWebViewRef}
-            source={{ ...source, baseUrl: 'https://campus.local' }}
+            source={{ ...source, baseUrl: 'http://campus.local' }}
             style={style}
             onMessage={onMessage}
             onLoadEnd={onLoadEnd}

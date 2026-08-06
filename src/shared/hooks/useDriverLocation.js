@@ -16,21 +16,23 @@ export const useDriverLocation = (user, token, isOnline) => {
     const wasOnline = useRef(false);
 
     useEffect(() => {
+        let isCancelled = false;
+
         if (!user || user.role !== 'conductor' || !token || !isOnline) {
-            // Si no es conductor o está offline, limpiar
             stopLocationTracking();
             return;
         }
 
         wasOnline.current = true;
-        startLocationTracking();
+        startLocationTracking(() => isCancelled);
 
         return () => {
+            isCancelled = true;
             stopLocationTracking();
         };
     }, [user, token, isOnline]);
 
-    const startLocationTracking = async () => {
+    const startLocationTracking = async (checkCancelled) => {
         try {
             // Solicitar permisos de ubicación
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -50,10 +52,12 @@ export const useDriverLocation = (user, token, isOnline) => {
                 console.warn('Error al obtener última ubicación conocida (conductor):', err);
             }
 
+            if (checkCancelled && checkCancelled()) return;
+
             if (!initialLocation) {
                 try {
                     initialLocation = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced, // Menores exigencias evitan error de timeout
+                        accuracy: Location.Accuracy.Balanced,
                     });
                 } catch (err) {
                     console.error('Error fallback getCurrentPositionAsync:', err);
@@ -61,6 +65,8 @@ export const useDriverLocation = (user, token, isOnline) => {
                     return;
                 }
             }
+            
+            if (checkCancelled && checkCancelled()) return;
 
             if (initialLocation && initialLocation.coords) {
                 const { latitude, longitude } = initialLocation.coords;
@@ -70,20 +76,24 @@ export const useDriverLocation = (user, token, isOnline) => {
             }
 
             // Configurar seguimiento de ubicación en tiempo real
-            watchSubscription.current = await Location.watchPositionAsync(
+            const sub = await Location.watchPositionAsync(
                 {
-                    // Configuración equilibrada
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 3000, // Enviar cada 3 segundos (máximo)
-                    distanceInterval: 3, // Solo si se movió 3 metros
+                    timeInterval: 3000,
+                    distanceInterval: 3,
                 },
                 async (newLocation) => {
                     const { latitude, longitude } = newLocation.coords;
                     setLocation({ latitude, longitude });
-                    // Enviar al servidor SOLO de forma reactiva al movimiento
                     await sendLocationToServer(latitude, longitude);
                 }
             );
+
+            if (checkCancelled && checkCancelled()) {
+                sub.remove();
+            } else {
+                watchSubscription.current = sub;
+            }
 
         } catch (error) {
             console.error('Error al iniciar seguimiento de ubicación:', error);

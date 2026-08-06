@@ -4,16 +4,79 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
+import ReasonModal from "../../../shared/components/ReasonModal";
 import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function PerfilScreen() {
-    const { user, isDarkTheme, toggleTheme, notificationsEnabled, toggleNotifications, logout } = useAppContext();
+    const { user, token, showAlert, isDarkTheme, toggleTheme, notificationsEnabled, toggleNotifications, logout } = useAppContext();
     const theme = useTheme();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
+    const [isWaitingDisconnect, setIsWaitingDisconnect] = useState(false);
+    const [complaintModalVisible, setComplaintModalVisible] = useState(false);
+    const [isSendingComplaint, setIsSendingComplaint] = useState(false);
 
     const handleLogout = () => {
         setShowLogoutDialog(false);
         logout();
+    };
+
+    const handleRequestDisconnect = async (reason) => {
+        setDisconnectModalVisible(false);
+        setIsWaitingDisconnect(true);
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
+            const response = await fetch(`${API_URL}/driver/request-disconnect`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ reason })
+            });
+            const data = await response.json();
+            setIsWaitingDisconnect(false);
+            if (!response.ok) {
+                if (showAlert) showAlert("Error", data.error || "No se pudo solicitar la desconexión.", "error");
+                else alert(data.error || "No se pudo solicitar la desconexión.");
+            } else {
+                if (showAlert) showAlert("Enviado", "Solicitud de desconexión enviada al administrador.", "success");
+                else alert("Solicitud de desconexión enviada al administrador.");
+            }
+        } catch (e) {
+            setIsWaitingDisconnect(false);
+            if (showAlert) showAlert("Error", "Error de conexión al servidor.", "error");
+            else alert("Error de conexión al servidor.");
+        }
+    };
+
+    const handleSendComplaint = async (reason) => {
+        setComplaintModalVisible(false);
+        setIsSendingComplaint(true);
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
+            const response = await fetch(`${API_URL}/complaints`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ subject: "Queja General", description: reason })
+            });
+            const data = await response.json();
+            setIsSendingComplaint(false);
+            if (!response.ok) {
+                if (showAlert) showAlert("Error", data.error || data.message || "No se pudo enviar la queja.", "error");
+                else alert(data.error || data.message || "No se pudo enviar la queja.");
+            } else {
+                if (showAlert) showAlert("Enviado", "Tu queja ha sido registrada con éxito.", "success");
+                else alert("Tu queja ha sido registrada con éxito.");
+            }
+        } catch (e) {
+            setIsSendingComplaint(false);
+            if (showAlert) showAlert("Error", "Error de conexión al servidor.", "error");
+            else alert("Error de conexión al servidor.");
+        }
     };
 
     const getInitials = (name) => {
@@ -92,6 +155,31 @@ export default function PerfilScreen() {
                     </Card.Content>
                 </Card>
 
+                {/* Acciones de Rol (Conductor / Pasajero) */}
+                <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+                    <Card.Content style={styles.cardContent}>
+                        <Text variant="titleMedium" style={styles.sectionTitle}>
+                            Acciones
+                        </Text>
+                        
+                        {(user?.role?.toLowerCase() === 'conductor' || user?.rol?.toLowerCase() === 'conductor') ? (
+                            <List.Item
+                                title={isWaitingDisconnect ? "Desconexión Solicitada..." : "Solicitar Desconexión"}
+                                description="Pide permiso al administrador para salir de línea"
+                                left={(props) => <MaterialCommunityIcons name="power-plug-off" size={24} color="#EF4444" style={styles.listIcon} />}
+                                onPress={() => !isWaitingDisconnect && setDisconnectModalVisible(true)}
+                            />
+                        ) : (
+                            <List.Item
+                                title={isSendingComplaint ? "Enviando queja..." : "Reportar una Queja"}
+                                description="Envía un reporte sobre tu experiencia"
+                                left={(props) => <MaterialCommunityIcons name="alert-octagon-outline" size={24} color="#F59E0B" style={styles.listIcon} />}
+                                onPress={() => !isSendingComplaint && setComplaintModalVisible(true)}
+                            />
+                        )}
+                    </Card.Content>
+                </Card>
+
                 {/* Logout Button */}
                 <Button
                     mode="outlined"
@@ -124,6 +212,22 @@ export default function PerfilScreen() {
                         </Dialog.Actions>
                     </Dialog>
                 </Portal>
+
+                <ReasonModal
+                    visible={disconnectModalVisible}
+                    onDismiss={() => setDisconnectModalVisible(false)}
+                    title="Motivo de Desconexión"
+                    placeholder="Ej. Terminé mi turno, Problema mecánico..."
+                    onConfirm={handleRequestDisconnect}
+                />
+
+                <ReasonModal
+                    visible={complaintModalVisible}
+                    onDismiss={() => setComplaintModalVisible(false)}
+                    title="Reportar Queja"
+                    placeholder="Describe detalladamente tu problema..."
+                    onConfirm={handleSendComplaint}
+                />
             </ScrollView>
         </SafeAreaView>
     );

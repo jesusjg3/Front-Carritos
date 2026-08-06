@@ -44,6 +44,11 @@ export const useNearbyDrivers = (
 
     channel.listen(".DriverGlobalLocationUpdated", (event) => {
       setNearbyDrivers((prev) => {
+        // Remove drivers in maintenance immediately from passenger radar
+        if (event.vehicle_status === 'maintenance') {
+            return prev.filter((d) => d.id !== event.driver_id);
+        }
+
         const driverExists = prev.find((d) => d.id === event.driver_id);
         if (driverExists) {
           return prev.map((d) =>

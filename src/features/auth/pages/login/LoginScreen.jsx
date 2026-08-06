@@ -31,6 +31,10 @@ export default function LoginScreen({ navigation }) {
             setError('Los administradores deben iniciar sesión en el panel web.');
             return;
         }
+
+        if (result.user && result.user.vehicle_maintenance) {
+            alert(result.user.message || "Tu vehículo asignado está en mantenimiento.");
+        }
     };
 
     return (

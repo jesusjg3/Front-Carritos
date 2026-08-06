@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Alert } from "react-native";
+import * as Location from "expo-location";
 import { createEcho } from "../../core/services/echo";
 import { API_ROUTES } from "../../Config/Routes";
 import { useAppContext } from "../contexts/AppContext";
@@ -126,6 +127,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           .listen(".TripAccepted", (e) => handleTripUpdate(e, "TripAccepted"))
           .listen(".TripStarted", (e) => handleTripUpdate(e, "TripStarted"))
           .listen("TripStarted", (e) => handleTripUpdate(e, "TripStarted"))
+          .listen(".TripLocationUpdated", (event) => {
+            console.log("TripLocationUpdated on passenger channel:", event);
+            setActiveTrip((prev) => normalizeTripData(prev, event));
+          })
           .listen(".TripCancelled", (event) => {
             if (tripTimeoutRef.current) {
               clearTimeout(tripTimeoutRef.current);
@@ -133,12 +138,11 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             }
             setActiveTrip(null);
             setIsSearching(false);
+            setTripToRate(null);
             setRequestAttempt(0);
-            showAlert(
-              "Viaje Cancelado",
-              "El viaje ha sido cancelado.",
-              "warning",
-            );
+            
+            const motivo = event.reason || event.trip?.cancel_reason || "El viaje ha sido cancelado por el conductor.";
+            showAlert("Viaje Cancelado", motivo, "info");
           })
           .listen(".TripFinished", (event) => {
             if (tripTimeoutRef.current) {
@@ -181,12 +185,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     const tripChannelName = `trip.${activeTrip.id}`;
     const channel = echoInstance.private(tripChannelName);
 
-    if (isPasajero) {
+    const isDriverOfThisTrip = activeTrip.driver_id === user?.id || activeTrip.driver?.id === user?.id;
+
+    // Solo necesitamos escuchar actualizaciones si NO somos el conductor de este viaje
+    // (incluso si nuestra cuenta global es de tipo "conductor", podemos pedir un viaje como pasajero)
+    if (!isDriverOfThisTrip) {
       channel.listen(".TripLocationUpdated", (event) => {
-        setActiveTrip((prev) => normalizeTripData(prev, event));
-      });
-    } else {
-      channel.listen(".DriverLocationUpdated", (event) => {
+        console.log("TripLocationUpdated REBIDO EN FRONTEND:", event);
         setActiveTrip((prev) => normalizeTripData(prev, event));
       });
     }
@@ -369,7 +374,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
   };
 
   const handleDropOffPassenger = async (passengerId) => {
-    if (!activeTrip) return;
     try {
       const response = await fetch(
         `${API_ROUTES.TRIPS}/${activeTrip.id}/dropoff/${passengerId}`,
@@ -381,24 +385,43 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           },
         },
       );
-      const data = await response.json();
-      if (response.ok) {
-        setActiveTrip(data);
-        showAlert(
-          "Pasajero bajó",
-          "El pasajero ha llegado a su destino.",
-          "info",
-        );
-      } else {
-        showAlert(
-          "Error",
-          "Error al bajar pasajero: " + (data.error || "Desconocido"),
-          "error",
-        );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al bajar pasajero");
       }
+
+      await loadActiveTrip();
+      showAlert("Éxito", "Pasajero bajado con éxito", "success");
     } catch (error) {
-      console.error(error);
-      showAlert("Error de Conexión", "Error de conexión.", "error");
+      console.error("Error bajando pasajero:", error);
+      showAlert("Error", error.message, "error");
+    }
+  };
+
+  const handleCancelPassenger = async (passengerId) => {
+    try {
+      const response = await fetch(
+        `${API_ROUTES.TRIPS}/${activeTrip.id}/cancel-passenger/${passengerId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al cancelar pasajero");
+      }
+
+      await loadActiveTrip();
+      showAlert("Éxito", "Pasajero cancelado", "success");
+    } catch (error) {
+      console.error("Error cancelando pasajero:", error);
+      showAlert("Error", error.message, "error");
     }
   };
 
@@ -520,7 +543,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     }
   };
 
-  const cancelTrip = async () => {
+  const cancelTrip = async (reason = null) => {
     try {
       if (tripTimeoutRef.current) {
         clearTimeout(tripTimeoutRef.current);
@@ -533,6 +556,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
       // Si hay una solicitud activa, enviar al backend
       if (tripIdToCancel) {
+        const payload = reason ? JSON.stringify({ reason }) : undefined;
         const response = await fetch(
           `${API_ROUTES.TRIPS}/${tripIdToCancel}/cancel`,
           {
@@ -541,6 +565,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
+            body: payload,
           },
         );
 
@@ -580,6 +605,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     handleFinishTrip,
     handleBoardPassenger,
     handleDropOffPassenger,
+    handleCancelPassenger,
     requestTrip,
     cancelTrip,
   };

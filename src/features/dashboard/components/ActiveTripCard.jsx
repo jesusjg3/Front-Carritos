@@ -12,7 +12,8 @@ export default function ActiveTripCard({
     onStartTrip,
     onFinishTrip,
     onBoardPassenger,
-    onDropOffPassenger
+    onDropOffPassenger,
+    onCancelPassenger
 }) {
     const theme = useTheme();
 
@@ -98,15 +99,36 @@ export default function ActiveTripCard({
                                 </View>
                                 <View>
                                     {p.status === 'accepted' && (
-                                        <Button 
-                                            mode="contained" 
-                                            compact 
-                                            style={{ backgroundColor: '#2E7D32', borderRadius: 8 }}
-                                            labelStyle={{ fontSize: 10, marginHorizontal: 8, marginVertical: 4 }}
-                                            onPress={() => onBoardPassenger(p.id)}
-                                        >
-                                            Subió
-                                        </Button>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Button 
+                                                mode="contained" 
+                                                compact 
+                                                style={{ backgroundColor: '#2E7D32', borderRadius: 8, marginRight: 4 }}
+                                                labelStyle={{ fontSize: 10, marginHorizontal: 8, marginVertical: 4 }}
+                                                onPress={() => onBoardPassenger(p.id)}
+                                            >
+                                                Subió
+                                            </Button>
+                                            <Button 
+                                                mode="outlined" 
+                                                compact 
+                                                style={{ borderColor: '#F44336', borderRadius: 8 }}
+                                                textColor="#F44336"
+                                                labelStyle={{ fontSize: 10, marginHorizontal: 8, marginVertical: 4 }}
+                                                onPress={() => {
+                                                    Alert.alert(
+                                                        "Cancelar Pasajero",
+                                                        `¿Estás seguro de cancelar a ${p.name}?`,
+                                                        [
+                                                            { text: "No", style: "cancel" },
+                                                            { text: "Sí, Cancelar", onPress: () => onCancelPassenger(p.id), style: "destructive" }
+                                                        ]
+                                                    );
+                                                }}
+                                            >
+                                                No llegó
+                                            </Button>
+                                        </View>
                                     )}
                                     {p.status === 'boarded' && (
                                         <Button 
@@ -175,7 +197,7 @@ export default function ActiveTripCard({
                         >
                             Contactar
                         </Button>
-                        {activeTrip.state_id != 4 && (
+                        {![3, 5].includes(activeTrip.state_id) && (
                             <Button 
                                 mode="outlined" 
                                 textColor={theme.colors.error} 
@@ -190,6 +212,18 @@ export default function ActiveTripCard({
                     </View>
                 ) : (
                     <View style={styles.buttonRow}>
+                        {![3, 5].includes(activeTrip.state_id) && (
+                            <Button 
+                                mode="outlined" 
+                                textColor={theme.colors.error} 
+                                style={[styles.actionButton, { borderColor: theme.colors.error + '50' }]} 
+                                contentStyle={styles.actionButtonContent}
+                                onPress={onCancel}
+                                icon="close"
+                            >
+                                Cancelar
+                            </Button>
+                        )}
                         {activeTrip.state_id != 4 && (
                             <Button 
                                 mode="contained-tonal" 

@@ -83,6 +83,7 @@ export const mapaHtml = `
 <div id="map"></div>
 
 <script>
+    var USE_LOCAL_OSRM = true; // Cambia a false para usar el servidor demo público
     var map = L.map('map').setView([-0.9676533, -80.737754], 14);
     var userMarker;
     var destinationMarkers = [];
@@ -353,6 +354,9 @@ export const mapaHtml = `
             addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
         } else {
             routingControl = L.Routing.control({
+                router: USE_LOCAL_OSRM ? new L.Routing.OSRMv1({
+                    serviceUrl: 'http://192.168.10.96:5000/route/v1'
+                }) : undefined,
                 waypoints: waypoints,
                 routeWhileDragging: false, 
                 showAlternatives: false,

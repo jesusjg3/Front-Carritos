@@ -18,6 +18,7 @@ import DestinationModal from "../components/DestinationModal";
 import RateDriverModal from "../components/RateDriverModal";
 import RatePassengerModal from "../components/RatePassengerModal";
 import UniversalMap from "../../../shared/components/UniversalMap";
+import ReasonModal from "../../../shared/components/ReasonModal";
 import RadarView from "../components/RadarView";
 
 // Hooks
@@ -32,10 +33,16 @@ export default function InicioScreen() {
     const theme = useTheme();
 
     // Local UI State
-    const [isOnline, setIsOnline] = useState(false);
+    // Iniciar siempre en línea si es conductor por defecto
+    const [isOnline, setIsOnline] = useState(user?.role === 'conductor');
     const [modalVisible, setModalVisible] = useState(false);
     const [destinoSeleccionado, setDestinoSeleccionado] = useState(null);
     const [mapLoadCount, setMapLoadCount] = useState(0);
+
+    // Reason Modals State
+    const [cancelModalVisible, setCancelModalVisible] = useState(false);
+    const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
+    const [isWaitingDisconnect, setIsWaitingDisconnect] = useState(false);
 
     // Crear ref del UniversalMap
     const webViewRef = useRef(null);
@@ -61,6 +68,7 @@ export default function InicioScreen() {
         handleFinishTrip,
         handleBoardPassenger,
         handleDropOffPassenger,
+        handleCancelPassenger,
         requestTrip,
         cancelTrip
     } = useTripLifecycle(user, token, isOnline, isPasajero);
@@ -121,31 +129,47 @@ export default function InicioScreen() {
     // Efecto para Cerebro Unificado de Mapa y Controladores de Estado Visual
     // NOTA: Se ha consolidado TODA la lógica de inyección a Leaflet aquí
 
-    // Sincronizar estado offline inicial al cargar la pantalla
+    // WebSocket for Driver Disconnect Approved
     useEffect(() => {
-        if (isConductor && token && !isOnline) {
-            // Forzar offline en el backend al entrar para evitar que aparezca conectado 
-            // en el mapa de pasajeros por cachés de sesiones anteriores.
-            import('axios').then(axios => {
-                axios.default.post(API_ROUTES.SET_DRIVER_OFFLINE, {}, { headers: { Authorization: `Bearer ${token}` } })
-                    .catch(() => {});
+        if (isConductor && token && user?.id) {
+            import('../../../core/services/echo').then(({ createEcho }) => {
+                const echo = createEcho(token);
+                const channel = echo.private(`driver.${user.id}`);
+                
+                channel.listen('.driver.disconnect.approved', () => {
+                    setIsWaitingDisconnect(false);
+                    setIsOnline(false);
+                    showAlert("Desconexión Aprobada", "El administrador aprobó tu desconexión.", "success");
+                });
+
+                channel.listen('.driver.disconnect.rejected', () => {
+                    setIsWaitingDisconnect(false);
+                    showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
+                });
+
+                return () => {
+                    echo.leave(`driver.${user.id}`);
+                    echo.disconnect();
+                };
             });
         }
-    }, [isConductor, token]);
+    }, [isConductor, token, user]);
 
     useEffect(() => {
         if (!webViewRef.current) return;
 
         const isPhase1 = tripIsAccepted(activeTrip); // Yendo al Pickup
         const isPhase2 = tripInProgress(activeTrip); // Yendo al Destino
-        const isIdle = !isPhase1 && !isPhase2;
         const isSelectingDestination = isPasajero && destinoSeleccionado && !activeTrip;
+        const isIdle = !isPhase1 && !isPhase2;
 
         let script = '';
 
         if (isIdle) {
             // 1. LIMPIEZA OBLIGATORIA
-            script += `if (typeof clearRoute === 'function') clearRoute();`;
+            if (!isSelectingDestination) {
+                script += `if (typeof clearRoute === 'function') clearRoute();`;
+            }
             // Resetear la referencia de la última ruta trazada para permitir un re-trazado si se cancela y se pide de nuevo desde el mismo lugar.
             lastRouteRef.current = { startLat: 0, startLng: 0, endLat: 0, endLng: 0, phase: null };
             
@@ -248,7 +272,7 @@ export default function InicioScreen() {
             // Marker del usuario (solo si aplica)
             const showUserMarker = isConductor || !isPhase2;
             if (showUserMarker && ubicacion) {
-                if (isConductor) {
+                if (isConductor && !user?.vehicle_maintenance) {
                     const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     script += `if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');`;
                 }
@@ -383,7 +407,59 @@ export default function InicioScreen() {
         const success = await requestTrip(ubicacion, destinoSeleccionado, dist, passengersCount);
     };
 
+    const handleRequestDisconnect = async (reason) => {
+        setDisconnectModalVisible(false);
+        setIsWaitingDisconnect(true);
+        try {
+            const response = await fetch(`${API_ROUTES.BASE_URL}/driver/request-disconnect`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ reason })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                setIsWaitingDisconnect(false);
+                showAlert("Error", data.error || "No se pudo solicitar la desconexión.", "error");
+            }
+        } catch (e) {
+            setIsWaitingDisconnect(false);
+            showAlert("Error", "Error de conexión al servidor.", "error");
+        }
+    };
+
+    const handleCancelTripAction = () => {
+        if (isConductor) {
+            setCancelModalVisible(true);
+        } else {
+            showAlert(
+                "Cancelar Viaje",
+                "¿Estás seguro de que deseas cancelar este viaje?",
+                "warning",
+                {
+                    confirmText: "Sí, cancelar",
+                    cancelText: "No",
+                    onConfirm: () => cancelTrip()
+                }
+            );
+        }
+    };
+
     // --- RENDER ---
+
+    if (isWaitingDisconnect) {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+                <ActivityIndicator animating={true} size="large" color={theme.colors.primary} style={{ marginBottom: 20 }} />
+                <Text variant="titleMedium" style={{ fontWeight: 'bold', color: '#333' }}>Esperando Aprobación...</Text>
+                <Text variant="bodyMedium" style={{ color: '#666', marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+                    Tu solicitud ha sido enviada al administrador. Por favor, no cierres la app.
+                </Text>
+            </SafeAreaView>
+        );
+    }
 
     if (isSearching) {
         return (
@@ -500,10 +576,12 @@ export default function InicioScreen() {
                         onMessage={handleWebViewMessage}
                         onLoadEnd={() => {
                             if (webViewRef.current) {
-                                const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                                webViewRef.current.injectJavaScript(`
-                                    if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
-                                `);
+                                if (!user?.vehicle_maintenance) {
+                                    const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                    webViewRef.current.injectJavaScript(`
+                                        if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
+                                    `);
+                                }
                                 lastRouteRef.current.phase = null;
                                 setMapLoadCount(prev => prev + 1);
                             }
@@ -514,22 +592,23 @@ export default function InicioScreen() {
                     activeTrip={activeTrip}
                     isPasajero={isPasajero}
                     onContact={() => showAlert("Contacto", "Contactando al conductor...", "info")}
-                    onCancel={() => {
-                        showAlert(
-                            "Cancelar Viaje",
-                            "¿Estás seguro de que deseas cancelar este viaje?",
-                            "warning",
-                            {
-                                confirmText: "Sí, cancelar",
-                                cancelText: "No",
-                                onConfirm: () => cancelTrip()
-                            }
-                        );
-                    }}
+                    onCancel={handleCancelTripAction}
                     onStartTrip={handleStartTrip}
                     onFinishTrip={handleFinishTrip}
                     onBoardPassenger={handleBoardPassenger}
                     onDropOffPassenger={handleDropOffPassenger}
+                    onCancelPassenger={handleCancelPassenger}
+                />
+                
+                <ReasonModal
+                    visible={cancelModalVisible}
+                    onDismiss={() => setCancelModalVisible(false)}
+                    title="Motivo de Cancelación"
+                    placeholder="¿Por qué debes cancelar el viaje?"
+                    onConfirm={(reason) => {
+                        setCancelModalVisible(false);
+                        cancelTrip(reason);
+                    }}
                 />
             </SafeAreaView>
         );
@@ -545,10 +624,12 @@ export default function InicioScreen() {
                     onMessage={handleWebViewMessage}
                     onLoadEnd={() => {
                         if (webViewRef.current) {
-                            const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                            webViewRef.current.injectJavaScript(`
-                                if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
-                            `);
+                            if (!user?.vehicle_maintenance) {
+                                const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                webViewRef.current.injectJavaScript(`
+                                    if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
+                                `);
+                            }
 
                             if ((isPasajero || isConductor) && ubicacion) {
                                 webViewRef.current.injectJavaScript(`
@@ -562,9 +643,7 @@ export default function InicioScreen() {
                     }}
                 />
 
-                {isConductor && (
-                    <StatusToggleButton isOnline={isOnline} onToggle={handleToggleStatus} />
-                )}
+                {/* isConductor controls removed and moved to profile */}
 
                 {isConductor && requestQueue.length > 0 && (
                     <View style={styles.requestsContainer}>
@@ -632,6 +711,25 @@ export default function InicioScreen() {
                 trip={tripToRate}
                 onDismiss={() => setTripToRate(null)}
                 onRateSuccess={() => setTripToRate(null)}
+            />
+
+            <ReasonModal
+                visible={cancelModalVisible}
+                onDismiss={() => setCancelModalVisible(false)}
+                title="Motivo de Cancelación"
+                placeholder="¿Por qué debes cancelar el viaje?"
+                onConfirm={(reason) => {
+                    setCancelModalVisible(false);
+                    cancelTrip(reason);
+                }}
+            />
+
+            <ReasonModal
+                visible={disconnectModalVisible}
+                onDismiss={() => setDisconnectModalVisible(false)}
+                title="Motivo de Desconexión"
+                placeholder="Ej. Terminé mi turno, Problema mecánico..."
+                onConfirm={handleRequestDisconnect}
             />
         </SafeAreaView>
     );

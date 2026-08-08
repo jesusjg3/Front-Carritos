@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
@@ -15,6 +15,34 @@ export default function PerfilScreen() {
     const [isWaitingDisconnect, setIsWaitingDisconnect] = useState(false);
     const [complaintModalVisible, setComplaintModalVisible] = useState(false);
     const [isSendingComplaint, setIsSendingComplaint] = useState(false);
+
+    // Escuchar WebSocket para desconexión por si el conductor se queda en esta pantalla
+    useEffect(() => {
+        if (user?.id && token) {
+            import('../../../core/services/echo').then(({ createEcho }) => {
+                const echo = createEcho(token);
+                const channel = echo.private(`driver.${user.id}`);
+                
+                channel.listen('.driver.disconnect.approved', () => {
+                    setIsWaitingDisconnect(false);
+                    if (showAlert) showAlert("Desconexión Aprobada", "El administrador aprobó tu desconexión.", "success");
+                });
+
+                channel.listen('.driver.disconnect.rejected', () => {
+                    setIsWaitingDisconnect(false);
+                    import('react-native').then(({ Alert }) => {
+                        Alert.alert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.");
+                    });
+                    if (showAlert) showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
+                });
+
+                return () => {
+                    echo.leave(`driver.${user.id}`);
+                    echo.disconnect();
+                };
+            });
+        }
+    }, [user, token]);
 
     const handleLogout = () => {
         setShowLogoutDialog(false);

@@ -143,8 +143,17 @@ export default function InicioScreen() {
                 });
 
                 channel.listen('.driver.disconnect.rejected', () => {
+                    console.log("WebSocket event received: driver.disconnect.rejected");
                     setIsWaitingDisconnect(false);
-                    showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
+                    
+                    // Fallback to native Alert just in case custom showAlert gets hidden
+                    import('react-native').then(({ Alert }) => {
+                        Alert.alert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.");
+                    });
+                    
+                    if (typeof showAlert === 'function') {
+                        showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
+                    }
                 });
 
                 return () => {

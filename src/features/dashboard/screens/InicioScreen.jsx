@@ -214,7 +214,7 @@ export default function InicioScreen() {
                     if (lat !== 0 && lng !== 0) {
                         script += `
                             if (typeof placeUserMarker === 'function') {
-                                placeUserMarker(${lat}, ${lng}, null, ${isConductor});
+                                placeUserMarker(${lat}, ${lng}, null, ${isConductor && isOnline});
                             }
                             if (typeof centerMap === 'function' && !${hasCenteredRef.current}) {
                                 centerMap(${lat}, ${lng});
@@ -281,13 +281,13 @@ export default function InicioScreen() {
             // Marker del usuario (solo si aplica)
             const showUserMarker = isConductor || !isPhase2;
             if (showUserMarker && ubicacion) {
-                if (isConductor && !user?.vehicle_maintenance) {
+                if (isConductor && isOnline && !user?.vehicle_maintenance) {
                     const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     script += `if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');`;
                 }
                 script += `
                     if (typeof placeUserMarker === 'function') {
-                        placeUserMarker(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)}, null, ${isConductor});
+                        placeUserMarker(${getVal(ubicacion.latitude)}, ${getVal(ubicacion.longitude)}, null, ${isConductor && isOnline});
                     }
                 `;
             } else {
@@ -643,7 +643,7 @@ export default function InicioScreen() {
                             if ((isPasajero || isConductor) && ubicacion) {
                                 webViewRef.current.injectJavaScript(`
                                     if (typeof centerMap === 'function') centerMap(${ubicacion.latitude}, ${ubicacion.longitude});
-                                    if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, ${isConductor});
+                                    if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, ${isConductor && isOnline});
                                 `);
                             }
                             lastRouteRef.current.phase = null;

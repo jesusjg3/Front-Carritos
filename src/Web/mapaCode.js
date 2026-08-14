@@ -62,6 +62,15 @@ export const mapaHtml = `
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
         }
 
+        .simple-blue-dot {
+            width: 14px;
+            height: 14px;
+            background-color: #1976D2;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+
         .carrito-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 46px;
@@ -189,14 +198,17 @@ export const mapaHtml = `
                 var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
                 var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
                 var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
+                var isPickup = dest.type === 'pickup';
                 
                 if (lat === undefined || lng === undefined) return;
 
+                var colorClass = isPickup ? 'simple-blue-dot' : 'simple-red-dot';
+
                 var destinationIcon = L.divIcon({
-                    html: '<div class="simple-red-dot"></div>',
-                    className: '', // quitar clases de leaflet por defecto
+                    html: '<div class="' + colorClass + '"></div>',
+                    className: '', 
                     iconSize: [14, 14],
-                    iconAnchor: [7, 7], // Centro
+                    iconAnchor: [7, 7],
                     popupAnchor: [0, -7]
                 });
 
@@ -397,6 +409,107 @@ export const mapaHtml = `
         }
 
         lastTargetDest = waypoints[1];
+        if (animateZoom !== false) doCameraFit(waypoints, paddingBottom);
+    }
+
+    function drawMultiRoute(waypointsJSON, paddingBottom, animateZoom) {
+        if (!map) return;
+        var points = JSON.parse(waypointsJSON);
+        if (!points || points.length < 2) return;
+
+        var waypoints = points.map(function(p) { return L.latLng(p.lat, p.lng); });
+
+        if (routingControl) {
+            var destDistance = lastTargetDest ? lastTargetDest.distanceTo(waypoints[waypoints.length - 1]) : Infinity;
+            
+            // Si el último destino no cambió y hay waypoints intermedios similares, verificamos si está en ruta
+            if (destDistance < 5) {
+                var isOffRoute = false;
+                if (fullRouteCoords && fullRouteCoords.length > 1 && customRouteLine) {
+                    var currentLatLng = L.latLng(points[0].lat, points[0].lng);
+                    var currentPoint = map.project(currentLatLng, 18);
+                    
+                    var minDistancePx = Infinity;
+                    var closestSegmentIndex = 0;
+
+                    for (var i = 0; i < fullRouteCoords.length - 1; i++) {
+                        var p1 = map.project(fullRouteCoords[i], 18);
+                        var p2 = map.project(fullRouteCoords[i+1], 18);
+                        var dPx = L.LineUtil.pointToSegmentDistance(currentPoint, p1, p2);
+                        if (dPx < minDistancePx) {
+                            minDistancePx = dPx;
+                            closestSegmentIndex = i;
+                        }
+                    }
+
+                    var cp1 = map.project(fullRouteCoords[closestSegmentIndex], 18);
+                    var cp2 = map.project(fullRouteCoords[closestSegmentIndex+1], 18);
+                    var closestPointPx = L.LineUtil.closestPointOnSegment(currentPoint, cp1, cp2);
+                    var closestLatLng = map.unproject(closestPointPx, 18);
+                    var distanceMeters = currentLatLng.distanceTo(closestLatLng);
+
+                    if (distanceMeters > 50) {
+                        isOffRoute = true;
+                    } else {
+                        var remainingRoute = fullRouteCoords.slice(closestSegmentIndex + 1);
+                        var lineCoords = [currentLatLng].concat(remainingRoute);
+                        
+                        fullRouteCoords = lineCoords;
+                        customRouteLine.setLatLngs(lineCoords);
+                    }
+                }
+
+                if (!isOffRoute) {
+                    // Update markers if needed
+                    clearDestinationMarkers();
+                    addDestinationMarkers(points.slice(1));
+                    if (animateZoom !== false) {
+                        doCameraFit([waypoints[0], waypoints[waypoints.length - 1]], paddingBottom);
+                    } else {
+                        map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
+                    }
+                    return;
+                }
+            }
+
+            routingControl.setWaypoints(waypoints);
+            clearDestinationMarkers();
+            addDestinationMarkers(points.slice(1));
+        } else {
+            routingControl = L.Routing.control({
+                router: USE_LOCAL_OSRM ? new L.Routing.OSRMv1({
+                    serviceUrl: 'http://192.168.10.96:5000/route/v1'
+                }) : undefined,
+                waypoints: waypoints,
+                routeWhileDragging: false, 
+                showAlternatives: false,
+                addWaypoints: false,
+                fitSelectedRoutes: false, 
+                createMarker: function() { return null; },
+                lineOptions: {
+                    styles: [{color: 'transparent', opacity: 0, weight: 0}]
+                }
+            }).addTo(map);
+
+            addDestinationMarkers(points.slice(1));
+
+            routingControl.on('routesfound', function(e) {
+                var routes = e.routes;
+                if (routes && routes.length > 0) {
+                    fullRouteCoords = routes[0].coordinates;
+                    var currentLatLng = L.latLng(e.waypoints[0].latLng.lat, e.waypoints[0].latLng.lng);
+                    var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                    fullRouteCoords = lineCoords;
+                    if (!customRouteLine) {
+                        customRouteLine = L.polyline(lineCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                    } else {
+                        customRouteLine.setLatLngs(lineCoords);
+                    }
+                }
+            });
+        }
+
+        lastTargetDest = waypoints[waypoints.length - 1];
         if (animateZoom !== false) doCameraFit(waypoints, paddingBottom);
     }
     

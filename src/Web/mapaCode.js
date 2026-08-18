@@ -96,7 +96,7 @@ export const mapaHtml = `
 <div id="map"></div>
 
 <script>
-    var USE_LOCAL_OSRM = true; // Cambia a false para usar el servidor demo público
+    var OSRM_URL = '${process.env.EXPO_PUBLIC_OSRM_URL || "http://router.project-osrm.org/route/v1"}';
     var map = L.map('map').setView([-0.9676533, -80.737754], 14);
     var userMarker;
     var destinationMarkers = [];
@@ -379,9 +379,9 @@ export const mapaHtml = `
             addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
         } else {
             routingControl = L.Routing.control({
-                router: USE_LOCAL_OSRM ? new L.Routing.OSRMv1({
-                    serviceUrl: 'http://192.168.10.96:5000/route/v1'
-                }) : undefined,
+                router: new L.Routing.OSRMv1({
+                    serviceUrl: OSRM_URL
+                }),
                 waypoints: waypoints,
                 routeWhileDragging: false, 
                 showAlternatives: false,
@@ -505,9 +505,9 @@ export const mapaHtml = `
             addDestinationMarkers(points.slice(1));
         } else {
             routingControl = L.Routing.control({
-                router: USE_LOCAL_OSRM ? new L.Routing.OSRMv1({
-                    serviceUrl: 'http://192.168.10.96:5000/route/v1'
-                }) : undefined,
+                router: new L.Routing.OSRMv1({
+                    serviceUrl: OSRM_URL
+                }),
                 waypoints: waypoints,
                 routeWhileDragging: false, 
                 showAlternatives: false,

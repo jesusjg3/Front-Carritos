@@ -60,6 +60,8 @@ export const mapaHtml = `
             border-radius: 50%;
             border: 2px solid #ffffff;
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1000;
         }
 
         .simple-blue-dot {
@@ -69,6 +71,8 @@ export const mapaHtml = `
             border-radius: 50%;
             border: 2px solid #ffffff;
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1000;
         }
 
         .carrito-marker {
@@ -96,6 +100,7 @@ export const mapaHtml = `
     var map = L.map('map').setView([-0.9676533, -80.737754], 14);
     var userMarker;
     var destinationMarkers = [];
+    var currentDestinationsStr = "";
     var routingControl;
 
     // Desabilitar zoom con doble tap
@@ -191,37 +196,45 @@ export const mapaHtml = `
     }
 
     function addDestinationMarkers(destinations) {
-        clearDestinationMarkers();
-
-        if (map && destinations) {
-            destinations.forEach(dest => {
-                var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
-                var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
-                var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
-                var isPickup = dest.type === 'pickup';
-                
-                if (lat === undefined || lng === undefined) return;
-
-                var colorClass = isPickup ? 'simple-blue-dot' : 'simple-red-dot';
-
-                var destinationIcon = L.divIcon({
-                    html: '<div class="' + colorClass + '"></div>',
-                    className: '', 
-                    iconSize: [14, 14],
-                    iconAnchor: [7, 7],
-                    popupAnchor: [0, -7]
-                });
-
-                var marker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map)
-                    .bindPopup(title);
-                destinationMarkers.push(marker);
-            });
+        if (!map || !destinations) return;
+        
+        var newDestStr = JSON.stringify(destinations);
+        if (newDestStr === currentDestinationsStr && destinationMarkers.length > 0) {
+            return; // No need to redraw identical markers, prevents DOM thrashing
         }
+        
+        destinationMarkers.forEach(marker => map.removeLayer(marker));
+        destinationMarkers = [];
+        currentDestinationsStr = newDestStr;
+
+        destinations.forEach(dest => {
+            var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
+            var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
+            var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
+            var isPickup = dest.type === 'pickup';
+            
+            if (lat === undefined || lng === undefined) return;
+
+            var colorClass = isPickup ? 'simple-blue-dot' : 'simple-red-dot';
+
+            var destinationIcon = L.divIcon({
+                html: '<div class="' + colorClass + '"></div>',
+                className: '', 
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+                popupAnchor: [0, -7]
+            });
+
+            var marker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map)
+                .bindPopup(title);
+            destinationMarkers.push(marker);
+        });
     }
 
     function clearDestinationMarkers() {
         destinationMarkers.forEach(marker => map.removeLayer(marker));
         destinationMarkers = [];
+        currentDestinationsStr = "";
     }
 
     // --- GESTIÓN DE CONDUCTORES ---
@@ -420,10 +433,25 @@ export const mapaHtml = `
         var waypoints = points.map(function(p) { return L.latLng(p.lat, p.lng); });
 
         if (routingControl) {
+            var currentWps = routingControl.getWaypoints();
+            var wpChanged = false;
+            if (!currentWps || currentWps.length === 0 || currentWps.length !== waypoints.length) {
+                wpChanged = true;
+            } else {
+                // Check if any intermediate points changed (ignoring driver which is index 0)
+                for (var i = 1; i < waypoints.length; i++) {
+                    if (!currentWps[i].latLng || 
+                        currentWps[i].latLng.lat !== waypoints[i].lat || 
+                        currentWps[i].latLng.lng !== waypoints[i].lng) {
+                        wpChanged = true;
+                        break;
+                    }
+                }
+            }
             var destDistance = lastTargetDest ? lastTargetDest.distanceTo(waypoints[waypoints.length - 1]) : Infinity;
             
-            // Si el último destino no cambió y hay waypoints intermedios similares, verificamos si está en ruta
-            if (destDistance < 5) {
+            // Si el último destino no cambió, los waypoints intermedios son los mismos, verificamos si está en ruta
+            if (!wpChanged && destDistance < 5) {
                 var isOffRoute = false;
                 if (fullRouteCoords && fullRouteCoords.length > 1 && customRouteLine) {
                     var currentLatLng = L.latLng(points[0].lat, points[0].lng);
@@ -464,7 +492,7 @@ export const mapaHtml = `
                     clearDestinationMarkers();
                     addDestinationMarkers(points.slice(1));
                     if (animateZoom !== false) {
-                        doCameraFit([waypoints[0], waypoints[waypoints.length - 1]], paddingBottom);
+                        doCameraFit(waypoints, paddingBottom);
                     } else {
                         map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
                     }

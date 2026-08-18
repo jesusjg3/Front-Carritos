@@ -272,9 +272,22 @@ export default function InicioScreen() {
       const getVal = (v) => parseFloat(v) || 0;
 
       if (isPhase1) {
+        // Find the current user's passenger record if they are a passenger
+        const myPassengerData = isPasajero
+          ? activeTrip?.passengers?.find((p) => p.id === user.id)
+          : null;
+
         end = {
-          lat: getVal(activeTrip.origin_lat || activeTrip.origin?.lat),
-          lng: getVal(activeTrip.origin_lng || activeTrip.origin?.lng),
+          lat: getVal(
+            myPassengerData?.pickup_lat ||
+              activeTrip.origin_lat ||
+              activeTrip.origin?.lat,
+          ),
+          lng: getVal(
+            myPassengerData?.pickup_lng ||
+              activeTrip.origin_lng ||
+              activeTrip.origin?.lng,
+          ),
         };
 
         if (isConductor) {
@@ -383,20 +396,29 @@ export default function InicioScreen() {
           let waypoints = [
             { lat: start.lat, lng: start.lng, title: "Conductor" },
           ];
-          activeTrip.passengers.forEach((p) => {
+          activeTrip.passengers.forEach((p, index) => {
+            let pLat = parseFloat(p.pickup_lat);
+            let pLng = parseFloat(p.pickup_lng);
+            
+            if (isNaN(pLat) || isNaN(pLng)) {
+              pLat = parseFloat(activeTrip.origin_lat);
+              pLng = parseFloat(activeTrip.origin_lng);
+            }
+
             if (
               (p.status === "requested" || p.status === "accepted") &&
-              p.pickup_lat &&
-              p.pickup_lng
+              !isNaN(pLat) &&
+              !isNaN(pLng)
             ) {
               waypoints.push({
-                lat: p.pickup_lat,
-                lng: p.pickup_lng,
+                lat: pLat,
+                lng: pLng,
                 title: "Recoger a " + p.name,
                 type: "pickup",
               });
             }
           });
+
           // End point is always destination
           waypoints.push({
             lat: end.lat,
@@ -405,16 +427,18 @@ export default function InicioScreen() {
             type: "destination",
           });
 
-          const waypointsJSON = JSON.stringify(waypoints);
+          const waypointsJSON = JSON.stringify(waypoints).replace(/'/g, "\\'");
           // Instead of simple startLat != endLat, check the whole array string
           const currentPhase = "multi_" + waypointsJSON;
           const routeChanged = lastRouteRef.current?.phase !== currentPhase;
 
           if (routeChanged) {
             script += `
-                            if (typeof drawMultiRoute === 'function') {
-                                drawMultiRoute('${waypointsJSON}', ${padding}, ${shouldAnimateZoom});
-                            }
+                            try {
+                                if (typeof drawMultiRoute === 'function') {
+                                    drawMultiRoute('${waypointsJSON}', ${padding}, ${shouldAnimateZoom});
+                                }
+                            } catch (e) { console.error('Error drawing multi route:', e); }
                         `;
             lastRouteRef.current = { phase: currentPhase };
           }
@@ -469,6 +493,7 @@ export default function InicioScreen() {
     activeTrip?.state_id,
     activeTrip?.driver?.latitude,
     activeTrip?.driver?.longitude,
+    activeTrip?.passengers ? JSON.stringify(activeTrip.passengers) : null,
     destinoSeleccionado,
     ubicacion,
     nearbyDrivers,
@@ -552,6 +577,28 @@ export default function InicioScreen() {
     );
     if (isNaN(dist)) dist = 0.0; // Fallback por seguridad
 
+    let originAddressName = "Mi Ubicación Actual";
+    if (destinos && destinos.length > 0) {
+      let minDist = Infinity;
+      let nearestDest = null;
+      destinos.forEach((d) => {
+        const dDist = calculateDistance(
+          ubicacion.latitude,
+          ubicacion.longitude,
+          d.latitude,
+          d.longitude,
+        );
+        if (dDist < minDist) {
+          minDist = dDist;
+          nearestDest = d;
+        }
+      });
+      // Si está a menos de 250 metros (0.25 km)
+      if (nearestDest && minDist <= 0.25) {
+        originAddressName = `Cerca de ${nearestDest.nombre || nearestDest.name}`;
+      }
+    }
+
     // Ocultar modal primero para que las alertas globales sean visibles
     setModalVisible(false);
     const success = await requestTrip(
@@ -559,6 +606,7 @@ export default function InicioScreen() {
       destinoSeleccionado,
       dist,
       passengersCount,
+      originAddressName,
     );
   };
 
@@ -827,14 +875,17 @@ export default function InicioScreen() {
                                         if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
                                     `);
                 }
-                lastRouteRef.current.phase = null;
-                setMapLoadCount((prev) => prev + 1);
+                setTimeout(() => {
+                  lastRouteRef.current.phase = null;
+                  setMapLoadCount((prev) => prev + 1);
+                }, 0);
               }
             }}
           />
         </View>
         <ActiveTripCard
           activeTrip={activeTrip}
+          user={user}
           isPasajero={isPasajero}
           onContact={() =>
             showAlert("Contacto", "Contactando al conductor...", "info")
@@ -897,8 +948,10 @@ export default function InicioScreen() {
                                     if (typeof placeUserMarker === 'function') placeUserMarker(${ubicacion.latitude}, ${ubicacion.longitude}, null, ${isConductor && isOnline});
                                 `);
               }
-              lastRouteRef.current.phase = null;
-              setMapLoadCount((prev) => prev + 1);
+              setTimeout(() => {
+                lastRouteRef.current.phase = null;
+                setMapLoadCount((prev) => prev + 1);
+              }, 0);
             }
           }}
         />

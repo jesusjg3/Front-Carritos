@@ -1,18 +1,21 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from "react";
-import { View, FlatList, StyleSheet } from "react-native";
+import { View, FlatList, StyleSheet, TouchableOpacity } from "react-native";
 import { Text, Card, useTheme, ActivityIndicator, Divider } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { ReportTripModal } from '../components/ReportTripModal';
 
 export default function HistoryScreen() {
     const { token } = useAppContext();
     const theme = useTheme();
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [selectedTripId, setSelectedTripId] = useState(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -124,6 +127,17 @@ export default function HistoryScreen() {
                             </Text>
                         </View>
                     )}
+                    
+                    <TouchableOpacity 
+                        style={styles.reportButton}
+                        onPress={() => {
+                            setSelectedTripId(item.id);
+                            setReportModalVisible(true);
+                        }}
+                    >
+                        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.danger} />
+                        <Text style={styles.reportButtonText}>Reportar Problema</Text>
+                    </TouchableOpacity>
                 </Card.Content>
             </Card>
         );
@@ -160,6 +174,15 @@ export default function HistoryScreen() {
                     }
                 />
             )}
+
+            <ReportTripModal
+                visible={reportModalVisible}
+                onClose={() => {
+                    setReportModalVisible(false);
+                    setSelectedTripId(null);
+                }}
+                tripId={selectedTripId}
+            />
         </SafeAreaView>
     );
 }
@@ -329,4 +352,19 @@ const styles = StyleSheet.create({
         color: '#888',
         fontSize: 14,
     },
+    reportButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#EEEEEE',
+        gap: 6,
+    },
+    reportButtonText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: COLORS.danger,
+    }
 });

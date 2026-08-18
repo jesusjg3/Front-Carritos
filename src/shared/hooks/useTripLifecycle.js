@@ -17,10 +17,45 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     activeTripIdRef.current = activeTrip?.id;
   }, [activeTrip?.id]);
   const [lastRequestParams, setLastRequestParams] = useState(null);
+  const lastRequestParamsRef = useRef(null);
+
+  useEffect(() => {
+    lastRequestParamsRef.current = lastRequestParams;
+  }, [lastRequestParams]);
   const [requestAttempt, setRequestAttempt] = useState(0);
   const tripTimeoutRef = useRef(null);
   const [tripToRate, setTripToRate] = useState(null);
-  const [incomingRequest, setIncomingRequest] = useState(null);
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const incomingRequest = incomingRequests[0] || null;
+
+  // Recuperar viaje activo al cargar (State Recovery)
+  useEffect(() => {
+    const fetchCurrentTrip = async () => {
+      if (!user || !token) return;
+      try {
+        const response = await fetch(`${API_ROUTES.TRIPS}/current`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.trip) {
+            setActiveTrip(data.trip);
+            // Si el pasajero recupera su viaje y está en REQUESTED, mostramos "Buscando"
+            if (data.trip.state?.state_name === 'REQUESTED' && user.role?.name !== 'driver') {
+              setIsSearching(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error recovering current trip:", error);
+      }
+    };
+
+    fetchCurrentTrip();
+  }, [user]);
 
   // Helper para normalizar la estructura del viaje y asegurar coordenadas accesibles
   const normalizeTripData = (trip, extraDriverData = {}) => {
@@ -179,10 +214,33 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 tripTimeoutRef.current = null;
               }
               setActiveTrip(null);
-              setIsSearching(false);
               setTripToRate(null);
-              setRequestAttempt(0);
-              showAlert("Viaje Cancelado", "El conductor ha cancelado tu solicitud.", "info");
+              
+              if (event.reason === 'auto_retry' && lastRequestParamsRef.current) {
+                // Auto-retry silently
+                requestTrip(
+                  lastRequestParamsRef.current.ubicacion,
+                  lastRequestParamsRef.current.destinoSeleccionado,
+                  lastRequestParamsRef.current.distance,
+                  lastRequestParamsRef.current.passengersCount,
+                  lastRequestParamsRef.current.customOriginName
+                );
+              } else {
+                setIsSearching(false);
+                setRequestAttempt(0);
+                showAlert("Viaje Cancelado", "El conductor ha cancelado tu solicitud.", "info");
+              }
+            })
+            .listen(".PassengerBoarded", (event) => {
+              setActiveTrip((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  passengers: prev.passengers?.map(p => 
+                    p.id === event.passenger_id ? { ...p, status: 'boarded' } : p
+                  )
+                };
+              });
             })
             .listen(".PassengerDroppedOff", (event) => {
               if (tripTimeoutRef.current) {
@@ -218,10 +276,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           
           driverChannel
             .listen(".PassengerJoinRequested", (event) => {
-              setIncomingRequest(event);
+              setIncomingRequests((prev) => [...prev, event]);
             })
             .listen("PassengerJoinRequested", (event) => {
-              setIncomingRequest(event);
+              setIncomingRequests((prev) => [...prev, event]);
             })
             .listen(".PassengerCancelledTrip", (event) => {
               setActiveTrip((prev) => {
@@ -379,10 +437,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
   const handleAcceptPassenger = async () => {
     if (!activeTrip || !incomingRequest) return;
-    
-    // El payload de PassengerJoinRequested tiene { trip_id, passenger: { id, ... } }
     const passengerId = incomingRequest.passenger?.id || incomingRequest.passenger_id;
-    
+
     try {
       const response = await fetch(
         `${API_ROUTES.TRIPS}/${activeTrip.id}/accept-passenger`,
@@ -394,21 +450,22 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             Accept: "application/json",
           },
           body: JSON.stringify({ passenger_id: passengerId })
-        },
+        }
       );
       const data = await response.json();
 
       if (response.ok) {
-        setIncomingRequest(null);
         setActiveTrip(data);
-        showAlert("Pasajero Aceptado", "Se agregó un nuevo pasajero a tu ruta.", "success");
+        setIncomingRequests((prev) => prev.slice(1));
+        showAlert("Pasajero Aceptado", "El pasajero ha sido añadido a tu ruta.", "success");
       } else {
         showAlert("Error", "No se pudo aceptar al pasajero: " + (data.error || "Desconocido"), "error");
-        setIncomingRequest(null);
+        setIncomingRequests((prev) => prev.slice(1));
       }
     } catch (error) {
-      console.error(error);
-      showAlert("Error de Conexión", "Error de conexión al aceptar pasajero.", "error");
+      console.error("Error accepting passenger:", error);
+      showAlert("Error", "Hubo un problema al procesar la solicitud.", "error");
+      setIncomingRequests((prev) => prev.slice(1));
     }
   };
 
@@ -416,8 +473,38 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     setRequestQueue((prev) => prev.slice(1));
   };
 
-  const handleRejectPassenger = () => {
-    setIncomingRequest(null);
+  const handleRejectPassenger = async () => {
+    if (!activeTrip || incomingRequests.length === 0) return;
+    const incomingRequest = incomingRequests[0];
+    try {
+      const response = await fetch(
+        `${API_ROUTES.TRIPS}/${activeTrip.id}/reject-passenger/${incomingRequest.passenger.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setActiveTrip(data);
+        setIncomingRequests((prev) => prev.slice(1));
+        showAlert("Solicitud Rechazada", "Se ha notificado al pasajero.", "info");
+      } else {
+        showAlert(
+          "Error",
+          "Error al rechazar: " + (data.error || "Desconocido"),
+          "error",
+        );
+        setIncomingRequests((prev) => prev.slice(1));
+      }
+    } catch (error) {
+      console.error("Error rejecting passenger:", error);
+      showAlert("Error", "Hubo un problema al procesar la solicitud.", "error");
+      setIncomingRequests((prev) => prev.slice(1));
+    }
   };
 
   const handleStartTrip = async () => {
@@ -579,6 +666,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     destinoSeleccionado,
     distance,
     passengersCount = 1,
+    customOriginName = null
   ) => {
     try {
       // Incrementar contador de intentos
@@ -590,12 +678,39 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         destinoSeleccionado,
         distance,
         passengersCount,
+        customOriginName
       });
+
+      let originAddress = customOriginName || "Mi Ubicación Actual";
+      
+      if (originAddress === "Mi Ubicación Actual") {
+        try {
+          const [geocode] = await Location.reverseGeocodeAsync({
+            latitude: ubicacion.latitude,
+            longitude: ubicacion.longitude
+          });
+          if (geocode) {
+            const parts = [];
+            if (geocode.street) {
+               parts.push(`${geocode.street} ${geocode.streetNumber || ''}`.trim());
+            } else if (geocode.name) {
+               parts.push(geocode.name);
+            }
+            if (geocode.city) parts.push(geocode.city);
+            
+            if (parts.length > 0) {
+              originAddress = parts.join(', ');
+            }
+          }
+        } catch (err) {
+          console.warn("Error al obtener dirección del pasajero:", err);
+        }
+      }
 
       const payload = {
         origin_lat: ubicacion.latitude,
         origin_lng: ubicacion.longitude,
-        origin_address: "Mi Ubicación Actual",
+        origin_address: originAddress,
         destination_lat: destinoSeleccionado.latitude,
         destination_lng: destinoSeleccionado.longitude,
         destination_address:
@@ -616,6 +731,16 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         },
         body: JSON.stringify(payload),
       });
+
+      if (response.status === 429) {
+        setIsSearching(false);
+        showAlert(
+          "Límite de solicitudes",
+          "Estás haciendo demasiadas solicitudes muy rápido. Por favor, espera un minuto e inténtalo de nuevo.",
+          "error"
+        );
+        return;
+      }
 
       const data = await response.json();
 
@@ -760,6 +885,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     requestTrip,
     cancelTrip,
     incomingRequest,
-    setIncomingRequest,
+    setIncomingRequests,
   };
 };

@@ -13,6 +13,7 @@ import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function ActiveTripCard({
   activeTrip,
+  user,
   isPasajero,
   onContact,
   onCancel,
@@ -24,13 +25,27 @@ export default function ActiveTripCard({
 }) {
   const theme = useTheme();
 
+  // Find the specific passenger record if viewing as a passenger
+  const myPassengerRecord = isPasajero && user ? 
+    activeTrip?.passengers?.find(p => p.id === user.id) 
+    : null;
+
+
   // Helper functions for display
-  const getStateTitle = () =>
-    activeTrip.state_id == 4 ? "Viaje en curso" : "Conductor en camino";
-  const getStateSubtitle = () =>
-    activeTrip.state_id == 4
-      ? "Disfruta tu viaje"
-      : "Tu viaje ha sido aceptado";
+  const getStateTitle = () => {
+    if (isPasajero && myPassengerRecord) {
+      return myPassengerRecord.status === 'boarded' ? "Viaje en curso" : "Conductor en camino";
+    }
+    return activeTrip.state_id == 4 ? "Viaje en curso" : "Conductor en camino";
+  };
+
+  const getStateSubtitle = () => {
+    if (isPasajero && myPassengerRecord) {
+      return myPassengerRecord.status === 'boarded' ? "Disfruta tu viaje" : "Recogiéndote en breve";
+    }
+    return activeTrip.state_id == 4 ? "Disfruta tu viaje" : "Tu viaje ha sido aceptado";
+  };
+
   const getDriverIcon = () => (isPasajero ? "car" : "account");
 
   // Driver specific Titles
@@ -123,76 +138,82 @@ export default function ActiveTripCard({
         ) : (
           // Driver View - Passenger details (multiple)
           <View>
-            {activeTrip.passengers?.map((passenger) => {
-              if (
-                passenger.status === "cancelled" ||
-                passenger.status === "dropped_off"
+            {(activeTrip.passengers || [])
+              .filter(
+                (p) =>
+                  p.status !== "dropped_off" &&
+                  p.status !== "cancelled" &&
+                  p.status !== "requested",
               )
-                return null;
-
-              return (
-                <View key={passenger.id} style={styles.userInfo}>
-                  <View
-                    style={[
-                      styles.avatarGlow,
-                      { borderColor: theme.colors.primary },
-                    ]}
-                  >
+              .map((passenger) => {
+                return (
+                  <View key={passenger.id} style={styles.userInfo}>
                     <View
                       style={[
-                        styles.avatar,
-                        { backgroundColor: theme.colors.primary },
+                        styles.avatarGlow,
+                        { borderColor: theme.colors.primary },
                       ]}
                     >
-                      <Text style={styles.initials}>
-                        {getInitials(passenger.name || "Pasajero")}
-                      </Text>
+                      <View
+                        style={[
+                          styles.avatar,
+                          { backgroundColor: theme.colors.primary },
+                        ]}
+                      >
+                        <Text style={styles.initials}>
+                          {getInitials(passenger.name || "Pasajero")}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <View style={styles.userDetails}>
-                    <Text style={styles.userName}>
-                      {passenger.name || "Pasajero"}
-                    </Text>
-                    <Text style={styles.userSubtext}>
-                      {passenger.phone || "Sin número"}
-                    </Text>
-                    <View
-                      style={{ flexDirection: "row", marginTop: 4, gap: 8 }}
-                    >
-                      {passenger.id !== activeTrip.passengers?.[0]?.id && (
-                        <>
-                          {passenger.status === "requested" || passenger.status === "accepted" ? (
-                            <Button
-                              mode="contained"
-                              compact
-                              style={{ backgroundColor: "#2E7D32", flex: 1 }}
-                              onPress={() => onBoardPassenger(passenger.id)}
-                            >
-                              Subió
-                            </Button>
-                          ) : null}
-                          {passenger.status === "requested" || passenger.status === "accepted" ? (
-                            <Button
-                              mode="outlined"
-                              compact
-                              textColor={theme.colors.error}
-                              style={{
-                                borderColor: theme.colors.error + "50",
-                                flex: 1,
-                              }}
-                              onPress={() => onCancelPassenger(passenger.id)}
-                            >
-                              No llegó
-                            </Button>
-                          ) : null}
-                        </>
+                    <View style={styles.userDetails}>
+                      <Text style={styles.userName}>
+                        {passenger.name || "Pasajero"}
+                      </Text>
+                      {!isPasajero && passenger.pickup_address && (
+                        <Text style={[styles.userSubtext, { color: theme.colors.outline, fontSize: 12 }]}>
+                          📍 {passenger.pickup_address}
+                        </Text>
                       )}
+                      <Text style={styles.userSubtext}>
+                        {passenger.phone || "Sin número"}
+                      </Text>
+                      <View
+                        style={{ flexDirection: "row", marginTop: 4, gap: 8 }}
+                      >
+                        {passenger.id !== activeTrip.passengers?.[0]?.id && (
+                          <>
+                            {passenger.status === "accepted" ? (
+                              <Button
+                                mode="contained"
+                                compact
+                                style={{ backgroundColor: "#2E7D32", flex: 1 }}
+                                onPress={() => onBoardPassenger(passenger.id)}
+                              >
+                                Subió
+                              </Button>
+                            ) : null}
+                            {passenger.status === "accepted" ? (
+                              <Button
+                                mode="outlined"
+                                compact
+                                textColor={theme.colors.error}
+                                style={{
+                                  borderColor: theme.colors.error + "50",
+                                  flex: 1,
+                                }}
+                                onPress={() => onCancelPassenger(passenger.id)}
+                              >
+                                No llegó
+                              </Button>
+                            ) : null}
+                          </>
+                        )}
+                      </View>
                     </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })}
           </View>
         )}
 
@@ -304,12 +325,16 @@ export default function ActiveTripCard({
             {activeTrip.state_id == 4 && (
               <Button
                 mode="contained"
-                style={[styles.actionButton, { backgroundColor: "#2E7D32" }]}
+                style={[
+                  styles.actionButton, 
+                  { backgroundColor: activeTrip.passengers?.some(p => p.status === 'accepted') ? "#888888" : "#2E7D32" }
+                ]}
                 contentStyle={styles.actionButtonContent}
                 onPress={onFinishTrip}
                 icon="flag-checkered"
+                disabled={activeTrip.passengers?.some(p => p.status === 'accepted')}
               >
-                Finalizar Viaje Completo
+                {activeTrip.passengers?.some(p => p.status === 'accepted') ? "Pasajeros pendientes" : "Finalizar Viaje Completo"}
               </Button>
             )}
           </View>

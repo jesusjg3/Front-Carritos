@@ -46,7 +46,7 @@ function AppContent() {
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{ headerShown: false }}
-          initialRouteName={ROUTES.WELCOME}
+          initialRouteName={user ? ROUTES.DASHBOARD : ROUTES.WELCOME}
         >
           {!user ? (
             <>

@@ -100,8 +100,8 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                         <View style={[styles.avatarBg, { backgroundColor: '#144985' }]}>
                             <MaterialCommunityIcons name="star" size={30} color="#FFD700" />
                         </View>
-                        <Text style={[styles.titleText, { color: '#144985' }]}>Califica tu viaje</Text>
-                        <Text style={styles.subtitleText}>¿Cómo calificarías el servicio del conductor?</Text>
+                        <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica tu viaje</Text>
+                        <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo calificarías el servicio del conductor?</Text>
                     </View>
 
                     <Divider style={styles.divider} />
@@ -120,7 +120,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                         {/* Custom native stable TextInput to prevent React 19 rendering crash on Web */}
                         <TextInput
                             placeholder="Comparte tu experiencia (Opcional)"
-                            placeholderTextColor="#94A3B8"
+                            placeholderTextColor={theme.colors.onSurfaceVariant}
                             multiline
                             numberOfLines={3}
                             value={comment}
@@ -128,7 +128,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             style={[
-                                styles.input,
+                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }],
                                 isFocused && styles.inputFocused
                             ]}
                         />
@@ -139,10 +139,10 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                         <TouchableOpacity
                             onPress={onDismiss}
                             disabled={loading}
-                            style={styles.omitButton}
+                            style={[styles.omitButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.omitButtonText}>Omitir</Text>
+                            <Text style={[styles.omitButtonText, { color: theme.colors.onSurfaceVariant }]}>Omitir</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -184,8 +184,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         padding: 16,
         ...SHADOWS.LARGE,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderWidth: 0,
     },
     cardHeader: {
         alignItems: 'center',
@@ -265,14 +264,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingBottom: 8,
         gap: 12,
-        marginTop: 18,
+        marginTop: 12,
     },
     omitButton: {
         flex: 1,
-        height: 46,
-        borderRadius: 23,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: '#FFFFFF',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
@@ -287,8 +286,8 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         flex: 1,
-        height: 46,
-        borderRadius: 23,
+        height: 40,
+        borderRadius: 20,
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',

@@ -18,9 +18,9 @@ export default function StatusToggleButton({ isOnline, onToggle }) {
             >
                 <MaterialCommunityIcons 
                     name={isOnline ? "wifi" : "wifi-off"} 
-                    size={20} 
+                    size={18}
                     color="#fff" 
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: 6 }}
                 />
                 
                 <Text style={styles.text}>
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 30, // Rounded pill shape
-        minWidth: 180,
+        paddingVertical: 7,
+        paddingHorizontal: 14,
+        borderRadius: 24,
+        minWidth: 160,
         ...SHADOWS.MEDIUM,
-        borderWidth: 1.5,
+        borderWidth: 0,
     },
     buttonOffline: {
         backgroundColor: '#144985', // Brand Deep Blue
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     text: {
         color: '#fff',
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 12,
         letterSpacing: 0.8,
         flex: 1,
         textAlign: 'center',

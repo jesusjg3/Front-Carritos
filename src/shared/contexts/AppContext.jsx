@@ -10,7 +10,6 @@ export function AppContextProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     // Global custom alert state
@@ -70,7 +69,12 @@ export function AppContextProvider({ children }) {
                 const parsedUser = JSON.parse(savedUser);
                 setToken(savedToken);
                 setUser(parsedUser);
-                await refreshTokenIfNeeded(savedToken);
+                const refreshed = await refreshTokenIfNeeded(savedToken);
+                if (!refreshed) {
+                    await clearSession();
+                    setToken(null);
+                    setUser(null);
+                }
             }
         } catch (error) {
             console.error('Error al inicializar sesión:', error);
@@ -117,18 +121,17 @@ export function AppContextProvider({ children }) {
                 };
                 setUser(userData);
                 await saveSession(data.access_token, userData);
+                return true;
             }
+            return false;
         } catch (error) {
             console.error('Error refrescando token:', error);
+            return false;
         }
     };
 
     const toggleTheme = () => {
         setIsDarkTheme(!isDarkTheme);
-    };
-
-    const toggleNotifications = () => {
-        setNotificationsEnabled(!notificationsEnabled);
     };
 
     const login = async (email, password) => {
@@ -145,12 +148,18 @@ export function AppContextProvider({ children }) {
             if (!response.ok) {
                 throw new Error(data.error || 'Error de autenticación');
             }
+
+            if (data.user?.role === 'admin') {
+                throw new Error('Los administradores deben iniciar sesión en el panel web.');
+            }
+
             setToken(data.access_token);
             const userData = {
                 ...data.user,
                 token: data.access_token,
             };
             setUser(userData);
+            await saveSession(data.access_token, userData);
             return { success: true, user: userData };
         } catch (error) {
             setUser(null);
@@ -171,8 +180,7 @@ export function AppContextProvider({ children }) {
                     name,
                     email,
                     password,
-                    password_confirmation: password,
-                    role_id: 2
+                    password_confirmation: password
                 })
             });
             const data = await response.json();
@@ -185,6 +193,7 @@ export function AppContextProvider({ children }) {
                 token: data.access_token,
             };
             setUser(userData);
+            await saveSession(data.access_token, userData);
             return { success: true, user: userData };
         } catch (error) {
             return { success: false, error: error.message };
@@ -213,8 +222,6 @@ export function AppContextProvider({ children }) {
                 logout,
                 isDarkTheme,
                 toggleTheme,
-                notificationsEnabled,
-                toggleNotifications,
                 isLoading,
                 paperTheme: isDarkTheme ? PaperDarkTheme : PaperLightTheme,
                 showAlert,

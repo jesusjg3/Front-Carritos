@@ -106,9 +106,10 @@ export const mapaHtml = `
     // Desabilitar zoom con doble tap
     map.doubleClickZoom.disable();
 
-    // Usamos CartoDB Voyager (Estilo limpio tipo Google Maps) que permite peticiones sin Referer desde WebViews
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB'
+    // Usamos OpenStreetMap para no depender de una API key de un proveedor
+    // comercial de mapas. La atribución es obligatoria para este servicio.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     function centerMap(lat, lon) {

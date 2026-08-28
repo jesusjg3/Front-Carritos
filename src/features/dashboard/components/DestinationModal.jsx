@@ -32,7 +32,7 @@ export default function DestinationModal({
 
     return (
         <Modal
-            animationType="slide"
+            animationType="fade"
             transparent={true}
             visible={visible}
             onRequestClose={onDismiss}
@@ -118,12 +118,12 @@ export default function DestinationModal({
                     </ScrollView>
 
                     {/* Selector de número de pasajeros */}
-                    <View style={[styles.passengersContainer, { backgroundColor: '#F8F9FA', borderTopColor: '#EEEEEE' }]}>
-                        <Text style={styles.passengersTitle}>Número de pasajeros a bordo</Text>
+                    <View style={[styles.passengersContainer, { backgroundColor: theme.colors.surfaceVariant, borderTopColor: theme.colors.outline }]}>
+                        <Text style={[styles.passengersTitle, { color: theme.colors.onSurface }]}>Número de pasajeros a bordo</Text>
                         
                         <View style={styles.passengerCounter}>
                             <TouchableOpacity
-                                style={[styles.counterButton, passengersCount <= 1 && styles.counterButtonDisabled]}
+                                style={[styles.counterButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, passengersCount <= 1 && styles.counterButtonDisabled]}
                                 onPress={() => setPassengersCount(Math.max(1, passengersCount - 1))}
                                 disabled={passengersCount <= 1}
                             >
@@ -134,7 +134,7 @@ export default function DestinationModal({
                                 <Text style={[styles.counterText, { color: theme.colors.primary }]}>
                                     {passengersCount}
                                 </Text>
-                                <Text style={styles.counterLabel}>
+                                <Text style={[styles.counterLabel, { color: theme.colors.onSurfaceVariant }]}>
                                     {passengersCount === 1 ? 'Persona' : 'Personas'}
                                 </Text>
                             </View>
@@ -181,11 +181,10 @@ const styles = StyleSheet.create({
     modalContent: { 
         borderTopLeftRadius: 28, 
         borderTopRightRadius: 28, 
-        paddingBottom: 32, 
-        maxHeight: '80%', 
+        paddingBottom: 16,
+        maxHeight: '76%',
         ...SHADOWS.LARGE,
-        borderWidth: 1,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
     },
     dragIndicator: { 
         width: 44, 
@@ -194,7 +193,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#E0E0E0', 
         alignSelf: 'center', 
         marginTop: 10, 
-        marginBottom: 16 
+        marginBottom: 10
     },
     modalTitle: { 
         fontWeight: 'bold', 
@@ -207,9 +206,9 @@ const styles = StyleSheet.create({
         marginTop: 4,
         paddingHorizontal: 24,
     },
-    divider: { marginTop: 12, marginBottom: 16 },
-    destinosList: { maxHeight: 320, paddingHorizontal: 16 },
-    loadingContainer: { padding: 30, alignItems: 'center' },
+    divider: { marginTop: 10, marginBottom: 10 },
+    destinosList: { maxHeight: 280, paddingHorizontal: 12 },
+    loadingContainer: { padding: 20, alignItems: 'center' },
     loadingText: { marginTop: 12, color: 'gray' },
     errorContainer: { padding: 20, alignItems: 'center' },
     errorText: { textAlign: 'center', marginVertical: 8 },
@@ -223,20 +222,19 @@ const styles = StyleSheet.create({
     destinoItemCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 
-        padding: 12, 
+        padding: 10,
         backgroundColor: '#FFFFFF',
         borderRadius: BORDER_RADIUS.LG,
-        borderWidth: 1.5,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
         ...SHADOWS.SMALL,
     },
     selectedCard: {
         ...SHADOWS.MEDIUM,
     },
     itemLeftIconBg: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -264,14 +262,14 @@ const styles = StyleSheet.create({
     },
     passengersContainer: { 
         paddingHorizontal: 24, 
-        paddingVertical: 16, 
+        paddingVertical: 10,
         borderTopWidth: 1,
     },
     passengersTitle: { 
         fontWeight: 'bold', 
         fontSize: 13,
         color: '#495057',
-        marginBottom: 12, 
+        marginBottom: 8,
         textAlign: 'center',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -315,12 +313,12 @@ const styles = StyleSheet.create({
     modalActions: { 
         flexDirection: 'row', 
         justifyContent: 'space-between', 
-        paddingHorizontal: 20, 
-        paddingTop: 16,
+        paddingHorizontal: 16,
+        paddingTop: 10,
         gap: 12,
     },
     actionButton: { flex: 1, borderRadius: BORDER_RADIUS.LG },
     actionButtonContent: {
-        paddingVertical: 8,
+        paddingVertical: 4,
     },
 });

@@ -1,40 +1,73 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from "react-native";
 import { Card, Text, Button, useTheme } from "react-native-paper";
-import { SHADOWS, COLORS, BORDER_RADIUS } from '../../../core/constants/theme';
+import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PASSENGER_JOIN_DISPLAY_MS } from '../../../core/constants/timing';
 
 export default function IncomingRequestCard({
     incomingRequest,
     onAccept,
-    onReject
+    onReject,
+    onExpire,
 }) {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
+    const [secondsLeft, setSecondsLeft] = useState(Math.ceil(PASSENGER_JOIN_DISPLAY_MS / 1000));
+    const resolvedRef = useRef(false);
+
+    const passenger = incomingRequest?.passenger;
+
+    useEffect(() => {
+        if (!incomingRequest) return undefined;
+
+        resolvedRef.current = false;
+        setSecondsLeft(Math.ceil(PASSENGER_JOIN_DISPLAY_MS / 1000));
+
+        const interval = setInterval(() => {
+            setSecondsLeft((seconds) => Math.max(0, seconds - 1));
+        }, 1000);
+        const timeout = setTimeout(() => {
+            if (!resolvedRef.current) {
+                resolvedRef.current = true;
+                onExpire?.();
+            }
+        }, PASSENGER_JOIN_DISPLAY_MS);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [incomingRequest, onExpire]);
+
+    const resolve = (callback) => {
+        if (resolvedRef.current) return;
+        resolvedRef.current = true;
+        callback?.();
+    };
 
     if (!incomingRequest) return null;
 
-    const passenger = incomingRequest.passenger;
-
     return (
-        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.sheetIndicator} />
-            
+        <Card style={[styles.card, { backgroundColor: theme.colors.surface, top: Math.max(insets.top + 20, 36) }]}>
             <View style={styles.headerRow}>
                 <View style={styles.iconContainer}>
                     <MaterialCommunityIcons name="account-plus" size={20} color={theme.colors.primary} />
                 </View>
                 <View style={styles.headerText}>
-                    <Text style={styles.titleText}>Nuevo pasajero en ruta</Text>
-                    <Text style={styles.subtitleText}>Quiere unirse a tu viaje</Text>
+                    <Text style={[styles.titleText, { color: theme.colors.onSurface }]}>Nuevo pasajero en ruta</Text>
+                    <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>Quiere unirse a tu viaje</Text>
                 </View>
+                <Text style={[styles.timerText, { color: theme.colors.primary }]}>{secondsLeft}s</Text>
             </View>
 
             <Card.Content style={styles.cardContent}>
                 <View style={styles.userInfo}>
                     <View style={styles.userDetails}>
-                        <Text style={styles.userName}>{passenger?.name || 'Pasajero'}</Text>
-                        <Text style={styles.userSubtext}>Recoger en: {passenger?.pickup_address || 'Ubicación desconocida'}</Text>
-                        <Text style={styles.userSubtext}>Pasajeros a subir: {passenger?.passengers_count || 1}</Text>
+                        <Text style={[styles.userName, { color: theme.colors.onSurface }]} numberOfLines={1}>{passenger?.name || 'Pasajero'}</Text>
+                        <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>Recoger en: {passenger?.pickup_address || 'Ubicación desconocida'}</Text>
+                        <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant }]}>Pasajeros: {passenger?.passengers_count || 1}</Text>
                     </View>
                 </View>
             </Card.Content>
@@ -46,7 +79,7 @@ export default function IncomingRequestCard({
                         textColor={theme.colors.error} 
                         style={[styles.actionButton, { borderColor: theme.colors.error + '50' }]} 
                         contentStyle={styles.actionButtonContent}
-                        onPress={onReject}
+                        onPress={() => resolve(onReject)}
                         icon="close"
                     >
                         Ignorar
@@ -55,7 +88,7 @@ export default function IncomingRequestCard({
                         mode="contained" 
                         style={[styles.actionButton, { backgroundColor: '#2E7D32' }]} 
                         contentStyle={styles.actionButtonContent}
-                        onPress={onAccept}
+                        onPress={() => resolve(onAccept)}
                         icon="check"
                     >
                         Aceptar
@@ -69,30 +102,21 @@ export default function IncomingRequestCard({
 const styles = StyleSheet.create({
     card: { 
         position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        borderTopLeftRadius: 24, 
-        borderTopRightRadius: 24, 
+        top: 12,
+        left: 10,
+        right: 10,
+        borderRadius: 16,
         ...SHADOWS.LARGE,
-        borderWidth: 1.5,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
         paddingTop: 8,
-        zIndex: 1000, // Ensure it sits above ActiveTripCard
-    },
-    sheetIndicator: {
-        width: 36,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#E0E0E0',
-        alignSelf: 'center',
-        marginBottom: 12,
+        zIndex: 1000,
+        elevation: 20,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 10,
+        paddingHorizontal: 12,
+        marginBottom: 2,
     },
     iconContainer: {
         width: 36,
@@ -101,24 +125,28 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#1E88E510',
-        marginRight: 12,
+        marginRight: 8,
     },
     headerText: {
         flex: 1,
     },
     titleText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#212529',
     },
     subtitleText: {
-        fontSize: 12,
-        color: '#6C757D',
+        fontSize: 11,
         marginTop: 1,
     },
+    timerText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginLeft: 6,
+    },
     cardContent: {
-        paddingHorizontal: 20,
-        paddingVertical: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
     },
     userInfo: { 
         flexDirection: 'row', 
@@ -129,24 +157,22 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     userName: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: 'bold',
-        color: '#212529',
     },
     userSubtext: {
-        fontSize: 13,
-        color: '#555',
+        fontSize: 11,
         marginTop: 2,
     },
     cardActions: { 
-        paddingHorizontal: 20, 
-        paddingBottom: 20, 
+        paddingHorizontal: 12,
+        paddingBottom: 6,
         paddingTop: 0,
     },
     buttonRow: { 
         flexDirection: 'row', 
         flex: 1,
-        gap: 12,
+        gap: 8,
     },
     actionButton: { 
         flex: 1, 
@@ -154,6 +180,6 @@ const styles = StyleSheet.create({
         ...SHADOWS.SMALL,
     },
     actionButtonContent: {
-        paddingVertical: 6,
+        paddingVertical: 0,
     },
 });

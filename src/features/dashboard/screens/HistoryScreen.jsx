@@ -10,20 +10,15 @@ import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 import { ReportTripModal } from '../components/ReportTripModal';
 
 export default function HistoryScreen() {
-    const { token } = useAppContext();
+    const { user, token } = useAppContext();
     const theme = useTheme();
+    const isConductor = user?.role?.toLowerCase() === 'conductor' || user?.rol?.toLowerCase() === 'conductor';
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(false);
     const [reportModalVisible, setReportModalVisible] = useState(false);
     const [selectedTripId, setSelectedTripId] = useState(null);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchHistory();
-        }, [])
-    );
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch(`${API_ROUTES.BASE_URL}/trips/history`, {
@@ -41,17 +36,29 @@ export default function HistoryScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [token]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchHistory();
+        }, [fetchHistory])
+    );
 
     const getStatusColor = (state) => {
         const s = (state || '').toLowerCase();
         if (s === 'completado' || s === 'completed' || s === 'finished' || s === 'finalizado') {
-            return { bg: '#E8F5E9', text: '#2E7D32', label: 'Completado' };
+            return theme.dark
+                ? { bg: '#173B2A', text: '#86EFAC', label: 'Completado' }
+                : { bg: '#E8F5E9', text: '#2E7D32', label: 'Completado' };
         }
         if (s === 'cancelado' || s === 'cancelled') {
-            return { bg: '#FFEBEE', text: '#C62828', label: 'Cancelado' };
+            return theme.dark
+                ? { bg: '#451A1A', text: '#FCA5A5', label: 'Cancelado' }
+                : { bg: '#FFEBEE', text: '#C62828', label: 'Cancelado' };
         }
-        return { bg: '#E3F2FD', text: '#1565C0', label: state || 'En curso' };
+        return theme.dark
+            ? { bg: '#172B46', text: '#93C5FD', label: state || 'En curso' }
+            : { bg: '#E3F2FD', text: '#1565C0', label: state || 'En curso' };
     };
 
     const renderItem = ({ item }) => {
@@ -61,13 +68,13 @@ export default function HistoryScreen() {
         const timeStr = tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         return (
-            <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <Card style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 <Card.Content style={styles.cardContent}>
                     {/* Header Row */}
                     <View style={styles.cardHeader}>
                         <View style={styles.dateTimeContainer}>
-                            <MaterialCommunityIcons name="clock-outline" size={14} color="#6C757D" style={{ marginRight: 4 }} />
-                            <Text style={styles.dateTimeText}>{dateStr} • {timeStr}</Text>
+                            <MaterialCommunityIcons name="clock-outline" size={14} color={theme.colors.onSurfaceVariant} style={{ marginRight: 4 }} />
+                            <Text style={[styles.dateTimeText, { color: theme.colors.onSurfaceVariant }]}>{dateStr} • {timeStr}</Text>
                         </View>
                         <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
                             <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
@@ -75,17 +82,23 @@ export default function HistoryScreen() {
                     </View>
 
                     {/* Destination Row */}
-                    <View style={styles.routeRow}>
-                        <View style={styles.routeIndicatorContainer}>
-                            <View style={[styles.routeDot, { backgroundColor: theme.colors.primary }]} />
-                            <View style={styles.routeLine} />
-                            <View style={[styles.routeSquare, { backgroundColor: theme.colors.secondary }]} />
-                        </View>
-                        <View style={styles.routeDetails}>
-                            <Text numberOfLines={1} style={styles.originText}>
+                    <View style={[styles.routeRow, !isConductor && styles.routeRowVertical, { backgroundColor: theme.colors.surfaceVariant }]}>
+                        <View style={[styles.routePoint, !isConductor && styles.routePointVertical]}>
+                            <View style={styles.routePointHeader}>
+                                <View style={[styles.routeDot, { backgroundColor: theme.colors.primary }]} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Origen</Text>
+                            </View>
+                            <Text numberOfLines={1} style={[styles.originText, { color: theme.colors.onSurface }]}>
                                 {item.origin_address || item.origin?.address || 'Origen (Ubicación actual)'}
                             </Text>
-                            <Text numberOfLines={1} style={styles.destinationText}>
+                        </View>
+                        <MaterialCommunityIcons name={isConductor ? "arrow-right" : "arrow-down"} size={17} color={theme.colors.primary} style={[styles.routeArrow, !isConductor && styles.routeArrowVertical]} />
+                        <View style={[styles.routePoint, !isConductor && styles.routePointVertical]}>
+                            <View style={styles.routePointHeader}>
+                                <View style={[styles.routeSquare, { backgroundColor: theme.colors.secondary }]} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Destino</Text>
+                            </View>
+                            <Text numberOfLines={1} style={[styles.destinationText, { color: theme.colors.onSurface }]}>
                                 {item.destination_address || item.destination?.address || 'Destino del campus'}
                             </Text>
                         </View>
@@ -100,43 +113,43 @@ export default function HistoryScreen() {
                                 <MaterialCommunityIcons name="steering" size={16} color={theme.colors.primary} />
                             </View>
                             <View>
-                                <Text style={styles.driverTitle}>Conductor</Text>
-                                <Text style={styles.driverName}>{item.driver?.name || 'N/A'}</Text>
+                                <Text style={[styles.driverTitle, { color: theme.colors.onSurfaceVariant }]}>Conductor</Text>
+                                <Text style={[styles.driverName, { color: theme.colors.onSurface }]}>{item.driver?.name || 'N/A'}</Text>
                             </View>
                         </View>
 
                         {/* Rating Display */}
                         {item.my_rating ? (
-                            <View style={styles.ratingBadge}>
+                            <View style={[styles.ratingBadge, { backgroundColor: theme.dark ? '#4A3B10' : '#FFF9C4' }]}>
                                 <MaterialCommunityIcons name="star" size={14} color="#FFD700" style={{ marginRight: 2 }} />
                                 <Text style={styles.ratingText}>{Number(item.my_rating.rating).toFixed(0)}</Text>
                             </View>
                         ) : (
-                            <View style={[styles.ratingBadge, { backgroundColor: '#F5F5F5' }]}>
-                                <Text style={[styles.ratingText, { color: '#888' }]}>Sin calificar</Text>
+                            <View style={[styles.ratingBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
+                                <Text style={[styles.ratingText, { color: theme.colors.onSurfaceVariant }]}>Sin calificar</Text>
                             </View>
                         )}
                     </View>
 
                     {/* Comments if exist */}
                     {item.my_rating?.comment && (
-                        <View style={[styles.commentBox, { backgroundColor: '#F8F9FA' }]}>
+                        <View style={[styles.commentBox, { backgroundColor: theme.colors.surfaceVariant }]}>
                             <MaterialCommunityIcons name="format-quote-close" size={12} color="#888" style={{ marginRight: 6 }} />
-                            <Text numberOfLines={2} style={styles.commentText}>
+                            <Text numberOfLines={2} style={[styles.commentText, { color: theme.colors.onSurfaceVariant }]}>
                                 "{item.my_rating.comment}"
                             </Text>
                         </View>
                     )}
                     
                     <TouchableOpacity 
-                        style={styles.reportButton}
+                        style={[styles.reportButton, { backgroundColor: theme.colors.surfaceVariant }]}
                         onPress={() => {
                             setSelectedTripId(item.id);
                             setReportModalVisible(true);
                         }}
                     >
-                        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.danger} />
-                        <Text style={styles.reportButtonText}>Reportar Problema</Text>
+                        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.ERROR} />
+                        <Text style={[styles.reportButtonText, { color: theme.colors.error }]}>Reportar Problema</Text>
                     </TouchableOpacity>
                 </Card.Content>
             </Card>
@@ -149,7 +162,7 @@ export default function HistoryScreen() {
                 <Text variant="headlineSmall" style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
                     Historial de Viajes
                 </Text>
-                <Text variant="bodySmall" style={styles.headerSubtitle}>
+                <Text variant="bodySmall" style={[styles.headerSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                     Tu historial de transportación universitaria
                 </Text>
             </View>
@@ -157,7 +170,7 @@ export default function HistoryScreen() {
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
-                    <Text style={{ marginTop: 12, color: 'gray' }}>Cargando tus trayectos...</Text>
+                    <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>Cargando tus trayectos...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -169,7 +182,7 @@ export default function HistoryScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="#CCC" />
-                            <Text style={styles.emptyText}>No hay viajes registrados aún.</Text>
+                            <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No hay viajes registrados aún.</Text>
                         </View>
                     }
                 />
@@ -190,9 +203,9 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     headerContainer: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 8,
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: 4,
     },
     headerTitle: {
         fontWeight: 'bold',
@@ -202,17 +215,16 @@ const styles = StyleSheet.create({
         color: '#6C757D',
         marginTop: 2,
     },
-    list: { padding: 20, paddingTop: 10 },
+    list: { padding: 16, paddingTop: 6 },
     card: { 
-        marginBottom: 16, 
+        marginBottom: 10,
         borderRadius: BORDER_RADIUS.XL,
         ...SHADOWS.SMALL,
-        borderWidth: 1,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
         overflow: 'hidden',
     },
     cardContent: {
-        padding: 16,
+        padding: 12,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -241,8 +253,37 @@ const styles = StyleSheet.create({
     },
     routeRow: {
         flexDirection: 'row',
-        marginVertical: 4,
+        marginVertical: 2,
         alignItems: 'center',
+        padding: 8,
+        borderRadius: BORDER_RADIUS.MD,
+    },
+    routeRowVertical: {
+        alignItems: 'stretch',
+    },
+    routePoint: {
+        flex: 1,
+        minWidth: 0,
+    },
+    routePointVertical: {
+        flex: 0,
+    },
+    routePointHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    routeLabel: {
+        fontSize: 9,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    routeArrow: {
+        marginHorizontal: 6,
+    },
+    routeArrowVertical: {
+        alignSelf: 'center',
+        marginVertical: 4,
     },
     routeIndicatorContainer: {
         width: 16,
@@ -256,6 +297,7 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
+        marginRight: 5,
     },
     routeLine: {
         width: 1.5,
@@ -267,6 +309,7 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 2,
+        marginRight: 5,
     },
     routeDetails: {
         flex: 1,
@@ -296,9 +339,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     driverAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        aspectRatio: 1,
+        overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 8,
@@ -317,7 +362,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 8,
         paddingVertical: 4,
-        backgroundColor: '#FFF9C4',
         borderRadius: 6,
     },
     ratingText: {
@@ -356,15 +400,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12,
-        marginTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#EEEEEE',
+        paddingVertical: 8,
+        marginTop: 8,
+        borderRadius: BORDER_RADIUS.MD,
         gap: 6,
     },
     reportButtonText: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: COLORS.danger,
+        color: COLORS.ERROR,
     }
 });

@@ -1,47 +1,67 @@
 import { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import axios from 'axios';
 import { API_ROUTES } from '../../core/constants/routes';
 import { useAppContext } from '../contexts/AppContext';
 
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-    }),
-});
-
 export const usePushNotifications = () => {
-    const { user, token } = useAppContext();
+    const { user, token, isLoading } = useAppContext();
     const [expoPushToken, setExpoPushToken] = useState('');
     const [notification, setNotification] = useState(false);
     const notificationListener = useRef();
     const responseListener = useRef();
 
     useEffect(() => {
-        if (!user || !token) return;
+        if (isLoading || !user || !token || Platform.OS === 'web') return;
 
-        registerForPushNotificationsAsync().then(deviceToken => {
-            if (deviceToken) {
-                setExpoPushToken(deviceToken);
-                sendTokenToBackend(deviceToken, token);
+        // Expo Go ya no soporta notificaciones remotas en Android desde SDK 53.
+        // Evitamos solicitar el token y enviar una petición que siempre fallará.
+        const isExpoGo = Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
+        if (isExpoGo) {
+            console.warn('Notificaciones push remotas requieren un development build; Expo Go fue omitido.');
+            return;
+        }
+
+        let isMounted = true;
+        const setupNotifications = async () => {
+            try {
+                // Se importa solo en development build/producción para evitar
+                // que Expo Go inicialice el módulo remoto incompatible.
+                const Notifications = await import('expo-notifications');
+                if (!isMounted) return;
+
+                Notifications.setNotificationHandler({
+                    handleNotification: async () => ({
+                        shouldShowBanner: true,
+                        shouldShowList: true,
+                        shouldPlaySound: true,
+                        shouldSetBadge: false,
+                    }),
+                });
+
+                const deviceToken = await registerForPushNotificationsAsync(Notifications);
+                if (deviceToken && isMounted) {
+                    setExpoPushToken(deviceToken);
+                    sendTokenToBackend(deviceToken, token);
+                }
+
+                if (isMounted) {
+                    notificationListener.current = Notifications.addNotificationReceivedListener(setNotification);
+                    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+                        console.log("Notification Clicked: ", response);
+                    });
+                }
+            } catch (error) {
+                console.warn('Notificaciones push no disponibles en esta compilación:', error.message);
             }
-        });
+        };
 
-        // This listener is fired whenever a notification is received while the app is foregrounded
-        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-            setNotification(notification);
-        });
-
-        // This listener is fired whenever a user taps on or interacts with a notification
-        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log("Notification Clicked: ", response);
-        });
+        setupNotifications();
 
         return () => {
+            isMounted = false;
             try {
                 if (notificationListener.current && typeof notificationListener.current.remove === 'function') {
                     notificationListener.current.remove();
@@ -53,7 +73,7 @@ export const usePushNotifications = () => {
                 console.warn('Error removing notification subscription:', e);
             }
         };
-    }, [user, token]);
+    }, [isLoading, user, token]);
 
     async function sendTokenToBackend(expoToken, userToken) {
         try {
@@ -76,7 +96,7 @@ export const usePushNotifications = () => {
         }
     }
 
-    async function registerForPushNotificationsAsync() {
+    async function registerForPushNotificationsAsync(Notifications) {
         let token;
 
         if (Platform.OS === 'android') {

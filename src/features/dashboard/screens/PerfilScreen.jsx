@@ -1,47 +1,85 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import ReasonModal from "../../../shared/components/ReasonModal";
-import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { createEcho } from "../../../core/services/echo";
+import { API_ROUTES } from "../../../Config/Routes";
+import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function PerfilScreen() {
-    const { user, token, showAlert, isDarkTheme, toggleTheme, notificationsEnabled, toggleNotifications, logout } = useAppContext();
+    const { user, token, showAlert, isDarkTheme, toggleTheme, logout } = useAppContext();
     const theme = useTheme();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
     const [isWaitingDisconnect, setIsWaitingDisconnect] = useState(false);
     const [complaintModalVisible, setComplaintModalVisible] = useState(false);
     const [isSendingComplaint, setIsSendingComplaint] = useState(false);
+    const [ratings, setRatings] = useState([]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchRatings = async () => {
+            if (!token) return;
+            try {
+                const response = await fetch(API_ROUTES.RATINGS, {
+                    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!cancelled && Array.isArray(data)) setRatings(data);
+            } catch (error) {
+                console.warn("No se pudo cargar el resumen de calificaciones:", error);
+            }
+        };
+
+        fetchRatings();
+        return () => { cancelled = true; };
+    }, [token]);
+
+    const ratingCount = ratings.length;
+    const ratingAverage = ratingCount
+        ? ratings.reduce((sum, item) => sum + Number(item.rating || 0), 0) / ratingCount
+        : Number(user?.rating || user?.score || 5);
+
+    const renderRatingStars = () => (
+        <View style={styles.ratingStars}>
+            {[1, 2, 3, 4, 5].map((star) => (
+                <MaterialCommunityIcons
+                    key={star}
+                    name={star <= Math.round(ratingAverage) ? "star" : "star-outline"}
+                    size={20}
+                    color={star <= Math.round(ratingAverage) ? "#FBBF24" : theme.colors.outline}
+                />
+            ))}
+        </View>
+    );
 
     // Escuchar WebSocket para desconexión por si el conductor se queda en esta pantalla
     useEffect(() => {
-        if (user?.id && token) {
-            import('../../../core/services/echo').then(({ createEcho }) => {
-                const echo = createEcho(token);
-                const channel = echo.private(`driver.${user.id}`);
-                
-                channel.listen('.driver.disconnect.approved', () => {
-                    setIsWaitingDisconnect(false);
-                    if (showAlert) showAlert("Desconexión Aprobada", "El administrador aprobó tu desconexión.", "success");
-                });
+        if (user?.role !== 'conductor' || !user?.id || !token) return undefined;
 
-                channel.listen('.driver.disconnect.rejected', () => {
-                    setIsWaitingDisconnect(false);
-                    import('react-native').then(({ Alert }) => {
-                        Alert.alert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.");
-                    });
-                    if (showAlert) showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
-                });
+        const echo = createEcho(token);
+        const channel = echo.private(`driver.${user.id}`);
 
-                return () => {
-                    echo.leave(`driver.${user.id}`);
-                    echo.disconnect();
-                };
-            });
-        }
+        channel.listen('.driver.disconnect.approved', () => {
+            setIsWaitingDisconnect(false);
+            showAlert("Desconexión Aprobada", "El administrador aprobó tu desconexión.", "success");
+        });
+
+        channel.listen('.driver.disconnect.rejected', () => {
+            setIsWaitingDisconnect(false);
+            Alert.alert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.");
+            showAlert("Desconexión Rechazada", "El administrador denegó tu solicitud de desconexión.", "error");
+        });
+
+        return () => {
+            echo.leave(`driver.${user.id}`);
+            echo.disconnect();
+        };
     }, [user, token]);
 
     const handleLogout = () => {
@@ -118,8 +156,8 @@ export default function PerfilScreen() {
                 {/* Header Profile Section */}
                 <View style={styles.profileHeader}>
                     <View style={[styles.avatarGlow, { borderColor: theme.colors.primary }]}>
-                        <Avatar.Text 
-                            size={100} 
+                        <Avatar.Text
+                            size={68}
                             label={getInitials(user?.name || user?.nombre)} 
                             style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
                             labelStyle={styles.avatarLabel}
@@ -139,10 +177,16 @@ export default function PerfilScreen() {
                             {(user?.rol || user?.role || "Pasajero").toUpperCase()}
                         </Text>
                     </View>
+                    <View style={styles.profileRating}>
+                        {renderRatingStars()}
+                        <Text style={[styles.profileRatingText, { color: theme.colors.onSurfaceVariant }]}>
+                            {ratingAverage.toFixed(1)} · {ratingCount || 0} calificaciones
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Profile Details Card */}
-                <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+                <Card style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                     <Card.Content style={styles.cardContent}>
                         <Text variant="titleMedium" style={styles.sectionTitle}>
                             Información Personal
@@ -162,7 +206,7 @@ export default function PerfilScreen() {
                 </Card>
 
                 {/* Settings & Preferences Card */}
-                <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+                <Card style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                     <Card.Content style={styles.cardContent}>
                         <Text variant="titleMedium" style={styles.sectionTitle}>
                             Preferencias
@@ -173,18 +217,11 @@ export default function PerfilScreen() {
                             left={(props) => <MaterialCommunityIcons name="theme-light-dark" size={24} color={theme.colors.primary} style={styles.listIcon} />}
                             right={() => <Switch value={isDarkTheme} onValueChange={toggleTheme} color={theme.colors.primary} />}
                         />
-                        <Divider style={styles.divider} />
-                        <List.Item
-                            title="Notificaciones"
-                            description="Alertas de viajes y solicitudes"
-                            left={(props) => <MaterialCommunityIcons name="bell-outline" size={24} color={theme.colors.primary} style={styles.listIcon} />}
-                            right={() => <Switch value={notificationsEnabled} onValueChange={toggleNotifications} color={theme.colors.primary} />}
-                        />
                     </Card.Content>
                 </Card>
 
                 {/* Acciones de Rol (Conductor / Pasajero) */}
-                <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+                <Card style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                     <Card.Content style={styles.cardContent}>
                         <Text variant="titleMedium" style={styles.sectionTitle}>
                             Acciones
@@ -266,30 +303,30 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
+        padding: 16,
+        paddingBottom: 24,
     },
     profileHeader: {
         alignItems: 'center',
-        marginVertical: 24,
+        marginVertical: 12,
     },
     avatarGlow: {
-        borderWidth: 3,
+        borderWidth: 2,
         padding: 4,
-        borderRadius: 60,
+        borderRadius: 40,
         ...SHADOWS.MEDIUM,
     },
     avatar: {
         ...SHADOWS.SMALL,
     },
     avatarLabel: {
-        fontSize: 32,
+        fontSize: 27,
         fontWeight: 'bold',
         letterSpacing: 1.5,
     },
     userName: {
         fontWeight: 'bold',
-        marginTop: 16,
+        marginTop: 10,
         marginBottom: 8,
     },
     roleBadge: {
@@ -304,16 +341,24 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         letterSpacing: 0.5,
     },
+    profileRating: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        marginTop: 6,
+    },
+    profileRatingText: {
+        fontSize: 11,
+        marginLeft: 6,
+    },
     card: {
         borderRadius: BORDER_RADIUS.XL,
-        marginBottom: 20,
+        marginBottom: 12,
         ...SHADOWS.SMALL,
-        borderWidth: 1,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
     },
     cardContent: {
         paddingHorizontal: 8,
-        paddingVertical: 12,
+        paddingVertical: 6,
     },
     sectionTitle: {
         fontWeight: 'bold',
@@ -329,13 +374,17 @@ const styles = StyleSheet.create({
         marginVertical: 4,
         opacity: 0.5,
     },
+    ratingStars: {
+        flexDirection: "row",
+        gap: 3,
+    },
     logoutButton: {
         marginTop: 12,
         borderRadius: BORDER_RADIUS.LG,
-        borderWidth: 1.5,
+        borderWidth: 1,
     },
     logoutButtonContent: {
-        paddingVertical: 6,
+        paddingVertical: 3,
     },
     dialog: {
         borderRadius: BORDER_RADIUS.XL,
@@ -348,4 +397,4 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         opacity: 0.8,
     },
-});
+});

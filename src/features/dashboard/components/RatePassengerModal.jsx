@@ -43,10 +43,9 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
     const handleSubmit = async () => {
         if (!trip) return;
         
-        // Obtener el ID del pasajero
-        const passengerId = trip.passengers && trip.passengers.length > 0 ? trip.passengers[0].id : null;
-        if (!passengerId) {
-            showAlert("Error", "No se encontró la información del pasajero para calificar.", "error");
+        // Una sola evaluación se replica en todos los pasajeros que llegaron.
+        if (!trip.passengers || trip.passengers.length === 0) {
+            showAlert("Error", "No se encontró la información de los pasajeros para calificar.", "error");
             if (onDismiss) onDismiss();
             return;
         }
@@ -62,8 +61,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                 },
                 body: JSON.stringify({ 
                     score: rating, 
-                    comment: comment,
-                    receiver_id: passengerId 
+                    comment: comment
                 })
             });
 
@@ -110,8 +108,8 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                         <View style={[styles.avatarBg, { backgroundColor: '#10B981' }]}>
                             <MaterialCommunityIcons name="account-star" size={30} color="#FFFFFF" />
                         </View>
-                        <Text style={[styles.titleText, { color: '#10B981' }]}>Califica a tu pasajero</Text>
-                        <Text style={styles.subtitleText}>¿Cómo se comportó el pasajero durante el viaje?</Text>
+                        <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica a tu pasajero</Text>
+                        <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo se comportó el pasajero durante el viaje?</Text>
                     </View>
 
                     <Divider style={styles.divider} />
@@ -127,7 +125,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                         
                         <TextInput
                             placeholder="Comparte tu experiencia (Opcional)"
-                            placeholderTextColor="#94A3B8"
+                            placeholderTextColor={theme.colors.onSurfaceVariant}
                             multiline
                             numberOfLines={3}
                             value={comment}
@@ -135,7 +133,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             style={[
-                                styles.input,
+                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }],
                                 isFocused && styles.inputFocused
                             ]}
                         />
@@ -145,10 +143,10 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                         <TouchableOpacity
                             onPress={onDismiss}
                             disabled={loading}
-                            style={styles.omitButton}
+                            style={[styles.omitButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}
                             activeOpacity={0.8}
                         >
-                            <Text style={styles.omitButtonText}>Omitir</Text>
+                            <Text style={[styles.omitButtonText, { color: theme.colors.onSurfaceVariant }]}>Omitir</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -189,8 +187,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         padding: 16,
         ...SHADOWS.LARGE,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderWidth: 0,
     },
     cardHeader: {
         alignItems: 'center',
@@ -270,14 +267,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingBottom: 8,
         gap: 12,
-        marginTop: 18,
+        marginTop: 12,
     },
     omitButton: {
         flex: 1,
-        height: 46,
-        borderRadius: 23,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: '#FFFFFF',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
@@ -292,8 +289,8 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         flex: 1,
-        height: 46,
-        borderRadius: 23,
+        height: 40,
+        borderRadius: 20,
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',

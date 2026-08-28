@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Modal, StyleSheet, Animated, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import React, { useState } from 'react';
+import { View, Modal, StyleSheet } from 'react-native';
 import { Text, Button, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SHADOWS, BORDER_RADIUS } from '../../core/constants/theme';
@@ -23,10 +23,15 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
                         <MaterialCommunityIcons name="alert-circle" size={32} color={theme.colors.error} />
                     </View>
                     
-                    <Text style={styles.title}>{title}</Text>
+                    <Text style={[styles.title, { color: theme.colors.onSurface }]}>{title}</Text>
                     
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, {
+                            backgroundColor: theme.colors.surfaceVariant,
+                            borderColor: theme.colors.outline,
+                            color: theme.colors.onSurface,
+                        }]}
+                        placeholderTextColor={theme.colors.onSurfaceVariant}
                         placeholder={placeholder || "Ingresa el motivo..."}
                         value={reason}
                         onChangeText={setReason}
@@ -36,7 +41,7 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
                     />
 
                     <View style={styles.buttonRow}>
-                        <Button mode="text" onPress={onDismiss} style={styles.button} textColor="#666">
+                        <Button mode="text" onPress={onDismiss} style={styles.button} textColor={theme.colors.onSurfaceVariant}>
                             Cancelar
                         </Button>
                         <Button 
@@ -61,7 +66,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: 16,
         zIndex: 9999,
         elevation: 9999,
     },
@@ -69,24 +74,24 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 340,
         borderRadius: BORDER_RADIUS.XL,
-        padding: 24,
+        padding: 18,
         alignItems: 'center',
         ...SHADOWS.LARGE,
         zIndex: 10000,
         elevation: 10000,
     },
     iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
     },
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 16,
+        marginBottom: 12,
         textAlign: 'center',
         color: '#333',
     },
@@ -98,8 +103,8 @@ const styles = StyleSheet.create({
         borderRadius: BORDER_RADIUS.MD,
         padding: 12,
         fontSize: 15,
-        minHeight: 80,
-        marginBottom: 20,
+        minHeight: 64,
+        marginBottom: 12,
     },
     buttonRow: {
         flexDirection: 'row',

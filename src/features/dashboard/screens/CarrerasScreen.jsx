@@ -1,10 +1,8 @@
 import { View, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, useTheme } from "react-native-paper";
-import { useAppContext } from "../../../shared/contexts/AppContext";
 
 export default function CarrerasScreen() {
-    const { user } = useAppContext();
     const theme = useTheme();
 
     return (

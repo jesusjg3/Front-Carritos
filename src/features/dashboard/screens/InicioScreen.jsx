@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Text, Button, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -88,6 +89,7 @@ export default function InicioScreen() {
     incomingRequest,
     handleAcceptPassenger,
     handleRejectPassenger,
+    handleExpirePassenger,
   } = useTripLifecycle(user, token, isOnline, isPasajero);
 
   const { ubicacion, obtenerUbicacion } = useLocationLogic(user, isPasajero);
@@ -131,8 +133,7 @@ export default function InicioScreen() {
       trip.status === "aceptado" ||
       trip.status === "accepted" ||
       trip.state === "accepted" ||
-      trip.state_id === 2 ||
-      trip.state_id === 3
+      trip.state_id === 2
     );
   };
 
@@ -152,9 +153,14 @@ export default function InicioScreen() {
 
   // WebSocket for Driver Disconnect Approved
   useEffect(() => {
+    let echo;
+    let cancelled = false;
+
     if (isConductor && token && user?.id) {
       import("../../../core/services/echo").then(({ createEcho }) => {
-        const echo = createEcho(token);
+        if (cancelled) return;
+
+        echo = createEcho(token);
         const channel = echo.private(`driver.${user.id}`);
 
         channel.listen(".driver.disconnect.approved", () => {
@@ -188,12 +194,16 @@ export default function InicioScreen() {
           }
         });
 
-        return () => {
-          echo.leave(`driver.${user.id}`);
-          echo.disconnect();
-        };
       });
     }
+
+    return () => {
+      cancelled = true;
+      if (echo) {
+        echo.leave(`driver.${user.id}`);
+        echo.disconnect();
+      }
+    };
   }, [isConductor, token, user]);
 
   useEffect(() => {
@@ -640,9 +650,13 @@ export default function InicioScreen() {
     }
   };
 
-  const handleCancelTripAction = () => {
+  const handleCancelTripAction = (isNoShow = false) => {
     if (isConductor) {
-      setCancelModalVisible(true);
+      if (isNoShow === true) {
+        cancelTrip("Pasajero no se presentó");
+      } else {
+        setCancelModalVisible(true);
+      }
     } else {
       showAlert(
         "Cancelar Viaje",
@@ -665,7 +679,7 @@ export default function InicioScreen() {
         style={[
           styles.container,
           {
-            backgroundColor: "#F8FAFC",
+            backgroundColor: theme.colors.background,
             justifyContent: "center",
             alignItems: "center",
           },
@@ -680,14 +694,14 @@ export default function InicioScreen() {
         />
         <Text
           variant="titleMedium"
-          style={{ fontWeight: "bold", color: "#333" }}
+          style={{ fontWeight: "bold", color: theme.colors.onSurface }}
         >
           Esperando Aprobación...
         </Text>
         <Text
           variant="bodyMedium"
           style={{
-            color: "#666",
+            color: theme.colors.onSurfaceVariant,
             marginTop: 8,
             textAlign: "center",
             paddingHorizontal: 40,
@@ -703,18 +717,18 @@ export default function InicioScreen() {
   if (isSearching) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: "#F8FAFC" }]}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
         edges={["top"]}
       >
         <LinearGradient
-          colors={["#14498518", "#F8FAFC", "#F8FAFC"]}
+          colors={["#14498518", theme.colors.background, theme.colors.background]}
           style={styles.searchingWrapper}
         >
           {/* Header: Title and connecting text */}
           <View style={styles.searchingHeader}>
             <Text
               variant="headlineMedium"
-              style={[styles.searchingTitle, { color: "#144985" }]}
+              style={[styles.searchingTitle, { color: theme.colors.primary }]}
             >
               Buscando Conductor
             </Text>
@@ -733,7 +747,7 @@ export default function InicioScreen() {
           </View>
 
           {/* Boarding Pass Ride Ticket */}
-          <View style={styles.searchingTicket}>
+          <View style={[styles.searchingTicket, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
             {/* Ticket Header: Brand and Trip Title */}
             <LinearGradient
               colors={["#144985", "#1E88E5"]}
@@ -756,27 +770,24 @@ export default function InicioScreen() {
             </LinearGradient>
 
             {/* Route Segment */}
-            <View style={styles.ticketRouteContainer}>
-              <View style={styles.searchingTimeline}>
-                <View style={styles.searchingOriginDot} />
-                <View style={styles.searchingDashedLine} />
-                <View style={styles.searchingDestSquare} />
-              </View>
-
+            <View style={[styles.ticketRouteContainer, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.searchingRouteTexts}>
                 <View style={styles.searchingRoutePoint}>
-                  <Text style={styles.searchingRouteLabel}>
-                    PUNTO DE PARTIDA (ORIGEN)
-                  </Text>
-                  <Text numberOfLines={1} style={styles.searchingRouteValue}>
+                  <View style={styles.searchingRoutePointHeader}>
+                    <View style={styles.searchingOriginDot} />
+                    <Text style={[styles.searchingRouteLabel, { color: theme.colors.onSurfaceVariant }]}>ORIGEN</Text>
+                  </View>
+                  <Text numberOfLines={1} style={[styles.searchingRouteValue, { color: theme.colors.onSurface }]}>
                     {ubicacion ? "Mi Ubicación Actual" : "Buscando GPS..."}
                   </Text>
                 </View>
+                <MaterialCommunityIcons name="arrow-right" size={17} color={theme.colors.primary} style={styles.searchingRouteArrow} />
                 <View style={styles.searchingRoutePoint}>
-                  <Text style={styles.searchingRouteLabel}>
-                    PUNTO DE LLEGADA (DESTINO)
-                  </Text>
-                  <Text numberOfLines={1} style={styles.searchingRouteValue}>
+                  <View style={styles.searchingRoutePointHeader}>
+                    <View style={styles.searchingDestSquare} />
+                    <Text style={[styles.searchingRouteLabel, { color: theme.colors.onSurfaceVariant }]}>DESTINO</Text>
+                  </View>
+                  <Text numberOfLines={1} style={[styles.searchingRouteValue, { color: theme.colors.onSurface }]}>
                     {destinoSeleccionado
                       ? destinoSeleccionado.nombre
                       : "Bienestar, Campus"}
@@ -793,7 +804,7 @@ export default function InicioScreen() {
             </View>
 
             {/* Ticket Footer details */}
-            <View style={styles.ticketFooter}>
+            <View style={[styles.ticketFooter, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.ticketInfoRow}>
                 <View style={styles.ticketInfoPill}>
                   <MaterialCommunityIcons
@@ -829,7 +840,7 @@ export default function InicioScreen() {
           {/* Action buttons (Clean and modern Cancel Button) */}
           <View style={styles.searchingFooter}>
             <TouchableOpacity
-              style={styles.cancelRequestPill}
+              style={[styles.cancelRequestPill, { backgroundColor: theme.colors.surface }]}
               onPress={() => {
                 cancelTrip();
                 setDestinoSeleccionado(null);
@@ -858,7 +869,7 @@ export default function InicioScreen() {
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         edges={["top"]}
       >
-        <View style={[styles.mapContainer, { flex: 0.6 }]}>
+        <View style={[styles.mapContainer, { flex: 1 }]}>
           <UniversalMap
             ref={webViewRef}
             source={{ html: mapaHtml }}
@@ -903,6 +914,7 @@ export default function InicioScreen() {
           incomingRequest={incomingRequest}
           onAccept={handleAcceptPassenger}
           onReject={handleRejectPassenger}
+          onExpire={handleExpirePassenger}
         />
 
         <ReasonModal
@@ -924,6 +936,25 @@ export default function InicioScreen() {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={["top"]}
     >
+      {isConductor && requestQueue.length > 0 && (
+        <View style={styles.requestsContainer}>
+          <ScrollView
+            style={styles.requestsScroll}
+            contentContainerStyle={styles.requestsContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {requestQueue.map((req, index) => (
+              <RideRequestCard
+                key={req.id || index}
+                request={req}
+                onAccept={() => handleAcceptRequest(req)}
+                onReject={() => handleRejectRequest(req)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.mapContainer}>
         <UniversalMap
           ref={webViewRef}
@@ -957,25 +988,6 @@ export default function InicioScreen() {
         />
 
         {/* isConductor controls removed and moved to profile */}
-
-        {isConductor && requestQueue.length > 0 && (
-          <View style={styles.requestsContainer}>
-            <ScrollView
-              style={styles.requestsScroll}
-              contentContainerStyle={styles.requestsContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {requestQueue.map((req, index) => (
-                <RideRequestCard
-                  key={req.id || index}
-                  request={req}
-                  onAccept={() => handleAcceptRequest(req)}
-                  onReject={handleRejectRequest}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
         {isPasajero && (
           <TouchableOpacity
@@ -1091,28 +1103,27 @@ const styles = StyleSheet.create({
   // Bottom Search Card styled similar to Uber/DiDi
   searchCardContainer: {
     position: "absolute",
-    bottom: 24,
-    left: 20,
-    right: 20,
+    bottom: 12,
+    left: 16,
+    right: 16,
     borderRadius: BORDER_RADIUS.XL,
     ...SHADOWS.LARGE,
-    borderWidth: 1,
-    borderColor: "#EEEEEE",
+    borderWidth: 0,
     zIndex: 100,
     overflow: "hidden",
   },
   searchCardInner: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: 12,
   },
   searchIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 10,
   },
   searchTextContainer: {
     flex: 1,
@@ -1142,8 +1153,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   searchingHeader: {
     alignItems: "center",
@@ -1169,25 +1180,25 @@ const styles = StyleSheet.create({
   },
   radarGlowContainer: {
     position: "relative",
-    width: 300,
-    height: 300,
+    width: 236,
+    height: 236,
     justifyContent: "center",
     alignItems: "center",
   },
   radarGlowRing1: {
     position: "absolute",
-    width: 290,
-    height: 290,
-    borderRadius: 145,
+    width: 226,
+    height: 226,
+    borderRadius: 113,
     borderWidth: 1,
     borderColor: "rgba(30, 136, 229, 0.12)",
     backgroundColor: "rgba(30, 136, 229, 0.02)",
   },
   radarGlowRing2: {
     position: "absolute",
-    width: 310,
-    height: 310,
-    borderRadius: 155,
+    width: 246,
+    height: 246,
+    borderRadius: 123,
     borderWidth: 1.5,
     borderColor: "rgba(30, 136, 229, 0.06)",
     backgroundColor: "rgba(30, 136, 229, 0.01)",
@@ -1198,16 +1209,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     ...SHADOWS.LARGE,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderWidth: 0,
     overflow: "hidden",
   },
   ticketHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
   },
@@ -1229,24 +1239,18 @@ const styles = StyleSheet.create({
   },
   ticketRouteContainer: {
     flexDirection: "row",
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     backgroundColor: "#FFFFFF",
   },
-  searchingTimeline: {
-    width: 14,
-    alignItems: "center",
-    marginRight: 14,
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
   searchingOriginDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#10B981",
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    marginRight: 5,
     ...SHADOWS.SMALL,
   },
   searchingDashedLine: {
@@ -1255,21 +1259,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#CBD5E1",
   },
   searchingDestSquare: {
-    width: 10,
-    height: 10,
+    width: 8,
+    height: 8,
     borderRadius: 2,
     backgroundColor: "#EF4444",
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    marginRight: 5,
     ...SHADOWS.SMALL,
   },
   searchingRouteTexts: {
     flex: 1,
-    height: 62,
-    justifyContent: "space-between",
+    flexDirection: "row",
+    alignItems: "center",
   },
   searchingRoutePoint: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: "center",
+  },
+  searchingRoutePointHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  searchingRouteArrow: {
+    marginHorizontal: 6,
   },
   searchingRouteLabel: {
     fontSize: 8,
@@ -1278,7 +1293,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   searchingRouteValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "bold",
     color: "#1E293B",
     marginTop: 1,
@@ -1320,8 +1335,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   ticketFooter: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
     paddingTop: 8,
     backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 22,
@@ -1339,7 +1354,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
   },
   ticketInfoPillText: {
@@ -1355,10 +1370,10 @@ const styles = StyleSheet.create({
   cancelRequestPill: {
     width: "100%",
     maxWidth: 280,
-    height: 48,
-    borderRadius: 30,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FFFFFF",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: "#EF4444",
     flexDirection: "row",
     alignItems: "center",
@@ -1375,16 +1390,21 @@ const styles = StyleSheet.create({
   // Driver Requests
   requestsContainer: {
     position: "absolute",
-    bottom: 24,
-    left: 20,
-    right: 20,
-    maxHeight: "65%",
-    zIndex: 20,
+    left: 8,
+    right: 8,
+    bottom: 12,
+    height: 250,
+    maxHeight: "42%",
+    paddingTop: 8,
+    paddingHorizontal: 0,
+    backgroundColor: "transparent",
+    zIndex: 200,
+    elevation: 20,
   },
   requestsScroll: { flex: 1 },
   requestsContent: {
-    paddingBottom: 0,
     flexGrow: 1,
     justifyContent: "flex-end",
+    paddingBottom: 4,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { Button, Card, Snackbar, TextInput, Text, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
@@ -62,9 +62,9 @@ export default function RegisterScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
                     <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-                        <FontAwesome name="user-plus" size={40} color={theme.colors.primary} />
+                        <FontAwesome name="user-plus" size={32} color={theme.colors.primary} />
                     </View>
-                    <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold', marginTop: 16 }}>
+                    <Text variant="displaySmall" style={[styles.title, { color: theme.colors.primary }]}>
                         Registrarse
                     </Text>
                     <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Crear cuenta de estudiante</Text>
@@ -174,45 +174,51 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: 24,
+        padding: 16,
     },
     headerContainer: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 16,
     },
     iconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    title: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        textAlign: 'center',
     },
     card: {
         elevation: 4,
         borderRadius: 16,
     },
     cardContent: {
-        paddingVertical: 16,
+        paddingVertical: 8,
     },
     input: {
-        marginBottom: 16,
+        marginBottom: 10,
     },
     button: {
         marginTop: 8,
         borderRadius: 8,
     },
     buttonContent: {
-        paddingVertical: 8,
+        paddingVertical: 4,
     },
     loginFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 24,
+        marginTop: 12,
     },
     backFooter: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 12,
+        marginTop: 4,
     }
 });

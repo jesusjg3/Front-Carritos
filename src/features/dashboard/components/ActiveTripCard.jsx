@@ -6,6 +6,7 @@ import {
   Button,
   Divider,
   ActivityIndicator,
+  IconButton,
   useTheme,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -84,8 +85,8 @@ export default function ActiveTripCard({
           />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.titleText}>{title}</Text>
-          <Text style={styles.subtitleText}>{subtitle}</Text>
+          <Text style={[styles.titleText, { color: theme.colors.onSurface }]}>{title}</Text>
+          <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>{subtitle}</Text>
         </View>
       </View>
 
@@ -111,10 +112,10 @@ export default function ActiveTripCard({
             </View>
 
             <View style={styles.userDetails}>
-              <Text style={styles.userName}>
+              <Text style={[styles.userName, { color: theme.colors.onSurface }]}>
                 {activeTrip.driver?.name || "Conductor"}
               </Text>
-              <Text style={styles.userSubtext}>Vehículo Asignado</Text>
+              <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant }]}>Vehículo Asignado</Text>
 
               <View style={styles.metadataContainer}>
                 <View style={styles.ratingBadge}>
@@ -167,49 +168,40 @@ export default function ActiveTripCard({
                     </View>
 
                     <View style={styles.userDetails}>
-                      <Text style={styles.userName}>
-                        {passenger.name || "Pasajero"}
-                      </Text>
+                      <View style={styles.passengerNameRow}>
+                        <Text
+                          style={[styles.userName, { color: theme.colors.onSurface }]}
+                          numberOfLines={1}
+                        >
+                          {passenger.name || "Pasajero"}
+                        </Text>
+                        {passenger.id !== activeTrip.passengers?.[0]?.id &&
+                          passenger.status === "accepted" && (
+                            <View style={styles.passengerActions}>
+                              <IconButton
+                                icon="account-check-outline"
+                                iconColor="#2E7D32"
+                                size={18}
+                                style={styles.passengerActionIcon}
+                                onPress={() => onBoardPassenger(passenger.id)}
+                                accessibilityLabel="Marcar pasajero como subido"
+                              />
+                              <IconButton
+                                icon="account-remove-outline"
+                                iconColor={theme.colors.error}
+                                size={18}
+                                style={styles.passengerActionIcon}
+                                onPress={() => onCancelPassenger(passenger.id)}
+                                accessibilityLabel="Marcar pasajero como no llegado"
+                              />
+                            </View>
+                          )}
+                      </View>
                       {!isPasajero && passenger.pickup_address && (
                         <Text style={[styles.userSubtext, { color: theme.colors.outline, fontSize: 12 }]}>
                           📍 {passenger.pickup_address}
                         </Text>
                       )}
-                      <Text style={styles.userSubtext}>
-                        {passenger.phone || "Sin número"}
-                      </Text>
-                      <View
-                        style={{ flexDirection: "row", marginTop: 4, gap: 8 }}
-                      >
-                        {passenger.id !== activeTrip.passengers?.[0]?.id && (
-                          <>
-                            {passenger.status === "accepted" ? (
-                              <Button
-                                mode="contained"
-                                compact
-                                style={{ backgroundColor: "#2E7D32", flex: 1 }}
-                                onPress={() => onBoardPassenger(passenger.id)}
-                              >
-                                Subió
-                              </Button>
-                            ) : null}
-                            {passenger.status === "accepted" ? (
-                              <Button
-                                mode="outlined"
-                                compact
-                                textColor={theme.colors.error}
-                                style={{
-                                  borderColor: theme.colors.error + "50",
-                                  flex: 1,
-                                }}
-                                onPress={() => onCancelPassenger(passenger.id)}
-                              >
-                                No llegó
-                              </Button>
-                            ) : null}
-                          </>
-                        )}
-                      </View>
                     </View>
                   </View>
                 );
@@ -217,32 +209,32 @@ export default function ActiveTripCard({
           </View>
         )}
 
-        {/* Vertical route map nodes instead of plain text */}
-        <View style={styles.routeContainer}>
-          <View style={styles.routeIndicators}>
-            <View style={styles.dotOrigin} />
-            <View style={styles.routeLine} />
-            <View style={styles.squareDestination} />
-          </View>
-
-          <View style={styles.routeDetails}>
-            <View style={styles.routeBlock}>
-              <Text style={styles.routeLabel}>Punto de Partida</Text>
-              <Text style={styles.routeValue} numberOfLines={1}>
+        {/* Ruta compacta para no consumir altura en el móvil */}
+        <View style={[styles.routeContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <View style={styles.routeBlock}>
+            <View style={styles.routeBlockHeader}>
+              <View style={styles.dotOrigin} />
+              <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Origen</Text>
+            </View>
+              <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
                 {activeTrip.origin?.address ||
                   activeTrip.origin_address ||
                   "Ubicación actual"}
               </Text>
-            </View>
+          </View>
 
-            <View style={styles.routeBlock}>
-              <Text style={styles.routeLabel}>Punto de Destino</Text>
-              <Text style={styles.routeValue} numberOfLines={1}>
+          <MaterialCommunityIcons name="arrow-right" size={18} color={theme.colors.primary} style={styles.routeArrow} />
+
+          <View style={styles.routeBlock}>
+            <View style={styles.routeBlockHeader}>
+              <View style={styles.squareDestination} />
+              <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Destino</Text>
+            </View>
+              <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
                 {activeTrip.destination?.address ||
                   activeTrip.destination_address ||
                   "Destino seleccionado"}
               </Text>
-            </View>
           </View>
         </View>
       </Card.Content>
@@ -272,7 +264,7 @@ export default function ActiveTripCard({
                   { borderColor: theme.colors.error + "50" },
                 ]}
                 contentStyle={styles.actionButtonContent}
-                onPress={onCancel}
+                onPress={() => onCancel(false)}
                 icon="close"
               >
                 Cancelar
@@ -290,25 +282,10 @@ export default function ActiveTripCard({
                   { borderColor: theme.colors.error + "50" },
                 ]}
                 contentStyle={styles.actionButtonContent}
-                onPress={onCancel}
+                onPress={() => onCancel(activeTrip.state_id != 4)}
                 icon="close"
               >
-                Cancelar
-              </Button>
-            )}
-            {activeTrip.state_id != 4 && (
-              <Button
-                mode="contained-tonal"
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: theme.colors.primary + "15" },
-                ]}
-                textColor={theme.colors.primary}
-                contentStyle={styles.actionButtonContent}
-                onPress={onContact}
-                icon="phone"
-              >
-                Llamar a todos
+                {activeTrip.state_id == 4 ? "Cancelar" : "No llegó"}
               </Button>
             )}
             {activeTrip.state_id != 4 && (
@@ -350,12 +327,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     ...SHADOWS.LARGE,
-    borderWidth: 1.5,
-    borderColor: "#EEEEEE",
+    borderWidth: 0,
     paddingTop: 8,
+    zIndex: 500,
+    elevation: 12,
   },
   sheetIndicator: {
     width: 36,
@@ -368,8 +346,8 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   iconContainer: {
     width: 36,
@@ -397,36 +375,51 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   cardContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   userInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 6,
   },
   avatarGlow: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: "#1E88E530",
-    padding: 3,
-    borderRadius: 28,
-    marginRight: 14,
+    padding: 2,
+    borderRadius: 24,
+    marginRight: 10,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
   },
   initials: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   userDetails: {
     flex: 1,
+  },
+  passengerNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+  passengerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 4,
+  },
+  passengerActionIcon: {
+    width: 28,
+    height: 28,
+    margin: 0,
   },
   userName: {
     fontSize: 15,
@@ -467,23 +460,22 @@ const styles = StyleSheet.create({
   },
   routeContainer: {
     flexDirection: "row",
-    alignItems: "stretch",
+    alignItems: "center",
     backgroundColor: "#F8F9FA",
-    padding: 12,
+    padding: 8,
     borderRadius: BORDER_RADIUS.LG,
   },
-  routeIndicators: {
-    width: 16,
+  routeBlockHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-    marginRight: 10,
+    marginBottom: 2,
   },
   dotOrigin: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: "#1E88E5",
+    marginRight: 5,
   },
   routeLine: {
     width: 1.5,
@@ -496,14 +488,20 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 2,
     backgroundColor: "#FF6B6B",
+    marginRight: 5,
   },
   routeDetails: {
     flex: 1,
     justifyContent: "space-between",
-    height: 60,
+    height: 52,
   },
   routeBlock: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: "center",
+  },
+  routeArrow: {
+    marginHorizontal: 6,
   },
   routeLabel: {
     fontSize: 9,
@@ -517,14 +515,14 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   cardActions: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
     paddingTop: 0,
   },
   buttonRow: {
     flexDirection: "row",
     flex: 1,
-    gap: 12,
+    gap: 6,
   },
   actionButton: {
     flex: 1,
@@ -532,6 +530,6 @@ const styles = StyleSheet.create({
     ...SHADOWS.SMALL,
   },
   actionButtonContent: {
-    paddingVertical: 6,
+    paddingVertical: 2,
   },
 });

@@ -11,6 +11,8 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
+import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 import { API_ROUTES } from '../../../Config/Routes';
@@ -18,18 +20,23 @@ import { useAppContext } from '../../../shared/contexts/AppContext';
 
 export const ReportTripModal = ({ visible, onClose, tripId }) => {
   const [subject, setSubject] = useState('');
+  const [customSubject, setCustomSubject] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const { token, showAlert } = useAppContext();
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleClose = () => {
     setSubject('');
+    setCustomSubject('');
     setDescription('');
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (!subject.trim()) {
+    const finalSubject = subject === 'Otro problema' ? customSubject : subject;
+    if (!finalSubject.trim()) {
       showAlert('Error', 'Por favor, selecciona o ingresa el asunto del reporte.', 'warning');
       return;
     }
@@ -50,7 +57,7 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
         },
         body: JSON.stringify({
           trip_id: tripId,
-          subject: subject,
+          subject: finalSubject,
           description: description
         })
       });
@@ -83,27 +90,28 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
         <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
           style={styles.keyboardView}
         >
-          <View style={styles.container}>
+          <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
             <View style={styles.header}>
               <View style={styles.iconContainer}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={32} color={COLORS.ERROR} />
               </View>
-              <Text style={styles.title}>Reportar Problema</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: theme.colors.onSurface }]}>Reportar Problema</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
                 La administración revisará tu caso y tomará las medidas correspondientes.
               </Text>
             </View>
 
             <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>Asunto del reporte</Text>
+              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Asunto del reporte</Text>
               
               <View style={styles.chipsContainer}>
                 {predefinedSubjects.map((item, index) => (
@@ -111,12 +119,17 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
                     key={index}
                     style={[
                       styles.chip,
+                      { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
                       subject === item && styles.chipSelected
                     ]}
-                    onPress={() => setSubject(item)}
+                      onPress={() => {
+                        setSubject(item);
+                        if (item !== 'Otro problema') setCustomSubject('');
+                      }}
                   >
                     <Text style={[
                       styles.chipText,
+                      { color: theme.colors.onSurfaceVariant },
                       subject === item && styles.chipTextSelected
                     ]}>
                       {item}
@@ -127,17 +140,19 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
 
               {subject === 'Otro problema' && (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                   placeholder="Escribe el asunto..."
-                  value={subject === 'Otro problema' ? '' : subject}
-                  onChangeText={setSubject}
+                  value={customSubject}
+                  onChangeText={setCustomSubject}
                   maxLength={100}
                 />
               )}
 
-              <Text style={styles.label}>Detalles de lo sucedido</Text>
+              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Detalles de lo sucedido</Text>
               <TextInput
-                style={styles.textArea}
+                style={[styles.textArea, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
+                placeholderTextColor={theme.colors.onSurfaceVariant}
                 placeholder="Por favor explica qué ocurrió detalladamente..."
                 multiline
                 numberOfLines={5}
@@ -146,7 +161,7 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
                 onChangeText={setDescription}
                 maxLength={500}
               />
-              <Text style={styles.characterCount}>
+              <Text style={[styles.characterCount, { color: theme.colors.onSurfaceVariant }]}>
                 {description.length}/500
               </Text>
 
@@ -158,7 +173,7 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
                 onPress={handleClose}
                 disabled={loading}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={[styles.cancelButtonText, { color: theme.colors.onSurfaceVariant }]}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -184,23 +199,25 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   keyboardView: {
+    flex: 1,
     width: '100%',
+    justifyContent: 'center',
   },
   container: {
     backgroundColor: '#FFF',
-    borderTopLeftRadius: BORDER_RADIUS.XL,
-    borderTopRightRadius: BORDER_RADIUS.XL,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '90%',
+    borderRadius: BORDER_RADIUS.XL,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    maxHeight: '94%',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   iconContainer: {
     width: 64,
@@ -209,7 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${COLORS.ERROR}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   title: {
     fontSize: 22,
@@ -224,7 +241,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   formContainer: {
-    maxHeight: 400,
+    maxHeight: 380,
   },
   label: {
     fontSize: 14,
@@ -265,7 +282,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E9ECEF',
     borderRadius: BORDER_RADIUS.MD,
-    padding: 16,
+    padding: 12,
     fontSize: 15,
     marginBottom: 16,
   },
@@ -274,37 +291,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E9ECEF',
     borderRadius: BORDER_RADIUS.MD,
-    padding: 16,
+    padding: 12,
     fontSize: 15,
-    minHeight: 120,
+    minHeight: 96,
   },
   characterCount: {
     textAlign: 'right',
     fontSize: 12,
     color: '#6C757D',
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   footer: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 4,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 9,
     borderRadius: BORDER_RADIUS.LG,
     backgroundColor: '#F8F9FA',
     alignItems: 'center',
   },
   cancelButtonText: {
     color: '#495057',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   submitButton: {
     flex: 2,
-    paddingVertical: 16,
+    paddingVertical: 9,
     borderRadius: BORDER_RADIUS.LG,
     backgroundColor: COLORS.ERROR,
     alignItems: 'center',

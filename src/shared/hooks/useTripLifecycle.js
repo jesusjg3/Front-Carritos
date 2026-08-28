@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Alert } from "react-native";
 import * as Location from "expo-location";
 import { createEcho } from "../../core/services/echo";
 import { API_ROUTES } from "../../Config/Routes";
 import { useAppContext } from "../contexts/AppContext";
+import { DRIVER_REQUEST_DISPLAY_MS } from "../../core/constants/timing";
 
 export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
   const { showAlert } = useAppContext();
@@ -27,6 +27,17 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
   const [tripToRate, setTripToRate] = useState(null);
   const [incomingRequests, setIncomingRequests] = useState([]);
   const incomingRequest = incomingRequests[0] || null;
+  const requestTimersRef = useRef(new Map());
+
+  const appendIncomingRequest = (event) => {
+    setIncomingRequests((prev) => {
+      const eventKey = `${event.trip_id || event.trip?.id || "trip"}:${event.passenger?.id || event.passenger_id || "passenger"}`;
+      const alreadyQueued = prev.some((item) =>
+        `${item.trip_id || item.trip?.id || "trip"}:${item.passenger?.id || item.passenger_id || "passenger"}` === eventKey,
+      );
+      return alreadyQueued ? prev : [...prev, event];
+    });
+  };
 
   // Recuperar viaje activo al cargar (State Recovery)
   useEffect(() => {
@@ -44,8 +55,8 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           if (data.trip) {
             setActiveTrip(data.trip);
             // Si el pasajero recupera su viaje y está en REQUESTED, mostramos "Buscando"
-            if (data.trip.state?.state_name === 'REQUESTED' && user.role?.name !== 'driver') {
-              setIsSearching(true);
+            if (data.trip.state?.name === 'SOLICITADO' && isPasajero) {
+                setIsSearching(true);
             }
           }
         }
@@ -55,7 +66,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
     fetchCurrentTrip();
-  }, [user]);
+  }, [user, token, isPasajero]);
 
   // Helper para normalizar la estructura del viaje y asegurar coordenadas accesibles
   const normalizeTripData = (trip, extraDriverData = {}) => {
@@ -95,27 +106,44 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
 
   // 1. Conexión Websocket Global (Echo) - NO DEPENDE DE activeTrip.id
   useEffect(() => {
-    if (token && (isOnline || isPasajero)) {
+    // Los conductores reciben solicitudes globales solo cuando están en línea.
+    // El pasajero debe mantener Echo conectado aunque isOnline sea falso para
+    // poder recibir la aceptación en su canal privado.
+    if (token && (isPasajero || isOnline)) {
       const echo = createEcho(token);
       setEchoInstance(echo);
 
-      const channel = echo.private("drivers");
-      channel
+      if (!isPasajero && isOnline) {
+        const channel = echo.private("drivers");
+        channel
         .listen(".NewTripRequest", (event) => {
           const passengersCount =
             event.passengers_count || event.passenger_count || 1;
-          setRequestQueue((prev) => [
-            ...prev,
-            {
-              ...event,
-              origin: event.origin_address || "Ubicación desconocida",
-              destination: event.destination_address || "Destino desconocido",
-              distance: event.distance
-                ? `${event.distance} km`
-                : "Calculando...",
-              passengers_count: passengersCount,
-            },
-          ]);
+          const requestId = event.id;
+          setRequestQueue((prev) => {
+            if (requestId && prev.some((request) => request.id === requestId)) return prev;
+            return [
+              ...prev,
+              {
+                ...event,
+                expiresAt: Date.now() + DRIVER_REQUEST_DISPLAY_MS,
+                origin: event.origin_address || "Ubicación desconocida",
+                destination: event.destination_address || "Destino desconocido",
+                distance: event.distance
+                  ? `${event.distance} km`
+                  : "Calculando...",
+                passengers_count: passengersCount,
+              },
+            ];
+          });
+
+          if (requestId && !requestTimersRef.current.has(requestId)) {
+            const timer = setTimeout(() => {
+              setRequestQueue((prev) => prev.filter((request) => request.id !== requestId));
+              requestTimersRef.current.delete(requestId);
+            }, DRIVER_REQUEST_DISPLAY_MS);
+            requestTimersRef.current.set(requestId, timer);
+          }
         })
         .listen(".TripTaken", (event) =>
           setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
@@ -165,9 +193,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         .listen(".RequestCancelled", (event) =>
           setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
         )
-        .listen("RequestCancelled", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        );
+          .listen("RequestCancelled", (event) =>
+            setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
+          );
+      }
 
       if (user?.id) {
         // Passenger specific channel
@@ -276,10 +305,10 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           
           driverChannel
             .listen(".PassengerJoinRequested", (event) => {
-              setIncomingRequests((prev) => [...prev, event]);
+              appendIncomingRequest(event);
             })
             .listen("PassengerJoinRequested", (event) => {
-              setIncomingRequests((prev) => [...prev, event]);
+              appendIncomingRequest(event);
             })
             .listen(".PassengerCancelledTrip", (event) => {
               setActiveTrip((prev) => {
@@ -331,12 +360,16 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
       return () => {
         echo.disconnect();
         setEchoInstance(null);
+        requestTimersRef.current.forEach((timer) => clearTimeout(timer));
+        requestTimersRef.current.clear();
         if (tripTimeoutRef.current) {
           clearTimeout(tripTimeoutRef.current);
           tripTimeoutRef.current = null;
         }
       };
     } else {
+      requestTimersRef.current.forEach((timer) => clearTimeout(timer));
+      requestTimersRef.current.clear();
       if (tripTimeoutRef.current) {
         clearTimeout(tripTimeoutRef.current);
         tripTimeoutRef.current = null;
@@ -408,7 +441,9 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
       const data = await response.json();
 
       if (response.ok) {
-        setRequestQueue((prev) => prev.slice(1));
+        setRequestQueue((prev) =>
+          prev.filter((request) => request.id !== currentRequest.id),
+        );
         setActiveTrip(data);
       } else {
         if (response.status === 409)
@@ -423,7 +458,9 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             "Error al aceptar el viaje: " + (data.error || "Desconocido"),
             "error",
           );
-        setRequestQueue((prev) => prev.slice(1));
+        setRequestQueue((prev) =>
+          prev.filter((request) => request.id !== currentRequest.id),
+        );
       }
     } catch (error) {
       console.error(error);
@@ -469,16 +506,24 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     }
   };
 
-  const handleRejectRequest = () => {
-    setRequestQueue((prev) => prev.slice(1));
+  const handleRejectRequest = (requestToReject) => {
+    setRequestQueue((prev) => {
+      if (!requestToReject?.id) return prev.slice(1);
+      return prev.filter((request) => request.id !== requestToReject.id);
+    });
   };
 
-  const handleRejectPassenger = async () => {
+  const rejectPassenger = async (notify = true) => {
     if (!activeTrip || incomingRequests.length === 0) return;
     const incomingRequest = incomingRequests[0];
+    const passengerId = incomingRequest.passenger?.id || incomingRequest.passenger_id;
+    if (!passengerId) {
+      setIncomingRequests((prev) => prev.slice(1));
+      return;
+    }
     try {
       const response = await fetch(
-        `${API_ROUTES.TRIPS}/${activeTrip.id}/reject-passenger/${incomingRequest.passenger.id}`,
+        `${API_ROUTES.TRIPS}/${activeTrip.id}/reject-passenger/${passengerId}`,
         {
           method: "POST",
           headers: {
@@ -491,21 +536,20 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
       if (response.ok) {
         setActiveTrip(data);
         setIncomingRequests((prev) => prev.slice(1));
-        showAlert("Solicitud Rechazada", "Se ha notificado al pasajero.", "info");
+        if (notify) showAlert("Solicitud Rechazada", "Se ha notificado al pasajero.", "info");
       } else {
-        showAlert(
-          "Error",
-          "Error al rechazar: " + (data.error || "Desconocido"),
-          "error",
-        );
+        if (notify) showAlert("Error", "Error al rechazar: " + (data.error || "Desconocido"), "error");
         setIncomingRequests((prev) => prev.slice(1));
       }
     } catch (error) {
       console.error("Error rejecting passenger:", error);
-      showAlert("Error", "Hubo un problema al procesar la solicitud.", "error");
+      if (notify) showAlert("Error", "Hubo un problema al procesar la solicitud.", "error");
       setIncomingRequests((prev) => prev.slice(1));
     }
   };
+
+  const handleRejectPassenger = () => rejectPassenger(true);
+  const handleExpirePassenger = () => rejectPassenger(false);
 
   const handleStartTrip = async () => {
     if (!activeTrip) return;
@@ -791,7 +835,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
               },
             );
           },
-          1 * 60 * 2000,
+          1 * 60 * 1000,
         ); // 1 minuto
 
         tripTimeoutRef.current = timeout;
@@ -877,6 +921,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     handleAcceptPassenger,
     handleRejectRequest,
     handleRejectPassenger,
+    handleExpirePassenger,
     handleStartTrip,
     handleFinishTrip,
     handleBoardPassenger,

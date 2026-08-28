@@ -14,13 +14,7 @@ export default function CommentsScreen() {
     const [ratings, setRatings] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchRatings();
-        }, [])
-    );
-
-    const fetchRatings = async () => {
+    const fetchRatings = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch(`${API_ROUTES.BASE_URL}/ratings`, {
@@ -38,7 +32,13 @@ export default function CommentsScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [token]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchRatings();
+        }, [fetchRatings])
+    );
 
     const getInitials = (name) => {
         if (!name) return "U";
@@ -67,7 +67,7 @@ export default function CommentsScreen() {
         const dateStr = reviewDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
         return (
-            <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <Card style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 <Card.Content style={styles.cardContent}>
                     {/* Header Row: Passenger Profile & Rating */}
                     <View style={styles.cardHeader}>
@@ -78,8 +78,8 @@ export default function CommentsScreen() {
                             labelStyle={[styles.avatarText, { color: theme.colors.primary }]}
                         />
                         <View style={styles.headerInfo}>
-                            <Text style={styles.passengerName}>{item.emitter?.name || 'Pasajero Anónimo'}</Text>
-                            <Text style={styles.reviewDate}>{dateStr}</Text>
+                            <Text style={[styles.passengerName, { color: theme.colors.onSurface }]}>{item.emitter?.name || 'Pasajero Anónimo'}</Text>
+                            <Text style={[styles.reviewDate, { color: theme.colors.onSurfaceVariant }]}>{dateStr}</Text>
                         </View>
                         <View style={styles.ratingSection}>
                             {renderStars(item.rating)}
@@ -90,9 +90,9 @@ export default function CommentsScreen() {
                     <Divider style={styles.cardDivider} />
 
                     {/* Testimonial Quote Box */}
-                    <View style={[styles.commentBox, { backgroundColor: '#F8F9FA' }]}>
+                    <View style={[styles.commentBox, { backgroundColor: theme.colors.surfaceVariant }]}>
                         <MaterialCommunityIcons name="format-quote-open" size={20} color={theme.colors.primary + '40'} style={styles.quoteIcon} />
-                        <Text style={styles.commentText}>
+                        <Text style={[styles.commentText, { color: theme.colors.onSurfaceVariant }]}>
                             {item.comment || "El pasajero completó el viaje con éxito sin dejar comentarios adicionales."}
                         </Text>
                     </View>
@@ -115,7 +115,7 @@ export default function CommentsScreen() {
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
-                    <Text style={{ marginTop: 12, color: 'gray' }}>Cargando opiniones...</Text>
+                    <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>Cargando opiniones...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -127,7 +127,7 @@ export default function CommentsScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <MaterialCommunityIcons name="comment-text-multiple-outline" size={48} color="#CCC" />
-                            <Text style={styles.emptyText}>No has recibido calificaciones aún.</Text>
+                            <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No has recibido calificaciones aún.</Text>
                         </View>
                     }
                 />
@@ -139,9 +139,9 @@ export default function CommentsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     headerContainer: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 8,
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: 4,
     },
     headerTitle: {
         fontWeight: 'bold',
@@ -151,17 +151,16 @@ const styles = StyleSheet.create({
         color: '#6C757D',
         marginTop: 2,
     },
-    list: { padding: 20, paddingTop: 10 },
+    list: { padding: 16, paddingTop: 6 },
     card: { 
-        marginBottom: 16, 
+        marginBottom: 10,
         borderRadius: BORDER_RADIUS.XL,
         ...SHADOWS.SMALL,
-        borderWidth: 1,
-        borderColor: '#EEEEEE',
+        borderWidth: 0,
         overflow: 'hidden',
     },
     cardContent: {
-        padding: 16,
+        padding: 12,
     },
     cardHeader: {
         flexDirection: 'row',

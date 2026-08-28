@@ -1,4 +1,3 @@
-import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { FontAwesome } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
@@ -27,12 +26,12 @@ export default function DashboardTabs() {
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    marginBottom: 4,
+                    fontSize: 10,
+                    marginBottom: 2,
                 },
                 tabBarStyle: {
-                    height: 60 + insets.bottom,
-                    paddingBottom: insets.bottom + 6,
+                    height: 54 + insets.bottom,
+                    paddingBottom: insets.bottom + 2,
                     backgroundColor: theme.colors.elevation.level2,
                     borderTopWidth: 0,
                     elevation: 5,
@@ -55,9 +54,9 @@ export default function DashboardTabs() {
                     return (
                         <FontAwesome
                             name={iconName}
-                            size={26}
+                            size={22}
                             color={color}
-                            style={{ marginTop: 4 }}
+                            style={{ marginTop: 2 }}
                         />
                     );
                 },

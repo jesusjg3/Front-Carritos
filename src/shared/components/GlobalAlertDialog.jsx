@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SHADOWS } from '../../core/constants/theme';
+import { MODAL_ANIMATION_MS } from '../../core/constants/timing';
 
 export default function GlobalAlertDialog({ config, onDismiss }) {
-    if (!config || !config.visible) return null;
+    const theme = useTheme();
 
     const {
         title,
@@ -16,28 +17,30 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
         cancelText = 'Cancelar',
         onConfirm,
         onCancel
-    } = config;
+    } = config || {};
 
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        if (config.visible) {
+        if (config?.visible) {
+            scaleAnim.setValue(0.9);
+            opacityAnim.setValue(0);
             Animated.parallel([
                 Animated.spring(scaleAnim, {
                     toValue: 1,
-                    friction: 6,
-                    tension: 40,
+                    friction: 8,
+                    tension: 60,
                     useNativeDriver: true
                 }),
                 Animated.timing(opacityAnim, {
                     toValue: 1,
-                    duration: 220,
+                    duration: MODAL_ANIMATION_MS,
                     useNativeDriver: true
                 })
             ]).start();
         }
-    }, [config.visible]);
+    }, [config?.visible]);
 
     const handleConfirm = () => {
         if (onConfirm) onConfirm();
@@ -86,6 +89,8 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
 
     const typeConfig = getTypeConfig();
 
+    if (!config || !config.visible) return null;
+
     return (
         <Modal
             transparent
@@ -98,6 +103,8 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
                     style={[
                         styles.container,
                         {
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.outline,
                             opacity: opacityAnim,
                             transform: [{ scale: scaleAnim }]
                         }
@@ -119,22 +126,22 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
                                 {title}
                             </Text>
                         ) : (
-                            <Text style={[styles.title, { color: '#1E293B' }]}>
+                            <Text style={[styles.title, { color: theme.colors.onSurface }]}>
                                 {type === 'success' ? '¡Éxito!' : type === 'error' ? 'Error' : 'Notificación'}
                             </Text>
                         )}
-                        <Text style={styles.message}>{message}</Text>
+                        <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>{message}</Text>
                     </View>
 
                     {/* Footer Buttons Section */}
                     <View style={styles.footer}>
                         {onCancel && (
                             <TouchableOpacity
-                                style={[styles.button, styles.cancelButton]}
+                                style={[styles.button, styles.cancelButton, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}
                                 onPress={handleCancel}
                                 activeOpacity={0.8}
                             >
-                                <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                                <Text style={[styles.cancelButtonText, { color: theme.colors.onSurfaceVariant }]}>{cancelText}</Text>
                             </TouchableOpacity>
                         )}
 
@@ -175,8 +182,7 @@ const styles = StyleSheet.create({
         padding: 24,
         alignItems: 'center',
         ...SHADOWS.LARGE,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderWidth: 0,
     },
     header: {
         marginBottom: 16,
@@ -225,8 +231,8 @@ const styles = StyleSheet.create({
     },
     button: {
         flex: 1,
-        height: 46,
-        borderRadius: 23,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
         ...SHADOWS.MEDIUM,
@@ -248,7 +254,7 @@ const styles = StyleSheet.create({
     },
     cancelButton: {
         backgroundColor: '#FFFFFF',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: '#E2E8F0',
         shadowOpacity: 0.05,
         elevation: 1,

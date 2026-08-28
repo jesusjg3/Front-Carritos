@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SHADOWS, BORDER_RADIUS, COLORS } from '../../../core/constants/theme';
+import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 
 export default function RideRequestCard({ request, onAccept, onReject }) {
+    const theme = useTheme();
+    const [secondsLeft, setSecondsLeft] = useState(0);
+
+    useEffect(() => {
+        if (!request?.expiresAt) return undefined;
+        const update = () => setSecondsLeft(Math.max(0, Math.ceil((request.expiresAt - Date.now()) / 1000)));
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [request?.expiresAt]);
+
     if (!request) return null;
 
     // Helper for passenger initials
@@ -16,7 +27,7 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
     return (
         <View style={styles.container}>
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 {/* Upper Section: Premium Passenger Header with Corporate Gradient */}
                 <LinearGradient
                     colors={['#144985', '#1E88E5']}
@@ -47,58 +58,52 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                         <MaterialCommunityIcons name="flash" size={12} color="#144985" style={{ marginRight: 2 }} />
                         <Text style={styles.newBadgeText}>NUEVO</Text>
                     </LinearGradient>
+                    {secondsLeft > 0 && <Text style={styles.expiryText}>{secondsLeft}s</Text>}
                 </LinearGradient>
 
                 {/* Tactile Ticket Notches and Dashed Divider */}
-                <View style={styles.notchContainer}>
+                <View style={[styles.notchContainer, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.leftNotch} />
                     <View style={styles.dashedDividerLine} />
                     <View style={styles.rightNotch} />
                 </View>
 
                 {/* Central Section: High-End Route Details and Stats */}
-                <View style={styles.contentBody}>
-                    <View style={styles.routeCard}>
-                        {/* Premium Vertical Route Line with a moving car icon in the middle! */}
-                        <View style={styles.verticalTimeline}>
-                            <View style={styles.originIndicator} />
-                            <View style={styles.timelineDashedLine} />
-                            <View style={styles.carIconContainer}>
-                                <MaterialCommunityIcons name="car-side" size={13} color="#1E88E5" />
+                <View style={[styles.contentBody, { backgroundColor: theme.colors.surface }]}>
+                    <View style={[styles.routeCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+                        <View style={styles.routePointCompact}>
+                            <View style={styles.routePointHeader}>
+                                <View style={styles.originIndicator} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>ORIGEN</Text>
                             </View>
-                            <View style={styles.timelineDashedLine} />
-                            <View style={styles.destIndicator} />
+                            <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                                {request.origin || 'Mi Ubicación Actual'}
+                            </Text>
                         </View>
-
-                        <View style={styles.routeTextContainer}>
-                            <View style={styles.routePoint}>
-                                <Text style={styles.routeLabel}>PUNTO DE PARTIDA (ORIGEN)</Text>
-                                <Text style={styles.routeValue} numberOfLines={1}>
-                                    {request.origin || 'Mi Ubicación Actual'}
-                                </Text>
+                        <MaterialCommunityIcons name="arrow-right" size={18} color={theme.colors.primary} style={styles.routeArrow} />
+                        <View style={styles.routePointCompact}>
+                            <View style={styles.routePointHeader}>
+                                <View style={styles.destIndicator} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>DESTINO</Text>
                             </View>
-                            
-                            <View style={styles.routePoint}>
-                                <Text style={styles.routeLabel}>PUNTO DE LLEGADA (DESTINO)</Text>
-                                <Text style={styles.routeValue} numberOfLines={1}>
-                                    {request.destination}
-                                </Text>
-                            </View>
+                            <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                                {request.destination}
+                            </Text>
                         </View>
                     </View>
 
                     {/* Stats pills side by side */}
                     <View style={styles.statsContainer}>
-                        <View style={styles.statPill}>
+                        <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
                             <MaterialCommunityIcons name="account-group" size={16} color="#144985" style={{ marginRight: 6 }} />
-                            <Text style={styles.statText}>
+                            <Text style={[styles.statText, { color: theme.colors.primary }]}>
                                 {request.passengers_count || 1} {(request.passengers_count || 1) === 1 ? 'Pasajero' : 'Pasajeros'}
                             </Text>
                         </View>
                         
-                        <View style={styles.statPill}>
+                        <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
                             <MaterialCommunityIcons name="map-marker-distance" size={16} color="#1E88E5" style={{ marginRight: 6 }} />
-                            <Text style={styles.statText}>
+                            <Text style={[styles.statText, { color: theme.colors.primary }]}>
                                 {request.distance || '1.2 km'}
                             </Text>
                         </View>
@@ -106,7 +111,7 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                 </View>
 
                 {/* Bottom Section: Premium Actions (Pill shape side by side) */}
-                <View style={styles.actions}>
+                    <View style={[styles.actions, { backgroundColor: theme.colors.surface }]}>
                     <TouchableOpacity
                         style={[styles.actionButton, styles.rejectPill]}
                         onPress={onReject}
@@ -139,25 +144,24 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
 const styles = StyleSheet.create({
     container: {
-        marginHorizontal: 16,
-        marginBottom: 20,
+        marginHorizontal: 4,
+        marginBottom: 8,
         backgroundColor: 'transparent',
         zIndex: 20,
     },
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
+        borderRadius: 16,
         overflow: 'hidden',
         ...SHADOWS.LARGE,
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
+        borderWidth: 0,
     },
     headerGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 18,
-        paddingHorizontal: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
         borderTopLeftRadius: 22,
         borderTopRightRadius: 22,
     },
@@ -169,22 +173,22 @@ const styles = StyleSheet.create({
     avatarOuterGlow: {
         borderWidth: 2,
         borderColor: 'rgba(255, 255, 255, 0.4)',
-        padding: 3,
+        padding: 2,
         borderRadius: 24,
-        marginRight: 12,
+        marginRight: 8,
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     avatarInner: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 12,
         color: '#144985',
         letterSpacing: 0.5,
     },
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
         letterSpacing: 1.2,
     },
     passengerName: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#FFFFFF',
         marginTop: 2,
@@ -206,8 +210,8 @@ const styles = StyleSheet.create({
     newBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 12,
         ...SHADOWS.SMALL,
     },
@@ -217,8 +221,14 @@ const styles = StyleSheet.create({
         color: '#144985',
         letterSpacing: 0.8,
     },
+    expiryText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginLeft: 6,
+    },
     notchContainer: {
-        height: 20,
+        height: 12,
         backgroundColor: '#FFFFFF',
         flexDirection: 'row',
         alignItems: 'center',
@@ -227,22 +237,22 @@ const styles = StyleSheet.create({
     },
     leftNotch: {
         width: 16,
-        height: 20,
+        height: 12,
         backgroundColor: '#E2E8F0',
-        borderTopRightRadius: 10,
-        borderBottomRightRadius: 10,
-        marginLeft: -8,
-        borderWidth: 1.5,
+        borderTopRightRadius: 6,
+        borderBottomRightRadius: 6,
+        marginLeft: -6,
+        borderWidth: 1,
         borderColor: '#E2E8F0',
     },
     rightNotch: {
         width: 16,
         height: 20,
         backgroundColor: '#E2E8F0',
-        borderTopLeftRadius: 10,
-        borderBottomLeftRadius: 10,
-        marginRight: -8,
-        borderWidth: 1.5,
+        borderTopLeftRadius: 6,
+        borderBottomLeftRadius: 6,
+        marginRight: -6,
+        borderWidth: 1,
         borderColor: '#E2E8F0',
     },
     dashedDividerLine: {
@@ -251,54 +261,39 @@ const styles = StyleSheet.create({
         borderStyle: 'dashed',
         borderWidth: 1,
         borderColor: '#CBD5E1',
-        marginHorizontal: 12,
+        marginHorizontal: 8,
     },
     contentBody: {
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        paddingTop: 10,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
+        paddingTop: 6,
         backgroundColor: '#FFFFFF',
     },
     routeCard: {
         flexDirection: 'row',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 20,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        alignItems: 'stretch',
-    },
-    verticalTimeline: {
-        width: 24,
+        borderRadius: 14,
+        padding: 8,
+        borderWidth: 0,
         alignItems: 'center',
-        marginRight: 14,
-        justifyContent: 'space-between',
-        paddingVertical: 4,
+    },
+    routePointCompact: {
+        flex: 1,
+        minWidth: 0,
     },
     originIndicator: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        width: 9,
+        height: 9,
+        borderRadius: 5,
         backgroundColor: '#10B981',
         borderWidth: 2,
         borderColor: '#FFFFFF',
+        marginRight: 5,
         ...SHADOWS.SMALL,
     },
-    timelineDashedLine: {
-        width: 1.5,
-        flex: 1,
-        backgroundColor: '#CBD5E1',
-        marginVertical: 4,
-    },
-    carIconContainer: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: '#EFF6FF',
-        borderWidth: 1,
-        borderColor: '#DBEAFE',
-        justifyContent: 'center',
+    routePointHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 2,
     },
     destIndicator: {
         width: 12,
@@ -307,62 +302,57 @@ const styles = StyleSheet.create({
         backgroundColor: '#EF4444',
         borderWidth: 2,
         borderColor: '#FFFFFF',
+        marginRight: 5,
         ...SHADOWS.SMALL,
     },
-    routeTextContainer: {
-        flex: 1,
-        height: 84,
-        justifyContent: 'space-between',
-    },
-    routePoint: {
-        justifyContent: 'center',
+    routeArrow: {
+        marginHorizontal: 5,
     },
     routeLabel: {
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: '900',
         color: '#64748B',
         letterSpacing: 0.8,
     },
     routeValue: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: 'bold',
         color: '#1E293B',
         marginTop: 2,
     },
     statsContainer: {
         flexDirection: 'row',
-        marginTop: 16,
-        gap: 14,
+        marginTop: 6,
+        gap: 8,
     },
     statPill: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#EFF6FF',
-        paddingVertical: 10,
-        paddingHorizontal: 14,
+        paddingVertical: 5,
+        paddingHorizontal: 8,
         borderRadius: 30,
-        borderWidth: 1,
-        borderColor: '#DBEAFE',
+        borderWidth: 0,
         justifyContent: 'center',
     },
     statText: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: 'bold',
         color: '#1E40AF',
     },
     actions: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-        gap: 14,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
+        gap: 8,
         backgroundColor: '#FFFFFF',
         borderBottomLeftRadius: 22,
         borderBottomRightRadius: 22,
     },
     actionButton: {
         flex: 1,
-        height: 48,
+        height: 32,
         borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
@@ -370,7 +360,7 @@ const styles = StyleSheet.create({
     },
     rejectPill: {
         backgroundColor: '#FFFFFF',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: '#EF4444',
         shadowOpacity: 0.05,
         elevation: 1,
@@ -388,13 +378,13 @@ const styles = StyleSheet.create({
     acceptText: {
         color: '#FFFFFF',
         fontWeight: '900',
-        fontSize: 13,
+        fontSize: 11,
         letterSpacing: 0.8,
     },
     rejectText: {
         color: '#EF4444',
         fontWeight: '900',
-        fontSize: 13,
+        fontSize: 11,
         letterSpacing: 0.8,
     },
 });

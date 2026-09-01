@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Modal, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { Button, useTheme, Text, Divider } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { useTheme, Text, Divider } from 'react-native-paper';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
 import { SHADOWS, COLORS, BORDER_RADIUS } from '../../../core/constants/theme';
+import FastModal from '../../../shared/components/FastModal';
 
 export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();
@@ -30,13 +31,13 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
         switch(score) {
             case 1:
             case 2:
-                return { bg: '#FEF2F2', text: '#EF4444', border: '#FEE2E2' };
+                return { bg: `${theme.colors.error}18`, text: theme.colors.error, border: `${theme.colors.error}55` };
             case 3:
-                return { bg: '#FFFBEB', text: '#D97706', border: '#FEF3C7' };
+                return { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B55' };
             case 4:
             case 5:
             default:
-                return { bg: '#ECFDF5', text: '#10B981', border: '#D1FAE5' };
+                return { bg: '#10B98118', text: '#10B981', border: '#10B98155' };
         }
     };
 
@@ -89,7 +90,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                     <FontAwesome
                         name={i <= rating ? "star" : "star-o"}
                         size={42}
-                        color={i <= rating ? "#FFD700" : "#E2E8F0"}
+                        color={i <= rating ? "#FFD700" : theme.colors.outline}
                         style={{ marginHorizontal: 6 }}
                     />
                 </TouchableOpacity>
@@ -101,7 +102,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
     const statusConfig = getRatingStatusConfig(rating);
 
     return (
-        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onDismiss}>
+        <FastModal visible={visible} onDismiss={onDismiss} animation="fade">
             <View style={styles.modalOverlay}>
                 <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.cardHeader}>
@@ -168,7 +169,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                     </View>
                 </View>
             </View>
-        </Modal>
+        </FastModal>
     );
 }
 
@@ -210,7 +211,6 @@ const styles = StyleSheet.create({
     },
     subtitleText: {
         fontSize: 12,
-        color: '#6C757D',
         textAlign: 'center',
         marginTop: 4,
         paddingHorizontal: 16,
@@ -245,20 +245,16 @@ const styles = StyleSheet.create({
     },
     input: {
         width: '100%',
-        backgroundColor: '#F8FAFC',
         borderRadius: 12,
         borderWidth: 1.5,
-        borderColor: '#E2E8F0',
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontSize: 13,
-        color: '#1E293B',
         textAlignVertical: 'top',
         minHeight: 76,
     },
     inputFocused: {
         borderColor: '#10B981',
-        backgroundColor: '#FFFFFF',
         ...SHADOWS.SMALL,
     },
     actions: {
@@ -273,16 +269,13 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
         justifyContent: 'center',
         alignItems: 'center',
         shadowOpacity: 0.05,
         elevation: 1,
     },
     omitButtonText: {
-        color: '#64748B',
         fontWeight: 'bold',
         fontSize: 13,
         letterSpacing: 0.8,

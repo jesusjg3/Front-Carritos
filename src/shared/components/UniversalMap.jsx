@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 
 const UniversalMap = forwardRef(({ source, style, onMessage, onLoadEnd, scrollEnabled = true, ...props }, ref) => {
@@ -11,6 +11,7 @@ const UniversalMap = forwardRef(({ source, style, onMessage, onLoadEnd, scrollEn
 
     const iframeRef = useRef(null);
     const nativeWebViewRef = useRef(null);
+    const nativeSource = useMemo(() => ({ ...source, baseUrl: 'http://campus.local' }), [source]);
 
     // Configurar listener manual para los mensajes desde el iframe
     useEffect(() => {
@@ -70,11 +71,16 @@ const UniversalMap = forwardRef(({ source, style, onMessage, onLoadEnd, scrollEn
     return (
         <WebView
             ref={nativeWebViewRef}
-            source={{ ...source, baseUrl: 'http://campus.local' }}
+            source={nativeSource}
             style={style}
             onMessage={onMessage}
             onLoadEnd={onLoadEnd}
             scrollEnabled={scrollEnabled}
+            cacheEnabled
+            cacheMode="LOAD_DEFAULT"
+            domStorageEnabled
+            javaScriptEnabled
+            setSupportMultipleWindows={false}
             originWhitelist={['*']}
             {...props}
         />

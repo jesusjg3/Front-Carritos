@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,10 +27,10 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
             scaleAnim.setValue(0.9);
             opacityAnim.setValue(0);
             Animated.parallel([
-                Animated.spring(scaleAnim, {
+                Animated.timing(scaleAnim, {
                     toValue: 1,
-                    friction: 8,
-                    tension: 60,
+                    duration: MODAL_ANIMATION_MS,
+                    easing: Easing.out(Easing.cubic),
                     useNativeDriver: true
                 }),
                 Animated.timing(opacityAnim, {
@@ -60,21 +60,21 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
                     icon: 'check-decagram',
                     color: '#10B981',
                     colors: ['#10B981', '#059669'],
-                    bg: '#ECFDF5'
+                    bg: '#10B98118'
                 };
             case 'error':
                 return {
                     icon: 'alert-octagon',
                     color: '#EF4444',
                     colors: ['#EF4444', '#DC2626'],
-                    bg: '#FEF2F2'
+                    bg: '#EF444418'
                 };
             case 'warning':
                 return {
                     icon: 'alert',
                     color: '#F59E0B',
                     colors: ['#F59E0B', '#D97706'],
-                    bg: '#FFFBEB'
+                    bg: '#F59E0B18'
                 };
             case 'info':
             default:
@@ -82,7 +82,7 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
                     icon: 'information',
                     color: '#1E88E5',
                     colors: ['#144985', '#1E88E5'],
-                    bg: '#EFF6FF'
+                    bg: '#1E88E518'
                 };
         }
     };

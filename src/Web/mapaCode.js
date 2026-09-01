@@ -118,8 +118,10 @@ export const mapaHtml = `
             if (map.getZoom() < 15) {
                 map.flyTo([lat, lon], 17, { animate: true, duration: 1.5 });
             } else {
-                // Empleamos panTo con duración extendida para deslizar la cámara suavemente
-                map.panTo([lat, lon], { animate: true, duration: 1.5, easeLinearity: 0.25 });
+                // En actualizaciones GPS no acumulamos animaciones de cámara.
+                // Las transiciones largas se solapaban y hacían que Android
+                // se sintiera atrasado respecto a la posición real.
+                map.panTo([lat, lon], { animate: false });
             }
         } else {
             console.error("Error: Mapa no inicializado o coordenadas no válidas.");
@@ -370,7 +372,7 @@ export const mapaHtml = `
                         doCameraFit([L.latLng(startLat, startLng), waypoints[1]], paddingBottom);
                     } else {
                         // En vez de congelar la cámara, deslizamos la vista lentamente hacia donde conduce el auto
-                        map.panTo([startLat, startLng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
+                        map.panTo([startLat, startLng], { animate: false });
                     }
                     return;
                 }
@@ -495,7 +497,7 @@ export const mapaHtml = `
                     if (animateZoom !== false) {
                         doCameraFit(waypoints, paddingBottom);
                     } else {
-                        map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
+                        map.panTo([points[0].lat, points[0].lng], { animate: false });
                     }
                     return;
                 }

@@ -6,7 +6,6 @@ import {
   Button,
   Divider,
   ActivityIndicator,
-  IconButton,
   useTheme,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -74,10 +73,10 @@ export default function ActiveTripCard({
 
   return (
     <Card style={[styles.tripCard, { backgroundColor: theme.colors.surface }]}>
-      <View style={styles.sheetIndicator} />
+      <View style={[styles.sheetIndicator, { backgroundColor: theme.colors.outline }]} />
 
       <View style={styles.headerRow}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '10' }]}>
           <ActivityIndicator
             animating={true}
             size="small"
@@ -118,14 +117,14 @@ export default function ActiveTripCard({
               <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant }]}>Vehículo Asignado</Text>
 
               <View style={styles.metadataContainer}>
-                <View style={styles.ratingBadge}>
+                  <View style={[styles.ratingBadge, { backgroundColor: theme.dark ? '#4A3B10' : '#FFF9C4' }]}>
                   <MaterialCommunityIcons
                     name="star"
                     size={12}
                     color="#FFD700"
                     style={{ marginRight: 2 }}
                   />
-                  <Text style={styles.ratingText}>
+                  <Text style={[styles.ratingText, { color: theme.dark ? '#FCD34D' : '#F57F17' }]}>
                     {Number(
                       activeTrip.driver?.rating ||
                         activeTrip.driver?.score ||
@@ -178,22 +177,31 @@ export default function ActiveTripCard({
                         {passenger.id !== activeTrip.passengers?.[0]?.id &&
                           passenger.status === "accepted" && (
                             <View style={styles.passengerActions}>
-                              <IconButton
-                                icon="account-check-outline"
-                                iconColor="#2E7D32"
-                                size={18}
-                                style={styles.passengerActionIcon}
+                              <Button
+                                mode="contained"
+                                compact
+                                buttonColor="#2E7D32"
+                                textColor="#FFFFFF"
+                                style={styles.passengerActionButton}
+                                contentStyle={styles.passengerActionContent}
+                                labelStyle={styles.passengerActionLabel}
                                 onPress={() => onBoardPassenger(passenger.id)}
                                 accessibilityLabel="Marcar pasajero como subido"
-                              />
-                              <IconButton
-                                icon="account-remove-outline"
-                                iconColor={theme.colors.error}
-                                size={18}
-                                style={styles.passengerActionIcon}
+                              >
+                                Subió
+                              </Button>
+                              <Button
+                                mode="outlined"
+                                compact
+                                textColor={theme.colors.error}
+                                style={[styles.passengerActionButton, { borderColor: theme.colors.error + "70" }]}
+                                contentStyle={styles.passengerActionContent}
+                                labelStyle={styles.passengerActionLabel}
                                 onPress={() => onCancelPassenger(passenger.id)}
                                 accessibilityLabel="Marcar pasajero como no llegado"
-                              />
+                              >
+                                No llegó
+                              </Button>
                             </View>
                           )}
                       </View>
@@ -339,7 +347,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E0E0E0",
     alignSelf: "center",
     marginBottom: 12,
   },
@@ -355,7 +362,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E88E510",
     marginRight: 12,
   },
   headerText: {
@@ -414,14 +420,26 @@ const styles = StyleSheet.create({
   passengerActions: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 4,
+    marginLeft: 6,
+    gap: 6,
+    flexShrink: 0,
   },
-  passengerActionIcon: {
-    width: 28,
-    height: 28,
-    margin: 0,
+  passengerActionButton: {
+    minWidth: 68,
+    height: 34,
+    borderRadius: BORDER_RADIUS.MD,
+  },
+  passengerActionContent: {
+    paddingHorizontal: 5,
+    paddingVertical: 0,
+  },
+  passengerActionLabel: {
+    fontSize: 11,
+    marginHorizontal: 0,
   },
   userName: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 15,
     fontWeight: "bold",
     color: "#212529",
@@ -439,7 +457,6 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF9C4",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -447,7 +464,6 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 11,
     fontWeight: "bold",
-    color: "#F57F17",
   },
   passengerBadge: {
     flexDirection: "row",

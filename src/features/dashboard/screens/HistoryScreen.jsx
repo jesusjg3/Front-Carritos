@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from "react";
-import { View, FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, FlatList, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { Text, Card, useTheme, ActivityIndicator, Divider } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,18 +10,43 @@ import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 import { ReportTripModal } from '../components/ReportTripModal';
 
 export default function HistoryScreen() {
-    const { user, token } = useAppContext();
+    const { user, token, setTabsLocked, setTabsLockCloseHandler } = useAppContext();
     const theme = useTheme();
     const isConductor = user?.role?.toLowerCase() === 'conductor' || user?.rol?.toLowerCase() === 'conductor';
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [reportModalVisible, setReportModalVisible] = useState(false);
     const [selectedTripId, setSelectedTripId] = useState(null);
+    const pageRef = useRef(1);
+    const hasMoreRef = useRef(true);
+    const loadingRef = useRef(false);
 
-    const fetchHistory = useCallback(async () => {
+    useEffect(() => {
+        setTabsLocked(reportModalVisible);
+        if (reportModalVisible) {
+            setTabsLockCloseHandler(() => {
+                setReportModalVisible(false);
+                setSelectedTripId(null);
+            });
+        } else {
+            setTabsLockCloseHandler(null);
+        }
+        return () => {
+            setTabsLocked(false);
+            setTabsLockCloseHandler(null);
+        };
+    }, [reportModalVisible, setTabsLocked, setTabsLockCloseHandler]);
+
+    const fetchHistory = useCallback(async (pageNumber = 1, append = false) => {
+        if (loadingRef.current || (append && !hasMoreRef.current)) return;
+
+        loadingRef.current = true;
+        if (append) setLoadingMore(true);
+        else setLoading(true);
+
         try {
-            setLoading(true);
-            const response = await fetch(`${API_ROUTES.BASE_URL}/trips/history`, {
+            const response = await fetch(`${API_ROUTES.BASE_URL}/trips/history?page=${pageNumber}&per_page=15`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -29,18 +54,27 @@ export default function HistoryScreen() {
             });
             const data = await response.json();
             if (response.ok) {
-                setTrips(data);
+                const pageItems = Array.isArray(data) ? data : (data.data || []);
+                const lastPage = Array.isArray(data) ? pageNumber : Number(data.last_page || pageNumber);
+
+                setTrips((previousTrips) => append ? [...previousTrips, ...pageItems] : pageItems);
+                pageRef.current = pageNumber;
+                hasMoreRef.current = pageNumber < lastPage;
             }
         } catch (error) {
             console.error("Error fetching history", error);
         } finally {
+            loadingRef.current = false;
             setLoading(false);
+            setLoadingMore(false);
         }
     }, [token]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchHistory();
+            pageRef.current = 1;
+            hasMoreRef.current = true;
+            fetchHistory(1, false);
         }, [fetchHistory])
     );
 
@@ -110,7 +144,11 @@ export default function HistoryScreen() {
                     <View style={styles.cardFooter}>
                         <View style={styles.driverInfo}>
                             <View style={[styles.driverAvatar, { backgroundColor: theme.colors.primary + '12' }]}>
-                                <MaterialCommunityIcons name="steering" size={16} color={theme.colors.primary} />
+                                <MaterialCommunityIcons
+                                    name={isConductor ? 'account-outline' : 'steering'}
+                                    size={16}
+                                    color={theme.colors.primary}
+                                />
                             </View>
                             <View>
                                 <Text style={[styles.driverTitle, { color: theme.colors.onSurfaceVariant }]}>Conductor</Text>
@@ -134,7 +172,7 @@ export default function HistoryScreen() {
                     {/* Comments if exist */}
                     {item.my_rating?.comment && (
                         <View style={[styles.commentBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-                            <MaterialCommunityIcons name="format-quote-close" size={12} color="#888" style={{ marginRight: 6 }} />
+                            <MaterialCommunityIcons name="format-quote-close" size={12} color={theme.colors.onSurfaceVariant} style={{ marginRight: 6 }} />
                             <Text numberOfLines={2} style={[styles.commentText, { color: theme.colors.onSurfaceVariant }]}>
                                 "{item.my_rating.comment}"
                             </Text>
@@ -179,9 +217,18 @@ export default function HistoryScreen() {
                     renderItem={renderItem}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator={false}
+                    initialNumToRender={6}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    onEndReached={() => fetchHistory(pageRef.current + 1, true)}
+                    onEndReachedThreshold={0.4}
+                    ListFooterComponent={loadingMore ? (
+                        <ActivityIndicator style={styles.loadingMore} color={theme.colors.primary} />
+                    ) : null}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <MaterialCommunityIcons name="map-marker-off-outline" size={48} color="#CCC" />
+                            <MaterialCommunityIcons name="map-marker-off-outline" size={48} color={theme.colors.onSurfaceVariant} />
                             <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No hay viajes registrados aún.</Text>
                         </View>
                     }
@@ -339,9 +386,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     driverAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 30,
+        height: 30,
+        borderRadius: 999,
         aspectRatio: 1,
         overflow: 'hidden',
         justifyContent: 'center',
@@ -386,6 +433,9 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    loadingMore: {
+        marginVertical: 12,
     },
     emptyContainer: {
         alignItems: 'center',

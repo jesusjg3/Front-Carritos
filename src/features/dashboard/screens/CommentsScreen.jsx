@@ -54,7 +54,7 @@ export default function CommentsScreen() {
                     key={i}
                     name={i <= ratingVal ? "star" : "star-outline"} 
                     size={16} 
-                    color={i <= ratingVal ? "#FFD700" : "#E0E0E0"} 
+                    color={i <= ratingVal ? "#FFD700" : theme.colors.outline}
                     style={{ marginRight: 2 }}
                 />
             );
@@ -83,7 +83,7 @@ export default function CommentsScreen() {
                         </View>
                         <View style={styles.ratingSection}>
                             {renderStars(item.rating)}
-                            <Text style={styles.ratingNumber}>{item.rating}.0</Text>
+                        <Text style={[styles.ratingNumber, { color: theme.colors.tertiary || theme.colors.primary }]}>{item.rating}.0</Text>
                         </View>
                     </View>
 
@@ -107,7 +107,7 @@ export default function CommentsScreen() {
                 <Text variant="headlineSmall" style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
                     Calificaciones Recibidas
                 </Text>
-                <Text variant="bodySmall" style={styles.headerSubtitle}>
+                <Text variant="bodySmall" style={[styles.headerSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                     Comentarios y feedback de los pasajeros sobre tu servicio
                 </Text>
             </View>
@@ -126,7 +126,7 @@ export default function CommentsScreen() {
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <MaterialCommunityIcons name="comment-text-multiple-outline" size={48} color="#CCC" />
+                            <MaterialCommunityIcons name="comment-text-multiple-outline" size={48} color={theme.colors.onSurfaceVariant} />
                             <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No has recibido calificaciones aún.</Text>
                         </View>
                     }

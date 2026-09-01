@@ -1,22 +1,29 @@
 import React, { useState } from 'react';
 import { 
-  Modal, 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   TextInput,
+  Keyboard,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView
 } from 'react-native';
-import { useTheme } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
+
+const PREDEFINED_SUBJECTS = [
+  'Conducción peligrosa',
+  'Comportamiento inapropiado',
+  'El viaje nunca ocurrió',
+  'Objeto perdido',
+  'Otro problema',
+];
 
 export const ReportTripModal = ({ visible, onClose, tripId }) => {
   const [subject, setSubject] = useState('');
@@ -25,13 +32,20 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
   const [loading, setLoading] = useState(false);
   const { token, showAlert } = useAppContext();
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
 
   const handleClose = () => {
-    setSubject('');
-    setCustomSubject('');
-    setDescription('');
-    onClose();
+    Keyboard.dismiss();
+    onClose?.();
+
+    // Limpia el formulario después de ocultarlo para que el cierre no espere
+    // el re-render de los TextInput controlados.
+    const resetForm = () => {
+      setSubject('');
+      setCustomSubject('');
+      setDescription('');
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(resetForm);
+    else setTimeout(resetForm, 0);
   };
 
   const handleSubmit = async () => {
@@ -65,8 +79,8 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
       const data = await response.json();
 
       if (response.ok) {
-        showAlert('Reporte Enviado', 'Hemos recibido tu reporte. Lo revisaremos pronto.', 'success');
         handleClose();
+        showAlert('Reporte Enviado', 'Hemos recibido tu reporte. Lo revisaremos pronto.', 'success');
       } else {
         showAlert('Error', data.message || 'No se pudo enviar el reporte.', 'error');
       }
@@ -78,28 +92,15 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
     }
   };
 
-  const predefinedSubjects = [
-    "Conducción peligrosa",
-    "Comportamiento inapropiado",
-    "El viaje nunca ocurrió",
-    "Objeto perdido",
-    "Otro problema"
-  ];
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
-      <View style={[styles.overlay, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
+    <Portal>
+      <Dialog visible={visible} onDismiss={handleClose} style={styles.dialog}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={0}
           style={styles.keyboardView}
         >
-          <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+          <View style={styles.container}>
             <View style={styles.header}>
               <View style={styles.iconContainer}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={32} color={COLORS.ERROR} />
@@ -110,22 +111,26 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
               </Text>
             </View>
 
-            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Asunto del reporte</Text>
+            <ScrollView
+              style={styles.formContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Motivo del reporte</Text>
               
               <View style={styles.chipsContainer}>
-                {predefinedSubjects.map((item, index) => (
+                {PREDEFINED_SUBJECTS.map((item) => (
                   <TouchableOpacity
-                    key={index}
+                    key={item}
                     style={[
                       styles.chip,
                       { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
                       subject === item && styles.chipSelected
                     ]}
-                      onPress={() => {
-                        setSubject(item);
-                        if (item !== 'Otro problema') setCustomSubject('');
-                      }}
+                    onPress={() => {
+                      setSubject(item);
+                      if (item !== 'Otro problema') setCustomSubject('');
+                    }}
                   >
                     <Text style={[
                       styles.chipText,
@@ -169,7 +174,7 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
 
             <View style={styles.footer}>
               <TouchableOpacity 
-                style={styles.cancelButton} 
+                style={[styles.cancelButton, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}
                 onPress={handleClose}
                 disabled={loading}
               >
@@ -190,25 +195,21 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
             </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      </Dialog>
+    </Portal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
+  dialog: {
+    maxWidth: 380,
+    alignSelf: 'center',
   },
   keyboardView: {
-    flex: 1,
     width: '100%',
-    justifyContent: 'center',
   },
   container: {
-    backgroundColor: '#FFF',
+    width: '100%',
     borderRadius: BORDER_RADIUS.XL,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -236,7 +237,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#6C757D',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -253,24 +253,21 @@ const styles = StyleSheet.create({
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: 6,
+    marginBottom: 12,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#E9ECEF',
   },
   chipSelected: {
     backgroundColor: `${COLORS.ERROR}15`,
     borderColor: COLORS.ERROR,
   },
   chipText: {
-    fontSize: 14,
-    color: '#495057',
+    fontSize: 12,
     fontWeight: '500',
   },
   chipTextSelected: {
@@ -278,18 +275,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   input: {
-    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#E9ECEF',
     borderRadius: BORDER_RADIUS.MD,
     padding: 12,
     fontSize: 15,
     marginBottom: 16,
   },
   textArea: {
-    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#E9ECEF',
     borderRadius: BORDER_RADIUS.MD,
     padding: 12,
     fontSize: 15,
@@ -298,7 +291,6 @@ const styles = StyleSheet.create({
   characterCount: {
     textAlign: 'right',
     fontSize: 12,
-    color: '#6C757D',
     marginTop: 8,
     marginBottom: 10,
   },
@@ -311,17 +303,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 9,
     borderRadius: BORDER_RADIUS.LG,
-    backgroundColor: '#F8F9FA',
     alignItems: 'center',
+    borderWidth: 1,
   },
   cancelButtonText: {
-    color: '#495057',
     fontSize: 14,
     fontWeight: 'bold',
   },
   submitButton: {
-    flex: 2,
-    paddingVertical: 9,
+    flex: 1.35,
+    height: 40,
     borderRadius: BORDER_RADIUS.LG,
     backgroundColor: COLORS.ERROR,
     alignItems: 'center',
@@ -332,7 +323,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
   },
 });

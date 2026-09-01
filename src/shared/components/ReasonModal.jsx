@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Modal, StyleSheet } from 'react-native';
-import { Text, Button, useTheme } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Text, Button, useTheme, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SHADOWS, BORDER_RADIUS } from '../../core/constants/theme';
 import { TextInput } from 'react-native';
@@ -16,9 +16,9 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
-            <View style={styles.overlay}>
-                <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+        <Portal>
+            <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
+                <View style={styles.modalContent}>
                     <View style={[styles.iconContainer, { backgroundColor: theme.colors.error + '15' }]}>
                         <MaterialCommunityIcons name="alert-circle" size={32} color={theme.colors.error} />
                     </View>
@@ -55,30 +55,20 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
                         </Button>
                     </View>
                 </View>
-            </View>
-        </Modal>
+            </Dialog>
+        </Portal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 16,
-        zIndex: 9999,
-        elevation: 9999,
+    dialog: {
+        maxWidth: 340,
+        alignSelf: 'center',
     },
     modalContent: {
         width: '100%',
-        maxWidth: 340,
-        borderRadius: BORDER_RADIUS.XL,
         padding: 18,
         alignItems: 'center',
-        ...SHADOWS.LARGE,
-        zIndex: 10000,
-        elevation: 10000,
     },
     iconContainer: {
         width: 56,
@@ -97,9 +87,7 @@ const styles = StyleSheet.create({
     },
     input: {
         width: '100%',
-        backgroundColor: '#F8F9FA',
         borderWidth: 1,
-        borderColor: '#E0E0E0',
         borderRadius: BORDER_RADIUS.MD,
         padding: 12,
         fontSize: 15,

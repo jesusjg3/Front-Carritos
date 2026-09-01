@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from "react-native";
-import { Text, Button, Divider, ActivityIndicator, useTheme, IconButton } from "react-native-paper";
+import { View, StyleSheet, ScrollView, TouchableOpacity, Pressable } from "react-native";
+import { Text, Button, Divider, ActivityIndicator, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
+import FastModal from "../../../shared/components/FastModal";
 
 export default function DestinationModal({ 
     visible, 
@@ -31,21 +32,20 @@ export default function DestinationModal({
     };
 
     return (
-        <Modal
-            animationType="fade"
-            transparent={true}
+        <FastModal
             visible={visible}
-            onRequestClose={onDismiss}
+            onDismiss={onDismiss}
+            animation="slide"
         >
             <Pressable style={styles.modalOverlay} onPress={onDismiss}>
                 <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
                     {/* Sliding drag indicator bar */}
-                    <View style={styles.dragIndicator} />
+                    <View style={[styles.dragIndicator, { backgroundColor: theme.colors.outline }]} />
                     
                     <Text variant="titleLarge" style={[styles.modalTitle, { color: theme.colors.primary }]}>
                         ¿A dónde quieres ir?
                     </Text>
-                    <Text variant="bodySmall" style={styles.modalSubtitle}>
+                    <Text variant="bodySmall" style={[styles.modalSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                         Selecciona un punto de destino autorizado en el campus
                     </Text>
                     
@@ -55,7 +55,7 @@ export default function DestinationModal({
                         {cargando ? (
                             <View style={styles.loadingContainer}>
                                 <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
-                                <Text style={styles.loadingText}>Cargando destinos del campus...</Text>
+                                <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>Cargando destinos del campus...</Text>
                             </View>
                         ) : error ? (
                             <View style={styles.errorContainer}>
@@ -65,7 +65,7 @@ export default function DestinationModal({
                             </View>
                         ) : destinos.length === 0 ? (
                             <View style={styles.emptyContainer}>
-                                <MaterialCommunityIcons name="map-marker-off-outline" size={32} color="#CCC" />
+                                <MaterialCommunityIcons name="map-marker-off-outline" size={32} color={theme.colors.onSurfaceVariant} />
                                 <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No hay destinos disponibles</Text>
                             </View>
                         ) : (
@@ -81,31 +81,32 @@ export default function DestinationModal({
                                             key={destino.id}
                                             style={[
                                                 styles.destinoItemCard,
+                                                { backgroundColor: theme.colors.surface },
                                                 isSelected && [styles.selectedCard, { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '05' }]
                                             ]}
                                             onPress={() => onSelect(destino)}
                                             activeOpacity={0.8}
                                         >
-                                            <View style={[styles.itemLeftIconBg, { backgroundColor: isSelected ? theme.colors.primary + '15' : '#F8F9FA' }]}>
+                                            <View style={[styles.itemLeftIconBg, { backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.surfaceVariant }]}>
                                                 <MaterialCommunityIcons 
                                                     name="map-marker-radius" 
                                                     size={22} 
-                                                    color={isSelected ? theme.colors.primary : '#6C757D'} 
+                                                    color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
                                                 />
                                             </View>
 
                                             <View style={styles.destinoInfo}>
-                                                <Text style={[styles.destinoText, isSelected && { color: theme.colors.primary, fontWeight: 'bold' }]}>
+                                                <Text style={[styles.destinoText, { color: isSelected ? theme.colors.primary : theme.colors.onSurface }, isSelected && { fontWeight: 'bold' }]}>
                                                     {destino.name || destino.nombre || 'Destino Desconocido'}
                                                 </Text>
-                                                <Text style={styles.destinoSubtext} numberOfLines={1}>
+                                                <Text style={[styles.destinoSubtext, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                                                     {destino.description || 'Punto de destino en el campus'}
                                                 </Text>
                                             </View>
 
                                             {distancia !== null && (
-                                                <View style={[styles.distanceBadge, { backgroundColor: isSelected ? theme.colors.primary + '10' : '#EAEAEA' }]}>
-                                                    <Text style={[styles.distanceText, { color: isSelected ? theme.colors.primary : '#495057' }]}>
+                                                <View style={[styles.distanceBadge, { backgroundColor: isSelected ? theme.colors.primary + '10' : theme.colors.surfaceVariant }]}>
+                                                    <Text style={[styles.distanceText, { color: isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
                                                         {distancia} km
                                                     </Text>
                                                 </View>
@@ -123,11 +124,11 @@ export default function DestinationModal({
                         
                         <View style={styles.passengerCounter}>
                             <TouchableOpacity
-                                style={[styles.counterButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, passengersCount <= 1 && styles.counterButtonDisabled]}
+                                style={[styles.counterButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, passengersCount <= 1 && [styles.counterButtonDisabled, { backgroundColor: theme.colors.surfaceVariant }]]}
                                 onPress={() => setPassengersCount(Math.max(1, passengersCount - 1))}
                                 disabled={passengersCount <= 1}
                             >
-                                <MaterialCommunityIcons name="minus" size={20} color={passengersCount <= 1 ? '#CCC' : theme.colors.primary} />
+                                <MaterialCommunityIcons name="minus" size={20} color={passengersCount <= 1 ? theme.colors.onSurfaceVariant : theme.colors.primary} />
                             </TouchableOpacity>
 
                             <View style={styles.counterDisplay}>
@@ -140,11 +141,11 @@ export default function DestinationModal({
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.counterButton, passengersCount >= 5 && styles.counterButtonDisabled]}
+                                style={[styles.counterButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }, passengersCount >= 5 && [styles.counterButtonDisabled, { backgroundColor: theme.colors.surfaceVariant }]]}
                                 onPress={() => setPassengersCount(Math.min(5, passengersCount + 1))}
                                 disabled={passengersCount >= 5}
                             >
-                                <MaterialCommunityIcons name="plus" size={20} color={passengersCount >= 5 ? '#CCC' : theme.colors.primary} />
+                                <MaterialCommunityIcons name="plus" size={20} color={passengersCount >= 5 ? theme.colors.onSurfaceVariant : theme.colors.primary} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -172,7 +173,7 @@ export default function DestinationModal({
                     </View>
                 </Pressable>
             </Pressable>
-        </Modal>
+        </FastModal>
     );
 }
 
@@ -190,7 +191,6 @@ const styles = StyleSheet.create({
         width: 44, 
         height: 5, 
         borderRadius: 2.5, 
-        backgroundColor: '#E0E0E0', 
         alignSelf: 'center', 
         marginTop: 10, 
         marginBottom: 10
@@ -202,7 +202,6 @@ const styles = StyleSheet.create({
     },
     modalSubtitle: {
         textAlign: 'center',
-        color: '#6C757D',
         marginTop: 4,
         paddingHorizontal: 24,
     },
@@ -223,7 +222,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row', 
         alignItems: 'center', 
         padding: 10,
-        backgroundColor: '#FFFFFF',
         borderRadius: BORDER_RADIUS.LG,
         borderWidth: 0,
         ...SHADOWS.SMALL,
@@ -243,11 +241,9 @@ const styles = StyleSheet.create({
     destinoText: { 
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#333',
     },
     destinoSubtext: {
         fontSize: 12,
-        color: '#777',
         marginTop: 2,
     },
     distanceBadge: {
@@ -268,7 +264,6 @@ const styles = StyleSheet.create({
     passengersTitle: { 
         fontWeight: 'bold', 
         fontSize: 13,
-        color: '#495057',
         marginBottom: 8,
         textAlign: 'center',
         textTransform: 'uppercase',
@@ -284,15 +279,12 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         ...SHADOWS.SMALL,
         borderWidth: 1,
-        borderColor: '#EAEAEA',
     },
     counterButtonDisabled: {
-        backgroundColor: '#F5F5F5',
         shadowOpacity: 0,
         elevation: 0,
     },
@@ -307,7 +299,6 @@ const styles = StyleSheet.create({
     },
     counterLabel: { 
         fontSize: 11,
-        color: '#6C757D',
         marginTop: 2,
     },
     modalActions: { 

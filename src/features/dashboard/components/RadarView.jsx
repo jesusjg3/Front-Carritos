@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, Easing } from "react-native";
 import { useTheme } from "react-native-paper";
 import { SHADOWS } from '../../../core/constants/theme';
@@ -9,6 +9,7 @@ import { CARRITO_MARKER_BASE64 } from "../../../Web/carritoMarkerBase64";
 export default function RadarView({ ubicacion }) {
     const theme = useTheme();
     const radarWebViewRef = useRef(null);
+    const mapSource = useMemo(() => ({ html: mapaHtml }), []);
 
     // Animación radar (vista de espera)
     const radarAnims = useRef([
@@ -88,18 +89,20 @@ export default function RadarView({ ubicacion }) {
             const escapedIconUrl = CARRITO_MARKER_BASE64.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
             radarWebViewRef.current.injectJavaScript(`
+                if (window.__radarSimulationInterval) {
+                    clearInterval(window.__radarSimulationInterval);
+                    window.__radarSimulationInterval = null;
+                }
+
                 if (typeof setCarritoIcon === 'function') setCarritoIcon('${escapedIconUrl}');
                 
-                var currentZoom = 18;
-                var targetZoom = 14;
-                var zoomStep = 0.015;
                 var simulatedDrivers = [];
                 var driverCount = 0;
                 var lastPulseTime = 0;
                 var pulseInterval = 2500;
                 
                 if (typeof map !== 'undefined') {
-                    map.setView([${ubicacion.latitude}, ${ubicacion.longitude}], currentZoom);
+                    map.setView([${ubicacion.latitude}, ${ubicacion.longitude}], 18);
                 }
                 
                 setTimeout(function() {
@@ -127,14 +130,6 @@ export default function RadarView({ ubicacion }) {
                     var angle = Math.random() * 2 * Math.PI;
                     var distance = 0.003 + Math.random() * (radius - 0.003);
                     return { lat: lat + distance * Math.cos(angle), lng: lng + distance * Math.sin(angle) };
-                }
-                
-                function updateZoom() {
-                    if (currentZoom > targetZoom && typeof map !== 'undefined') {
-                        currentZoom -= zoomStep;
-                        if (currentZoom < targetZoom) currentZoom = targetZoom;
-                        map.setZoom(currentZoom, { animate: true, duration: 1.5 });
-                    }
                 }
                 
                 function updateSimulatedDrivers() {
@@ -171,8 +166,10 @@ export default function RadarView({ ubicacion }) {
                     }, 100);
                 }
                 
-                setInterval(updateZoom, 400);
-                setInterval(updateSimulatedDrivers, 200);
+                if (typeof map !== 'undefined') {
+                    map.setZoom(14, { animate: true, duration: 1.2 });
+                }
+                window.__radarSimulationInterval = setInterval(updateSimulatedDrivers, 2500);
                 setTimeout(function() { updateSimulatedDrivers(); }, 500);
             `);
         }
@@ -183,7 +180,7 @@ export default function RadarView({ ubicacion }) {
             <View style={styles.radarMapBackground}>
                 <UniversalMap
                     ref={radarWebViewRef}
-                    source={{ html: mapaHtml }}
+                    source={mapSource}
                     scrollEnabled={false}
                     onLoadEnd={handleRadarMapLoad}
                 />

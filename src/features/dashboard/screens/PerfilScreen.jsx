@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,7 +10,7 @@ import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function PerfilScreen() {
-    const { user, token, showAlert, isDarkTheme, toggleTheme, logout } = useAppContext();
+    const { user, token, showAlert, isDarkTheme, toggleTheme, logout, setTabsLocked, setTabsLockCloseHandler } = useAppContext();
     const theme = useTheme();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
@@ -18,6 +18,22 @@ export default function PerfilScreen() {
     const [complaintModalVisible, setComplaintModalVisible] = useState(false);
     const [isSendingComplaint, setIsSendingComplaint] = useState(false);
     const [ratings, setRatings] = useState([]);
+
+    useEffect(() => {
+        setTabsLocked(complaintModalVisible || isSendingComplaint);
+        if (complaintModalVisible || isSendingComplaint) {
+            setTabsLockCloseHandler(() => {
+                setComplaintModalVisible(false);
+                setIsSendingComplaint(false);
+            });
+        } else {
+            setTabsLockCloseHandler(null);
+        }
+        return () => {
+            setTabsLocked(false);
+            setTabsLockCloseHandler(null);
+        };
+    }, [complaintModalVisible, isSendingComplaint, setTabsLocked, setTabsLockCloseHandler]);
 
     useEffect(() => {
         let cancelled = false;
@@ -268,12 +284,20 @@ export default function PerfilScreen() {
                             </Paragraph>
                         </Dialog.Content>
                         <Dialog.Actions>
-                            <Button onPress={() => setShowLogoutDialog(false)} textColor={theme.colors.onSurfaceVariant}>
+                            <Button
+                                onPress={() => setShowLogoutDialog(false)}
+                                textColor={theme.colors.onSurfaceVariant}
+                                labelStyle={styles.dialogCancelText}
+                            >
                                 Cancelar
                             </Button>
-                            <Button onPress={handleLogout} textColor={theme.colors.error} mode="contained-tonal" buttonColor={theme.colors.error + '12'}>
-                                Sí, Cerrar Sesión
-                            </Button>
+                            <TouchableOpacity
+                                onPress={handleLogout}
+                                activeOpacity={0.8}
+                                style={[styles.logoutConfirmButton, { backgroundColor: theme.colors.error }]}
+                            >
+                                <Text style={styles.logoutConfirmText}>Sí, Cerrar Sesión</Text>
+                            </TouchableOpacity>
                         </Dialog.Actions>
                     </Dialog>
                 </Portal>
@@ -396,5 +420,21 @@ const styles = StyleSheet.create({
     dialogText: {
         textAlign: 'center',
         opacity: 0.8,
+    },
+    dialogCancelText: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    logoutConfirmButton: {
+        borderRadius: BORDER_RADIUS.MD,
+        minHeight: 40,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    logoutConfirmText: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
     },
 });

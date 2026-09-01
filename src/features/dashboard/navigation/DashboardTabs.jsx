@@ -15,7 +15,13 @@ const Tab = createBottomTabNavigator();
 export default function DashboardTabs() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
-    const { user } = useAppContext();
+    const { user, tabsLocked, closeLockedModal } = useAppContext();
+
+    const handleLockedTabPress = (event) => {
+        if (!tabsLocked) return;
+        event.preventDefault();
+        closeLockedModal();
+    };
 
     const isPasajero = user?.role === 'pasajero';
 
@@ -23,6 +29,7 @@ export default function DashboardTabs() {
         <Tab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
+                freezeOnBlur: true,
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
                 tabBarLabelStyle: {
@@ -35,6 +42,7 @@ export default function DashboardTabs() {
                     backgroundColor: theme.colors.elevation.level2,
                     borderTopWidth: 0,
                     elevation: 5,
+                    opacity: 1,
                 },
                 tabBarIcon: ({ color }) => {
                     let iconName = "home";
@@ -66,6 +74,10 @@ export default function DashboardTabs() {
                 name={ROUTES.INICIO}
                 component={InicioScreen}
                 options={{ tabBarLabel: "Inicio" }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
             <Tab.Screen
                 name={ROUTES.CARRERAS}
@@ -73,11 +85,19 @@ export default function DashboardTabs() {
                 options={{
                     tabBarLabel: isPasajero ? "Historial" : "Comentarios"
                 }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
             <Tab.Screen
                 name={ROUTES.PERFIL}
                 component={PerfilScreen}
                 options={{ tabBarLabel: "Perfil" }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
         </Tab.Navigator>
     );

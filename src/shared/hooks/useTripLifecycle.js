@@ -390,7 +390,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     // (incluso si nuestra cuenta global es de tipo "conductor", podemos pedir un viaje como pasajero)
     if (!isDriverOfThisTrip) {
       channel.listen(".TripLocationUpdated", (event) => {
-        console.log("TripLocationUpdated REBIDO EN FRONTEND:", event);
         setActiveTrip((prev) => normalizeTripData(prev, event));
       });
     }

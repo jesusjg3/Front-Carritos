@@ -7,7 +7,6 @@ import { View } from "react-native";
 
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
 import { ROUTES } from "./src/core/constants/routes";
-import { getUserRole } from "./src/core/utils/normalization";
 import GlobalAlertDialog from "./src/shared/components/GlobalAlertDialog";
 import { usePushNotifications } from "./src/shared/hooks/usePushNotifications";
 
@@ -30,15 +29,6 @@ function AppContent() {
         <ActivityIndicator animating size="large" />
       </View>
     );
-  }
-
-  const userRole = getUserRole(user);
-
-  if (user) {
-    console.log('Usuario logeado:', {
-      name: user.name,
-      role: userRole
-    });
   }
 
   return (

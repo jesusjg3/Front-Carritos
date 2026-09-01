@@ -71,8 +71,8 @@ export const useLocationLogic = (user, isPasajero) => {
             watchSubscription.current = await Location.watchPositionAsync(
                 {
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 3000, // cada 3s
-                    distanceInterval: 5, // Aumentar a 5m para evitar "saltos" pequeños
+                    timeInterval: 5000,
+                    distanceInterval: 8,
                 },
                 (newLocation) => {
                     // Filtrar lecturas de baja precisión (> 15m) para evitar "teletransportes"

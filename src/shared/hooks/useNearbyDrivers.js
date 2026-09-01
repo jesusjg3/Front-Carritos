@@ -137,9 +137,23 @@ export const useNearbyDrivers = (
             ? new Date(d.updated_at).getTime()
             : Date.now(),
         }));
-        setNearbyDrivers(mappedDrivers);
+        setNearbyDrivers((previousDrivers) => {
+          const unchanged =
+            previousDrivers.length === mappedDrivers.length &&
+            mappedDrivers.every((driver) => {
+              const previous = previousDrivers.find((item) => item.id === driver.id);
+              return previous &&
+                previous.latitude === driver.latitude &&
+                previous.longitude === driver.longitude &&
+                previous.lat === driver.lat &&
+                previous.lng === driver.lng &&
+                previous.last_update === driver.last_update;
+            });
+
+          return unchanged ? previousDrivers : mappedDrivers;
+        });
       } else {
-        setNearbyDrivers([]);
+        setNearbyDrivers((previousDrivers) => previousDrivers.length ? [] : previousDrivers);
       }
     } catch (err) {
       console.error(
@@ -172,14 +186,15 @@ export const useNearbyDrivers = (
     if (!isActive) return;
 
     const cleanupInterval = setInterval(() => {
-      setNearbyDrivers((prev) =>
-        prev.filter((d) => {
+      setNearbyDrivers((prev) => {
+        const next = prev.filter((d) => {
           // Si no tiene last_update (vino del fetch inicial), lo conservamos momentaneamente
           const lastUpdate = d.last_update || Date.now();
           // Aumentamos a 10 minutos (600000ms) para que no desaparezca si minimiza la app
           return Date.now() - lastUpdate < 600000;
-        }),
-      );
+        });
+        return next.length === prev.length ? prev : next;
+      });
     }, 15000);
 
     return () => clearInterval(cleanupInterval);

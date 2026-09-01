@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
 import { API_ROUTES } from "../../Config/Routes";
@@ -10,6 +10,16 @@ export function AppContextProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
+    const [tabsLocked, setTabsLocked] = useState(false);
+    const [tabLockCloseHandler, setTabLockCloseHandler] = useState(null);
+
+    const setTabsLockCloseHandler = useCallback((handler) => {
+        setTabLockCloseHandler(() => handler);
+    }, []);
+
+    const closeLockedModal = useCallback(() => {
+        tabLockCloseHandler?.();
+    }, [tabLockCloseHandler]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Global custom alert state
@@ -201,12 +211,12 @@ export function AppContextProvider({ children }) {
     };
 
     const logout = async () => {
+        // Actualizar la interfaz primero; el borrado persistente no debe
+        // mantener visible el diálogo mientras AsyncStorage responde.
+        setUser(null);
+        setToken(null);
         try {
-            // Primero limpiamos de AsyncStorage
             await clearSession();
-            // Luego, limpiamos en memoria
-            setUser(null);
-            setToken(null);
         } catch (error) {
             console.error('Error al hacer logout:', error);
         }
@@ -222,6 +232,10 @@ export function AppContextProvider({ children }) {
                 logout,
                 isDarkTheme,
                 toggleTheme,
+                tabsLocked,
+                setTabsLocked,
+                setTabsLockCloseHandler,
+                closeLockedModal,
                 isLoading,
                 paperTheme: isDarkTheme ? PaperDarkTheme : PaperLightTheme,
                 showAlert,

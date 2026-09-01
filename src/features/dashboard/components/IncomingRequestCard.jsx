@@ -52,7 +52,7 @@ export default function IncomingRequestCard({
     return (
         <Card style={[styles.card, { backgroundColor: theme.colors.surface, top: Math.max(insets.top + 20, 36) }]}>
             <View style={styles.headerRow}>
-                <View style={styles.iconContainer}>
+                <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '10' }]}>
                     <MaterialCommunityIcons name="account-plus" size={20} color={theme.colors.primary} />
                 </View>
                 <View style={styles.headerText}>

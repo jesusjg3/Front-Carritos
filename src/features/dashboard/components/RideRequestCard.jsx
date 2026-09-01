@@ -62,10 +62,10 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                 </LinearGradient>
 
                 {/* Tactile Ticket Notches and Dashed Divider */}
-                <View style={[styles.notchContainer, { backgroundColor: theme.colors.surface }]}>
-                    <View style={styles.leftNotch} />
-                    <View style={styles.dashedDividerLine} />
-                    <View style={styles.rightNotch} />
+                    <View style={[styles.notchContainer, { backgroundColor: theme.colors.surface }]}>
+                    <View style={[styles.leftNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
+                    <View style={[styles.dashedDividerLine, { borderColor: theme.colors.outline }]} />
+                    <View style={[styles.rightNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
                 </View>
 
                 {/* Central Section: High-End Route Details and Stats */}
@@ -113,7 +113,7 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                 {/* Bottom Section: Premium Actions (Pill shape side by side) */}
                     <View style={[styles.actions, { backgroundColor: theme.colors.surface }]}>
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.rejectPill]}
+                        style={[styles.actionButton, styles.rejectPill, { backgroundColor: theme.colors.surface }]}
                         onPress={onReject}
                         activeOpacity={0.85}
                     >

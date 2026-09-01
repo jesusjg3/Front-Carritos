@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -55,6 +55,7 @@ export default function InicioScreen() {
 
   // Crear ref del UniversalMap
   const webViewRef = useRef(null);
+  const mapSource = useMemo(() => ({ html: mapaHtml }), []);
   const hasCenteredRef = useRef(false);
   const lastRouteRef = useRef({
     startLat: 0,
@@ -98,7 +99,7 @@ export default function InicioScreen() {
     useDestinations(user, isPasajero);
 
   // Hook para actualizar ubicación del conductor
-  const { location: driverLocation } = useDriverLocation(user, token, isOnline);
+  useDriverLocation(user, token, isOnline, ubicacion);
 
   // Hook para obtener conductores cercanos (solo pasajeros)
   const { nearbyDrivers, loading: loadingDrivers } = useNearbyDrivers(
@@ -174,7 +175,6 @@ export default function InicioScreen() {
         });
 
         channel.listen(".driver.disconnect.rejected", () => {
-          console.log("WebSocket event received: driver.disconnect.rejected");
           setIsWaitingDisconnect(false);
 
           // Fallback to native Alert just in case custom showAlert gets hidden
@@ -514,7 +514,7 @@ export default function InicioScreen() {
 
   const handleToggleStatus = () => setIsOnline(!isOnline);
 
-  const handleWebViewMessage = (event) => {
+  const handleWebViewMessage = useCallback((event) => {
     try {
       const data =
         typeof event.nativeEvent.data === "string"
@@ -534,7 +534,7 @@ export default function InicioScreen() {
     } catch (err) {
       console.error("Error parsing map message:", err);
     }
-  };
+  }, [isPasajero]);
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -732,7 +732,7 @@ export default function InicioScreen() {
             >
               Buscando Conductor
             </Text>
-            <Text variant="bodyMedium" style={styles.searchingSubtitle}>
+            <Text variant="bodyMedium" style={[styles.searchingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Conectando con el carrito más cercano a tu ubicación...
             </Text>
           </View>
@@ -797,28 +797,28 @@ export default function InicioScreen() {
             </View>
 
             {/* Ticket Punch Notches and Separator */}
-            <View style={styles.ticketNotchContainer}>
-              <View style={styles.ticketLeftNotch} />
-              <View style={styles.ticketDashedDivider} />
-              <View style={styles.ticketRightNotch} />
+            <View style={[styles.ticketNotchContainer, { backgroundColor: theme.colors.surface }]}>
+              <View style={[styles.ticketLeftNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
+              <View style={[styles.ticketDashedDivider, { borderColor: theme.colors.outline }]} />
+              <View style={[styles.ticketRightNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
             </View>
 
             {/* Ticket Footer details */}
             <View style={[styles.ticketFooter, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.ticketInfoRow}>
-                <View style={styles.ticketInfoPill}>
+                <View style={[styles.ticketInfoPill, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={15}
                     color="#1E88E5"
                     style={{ marginRight: 6 }}
                   />
-                  <Text style={styles.ticketInfoPillText}>~2 min esp.</Text>
+                  <Text style={[styles.ticketInfoPillText, { color: theme.colors.onSurfaceVariant }]}>~2 min esp.</Text>
                 </View>
                 <View
                   style={[
                     styles.ticketInfoPill,
-                    { backgroundColor: "#10B98110", borderColor: "#10B98125" },
+                    { backgroundColor: "#10B98118", borderColor: "#10B98140" },
                   ]}
                 >
                   <MaterialCommunityIcons
@@ -840,7 +840,7 @@ export default function InicioScreen() {
           {/* Action buttons (Clean and modern Cancel Button) */}
           <View style={styles.searchingFooter}>
             <TouchableOpacity
-              style={[styles.cancelRequestPill, { backgroundColor: theme.colors.surface }]}
+              style={[styles.cancelRequestPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.error + '70' }]}
               onPress={() => {
                 cancelTrip();
                 setDestinoSeleccionado(null);
@@ -872,7 +872,7 @@ export default function InicioScreen() {
         <View style={[styles.mapContainer, { flex: 1 }]}>
           <UniversalMap
             ref={webViewRef}
-            source={{ html: mapaHtml }}
+            source={mapSource}
             style={styles.map}
             onMessage={handleWebViewMessage}
             onLoadEnd={() => {
@@ -958,7 +958,7 @@ export default function InicioScreen() {
       <View style={styles.mapContainer}>
         <UniversalMap
           ref={webViewRef}
-          source={{ html: mapaHtml }}
+          source={mapSource}
           style={styles.map}
           onMessage={handleWebViewMessage}
           onLoadEnd={() => {
@@ -1012,14 +1012,14 @@ export default function InicioScreen() {
                 />
               </View>
               <View style={styles.searchTextContainer}>
-                <Text style={styles.searchTextLabel}>¿A dónde vas?</Text>
+                <Text style={[styles.searchTextLabel, { color: theme.colors.onSurfaceVariant }]}>¿A dónde vas?</Text>
                 <Text
                   numberOfLines={1}
                   style={[
                     styles.searchTextValue,
                     destinoSeleccionado
                       ? { color: theme.colors.primary, fontWeight: "bold" }
-                      : { color: "#888" },
+                      : { color: theme.colors.onSurfaceVariant },
                   ]}
                 >
                   {destinoSeleccionado
@@ -1131,7 +1131,6 @@ const styles = StyleSheet.create({
   searchTextLabel: {
     fontSize: 10,
     fontWeight: "bold",
-    color: "#6C757D",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -1170,7 +1169,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
     lineHeight: 20,
-    color: "#64748B",
     paddingHorizontal: 16,
   },
   radarCard: {
@@ -1206,7 +1204,6 @@ const styles = StyleSheet.create({
   searchingTicket: {
     width: "100%",
     maxWidth: 340,
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     ...SHADOWS.LARGE,
     borderWidth: 0,
@@ -1241,7 +1238,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: "#FFFFFF",
   },
   searchingOriginDot: {
     width: 8,
@@ -1300,7 +1296,6 @@ const styles = StyleSheet.create({
   },
   ticketNotchContainer: {
     height: 16,
-    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1309,22 +1304,18 @@ const styles = StyleSheet.create({
   ticketLeftNotch: {
     width: 12,
     height: 16,
-    backgroundColor: "#F8FAFC",
     borderTopRightRadius: 8,
     borderBottomRightRadius: 8,
     marginLeft: -6,
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
   },
   ticketRightNotch: {
     width: 12,
     height: 16,
-    backgroundColor: "#F8FAFC",
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
     marginRight: -6,
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
   },
   ticketDashedDivider: {
     flex: 1,
@@ -1338,7 +1329,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 12,
     paddingTop: 8,
-    backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
@@ -1351,16 +1341,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "#DBEAFE",
     paddingVertical: 6,
     borderRadius: 20,
   },
   ticketInfoPillText: {
     fontSize: 11,
     fontWeight: "bold",
-    color: "#1E40AF",
   },
   searchingFooter: {
     width: "100%",
@@ -1372,7 +1359,6 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#EF4444",
     flexDirection: "row",

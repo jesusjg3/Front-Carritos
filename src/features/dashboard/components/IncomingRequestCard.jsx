@@ -74,22 +74,23 @@ export default function IncomingRequestCard({
 
             <Card.Actions style={styles.cardActions}>
                 <View style={styles.buttonRow}>
-                    <Button 
-                        mode="outlined" 
-                        textColor={theme.colors.error} 
-                        style={[styles.actionButton, { borderColor: theme.colors.error + '50' }]} 
+                    <Button
+                        mode="outlined"
+                        textColor={theme.colors.error}
+                        style={[styles.actionButton, { borderColor: theme.colors.error + '50' }]}
                         contentStyle={styles.actionButtonContent}
                         onPress={() => resolve(onReject)}
                         icon="close"
                     >
                         Ignorar
                     </Button>
-                    <Button 
-                        mode="contained" 
-                        style={[styles.actionButton, { backgroundColor: '#2E7D32' }]} 
+                    <Button
+                        mode="contained"
+                        style={[styles.actionButton, { backgroundColor: theme.colors.success }]}
                         contentStyle={styles.actionButtonContent}
                         onPress={() => resolve(onAccept)}
                         icon="check"
+                        textColor={theme.colors.onSuccess}
                     >
                         Aceptar
                     </Button>
@@ -100,8 +101,8 @@ export default function IncomingRequestCard({
 }
 
 const styles = StyleSheet.create({
-    card: { 
-        position: 'absolute', 
+    card: {
+        position: 'absolute',
         top: 12,
         left: 10,
         right: 10,
@@ -148,8 +149,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
     },
-    userInfo: { 
-        flexDirection: 'row', 
+    userInfo: {
+        flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 4,
     },
@@ -164,18 +165,18 @@ const styles = StyleSheet.create({
         fontSize: 11,
         marginTop: 2,
     },
-    cardActions: { 
+    cardActions: {
         paddingHorizontal: 12,
         paddingBottom: 6,
         paddingTop: 0,
     },
-    buttonRow: { 
-        flexDirection: 'row', 
+    buttonRow: {
+        flexDirection: 'row',
         flex: 1,
         gap: 8,
     },
-    actionButton: { 
-        flex: 1, 
+    actionButton: {
+        flex: 1,
         borderRadius: BORDER_RADIUS.LG,
         ...SHADOWS.SMALL,
     },

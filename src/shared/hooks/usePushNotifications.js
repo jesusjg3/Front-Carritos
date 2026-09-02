@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import axios from 'axios';
-import { API_ROUTES } from '../../core/constants/routes';
 import { useAppContext } from '../contexts/AppContext';
 
 export const usePushNotifications = () => {
@@ -73,7 +72,7 @@ export const usePushNotifications = () => {
                 console.warn('Error removing notification subscription:', e);
             }
         };
-    }, [isLoading, user, token]);
+    }, [isLoading, user?.id, token]);
 
     async function sendTokenToBackend(expoToken, userToken) {
         try {

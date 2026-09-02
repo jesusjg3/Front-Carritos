@@ -66,7 +66,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
     };
 
     fetchCurrentTrip();
-  }, [user, token, isPasajero]);
+  }, [user?.id, token, isPasajero]);
 
   // Helper para normalizar la estructura del viaje y asegurar coordenadas accesibles
   const normalizeTripData = (trip, extraDriverData = {}) => {
@@ -148,18 +148,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         .listen(".TripTaken", (event) =>
           setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
         )
-        .listen(".TripRequestExpired", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        )
-        .listen("TripRequestExpired", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        )
-        .listen(".TripRequestCancelled", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        )
-        .listen("TripRequestCancelled", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        )
         .listen(".TripCancelled", (event) => {
           setRequestQueue((prev) => prev.filter((req) => req.id != event.id));
           setActiveTrip((prev) => {
@@ -174,28 +162,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             }
             return prev;
           });
-        })
-        .listen("TripCancelled", (event) => {
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id));
-          setActiveTrip((prev) => {
-            if (prev && prev.id == event.id) {
-              showAlert(
-                "Viaje Cancelado",
-                "El viaje ha sido cancelado.",
-                "warning",
-              );
-              setIsSearching(false);
-              return null;
-            }
-            return prev;
-          });
-        })
-        .listen(".RequestCancelled", (event) =>
-          setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-        )
-          .listen("RequestCancelled", (event) =>
-            setRequestQueue((prev) => prev.filter((req) => req.id != event.id)),
-          );
+        });
       }
 
       if (user?.id) {
@@ -217,7 +184,6 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
           passengerChannel
             .listen(".TripAccepted", (e) => handleTripUpdate(e, "TripAccepted"))
             .listen(".TripStarted", (e) => handleTripUpdate(e, "TripStarted"))
-            .listen("TripStarted", (e) => handleTripUpdate(e, "TripStarted"))
             .listen(".TripLocationUpdated", (event) => {
               setActiveTrip((prev) => normalizeTripData(prev, event));
             })
@@ -276,11 +242,12 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 clearTimeout(tripTimeoutRef.current);
                 tripTimeoutRef.current = null;
               }
-              setTripToRate(event.trip);
               setActiveTrip(null);
               setIsSearching(false);
               setRequestAttempt(0);
-              showAlert("¡Destino alcanzado!", "¡Has llegado a tu destino!", "success");
+              showAlert("¡Destino alcanzado!", "¡Has llegado a tu destino!", "success", {
+                onConfirm: () => setTripToRate(event.trip)
+              });
             })
             .listen(".TripFinished", (event) => {
               if (!activeTripIdRef.current) return;
@@ -291,11 +258,12 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
                 clearTimeout(tripTimeoutRef.current);
                 tripTimeoutRef.current = null;
               }
-              setTripToRate(event.trip);
               setActiveTrip(null);
               setIsSearching(false);
               setRequestAttempt(0);
-              showAlert("¡Destino alcanzado!", "¡Has llegado a tu destino!", "success");
+              showAlert("¡Destino alcanzado!", "¡Has llegado a tu destino!", "success", {
+                onConfirm: () => setTripToRate(event.trip)
+              });
             });
         }
         
@@ -307,21 +275,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
             .listen(".PassengerJoinRequested", (event) => {
               appendIncomingRequest(event);
             })
-            .listen("PassengerJoinRequested", (event) => {
-              appendIncomingRequest(event);
-            })
             .listen(".PassengerCancelledTrip", (event) => {
-              setActiveTrip((prev) => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  passengers: prev.passengers?.map(p => 
-                    p.id === event.passenger_id ? { ...p, status: 'cancelled' } : p
-                  )
-                };
-              });
-            })
-            .listen("PassengerCancelledTrip", (event) => {
               setActiveTrip((prev) => {
                 if (!prev) return prev;
                 return {
@@ -375,7 +329,7 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
         tripTimeoutRef.current = null;
       }
     }
-  }, [token, isOnline, user, isPasajero]); // ¡Independiente de activeTrip!
+  }, [token, isOnline, user?.id, isPasajero]); // ¡Independiente de activeTrip!
 
   // 2. Suscripciones Dinámicas para un Viaje Activo (Ubicación en Tiempo Real)
   useEffect(() => {
@@ -597,11 +551,13 @@ export const useTripLifecycle = (user, token, isOnline, isPasajero) => {
       if (response.ok) {
         const finishedTrip = activeTrip;
         resetTripState();
-        setTripToRate(finishedTrip);
         showAlert(
           "¡Viaje Completado!",
           "¡Viaje finalizado con éxito!",
           "success",
+          {
+            onConfirm: () => setTripToRate(finishedTrip)
+          }
         );
       } else {
         showAlert(

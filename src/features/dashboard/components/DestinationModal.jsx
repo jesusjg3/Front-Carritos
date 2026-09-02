@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from "react-native";
 import { Text, Button, Divider, ActivityIndicator, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
-import FastModal from "../../../shared/components/FastModal";
+import AppModal from "../../../shared/components/AppModal";
 
 export default function DestinationModal({ 
     visible, 
@@ -18,7 +19,10 @@ export default function DestinationModal({
     ubicacionActual
 }) {
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
     const [passengersCount, setPassengersCount] = useState(1);
+    const modalHeight = Math.min(height * 0.74, 500);
 
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
         const R = 6371; 
@@ -32,13 +36,13 @@ export default function DestinationModal({
     };
 
     return (
-        <FastModal
+        <AppModal
             visible={visible}
             onDismiss={onDismiss}
             animation="slide"
+            placement="bottom"
         >
-            <Pressable style={styles.modalOverlay} onPress={onDismiss}>
-                <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} onPress={(e) => e.stopPropagation()}>
+                <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, height: modalHeight, paddingBottom: Math.max(12, insets.bottom) }]}>
                     {/* Sliding drag indicator bar */}
                     <View style={[styles.dragIndicator, { backgroundColor: theme.colors.outline }]} />
                     
@@ -171,19 +175,21 @@ export default function DestinationModal({
                             Pedir Carrito
                         </Button>
                     </View>
-                </Pressable>
-            </Pressable>
-        </FastModal>
+                </View>
+        </AppModal>
     );
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' },
-    modalContent: { 
+    modalContent: {
+        width: '100%',
+        flexDirection: 'column',
+        flexShrink: 1,
         borderTopLeftRadius: 28, 
         borderTopRightRadius: 28, 
-        paddingBottom: 16,
-        maxHeight: '76%',
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        paddingBottom: 12,
         ...SHADOWS.LARGE,
         borderWidth: 0,
     },
@@ -206,7 +212,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     divider: { marginTop: 10, marginBottom: 10 },
-    destinosList: { maxHeight: 280, paddingHorizontal: 12 },
+    destinosList: { flex: 1, minHeight: 0, paddingHorizontal: 12 },
     loadingContainer: { padding: 20, alignItems: 'center' },
     loadingText: { marginTop: 12, color: 'gray' },
     errorContainer: { padding: 20, alignItems: 'center' },

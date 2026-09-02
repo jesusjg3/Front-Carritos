@@ -40,7 +40,7 @@ export const useNearbyDrivers = (
   }, [currentLocation]);
 
   useEffect(() => {
-    if (!user || user.role !== "pasajero" || !token || !isActive) {
+    if (!user?.id || user.role !== "pasajero" || !token || !isActive) {
       setNearbyDrivers([]);
       return;
     }
@@ -106,7 +106,7 @@ export const useNearbyDrivers = (
     return () => {
       if (echo) echo.disconnect();
     };
-  }, [user, token, isActive]);
+  }, [user?.id, user?.role, token, isActive]);
 
   const fetchNearbyDrivers = useCallback(async () => {
     const location = latestLocation.current;
@@ -171,7 +171,7 @@ export const useNearbyDrivers = (
   );
 
   useEffect(() => {
-    if (!user || user.role !== "pasajero" || !token || !isActive || !hasLocation) {
+    if (!user?.id || user.role !== "pasajero" || !token || !isActive || !hasLocation) {
       return;
     }
 
@@ -179,7 +179,7 @@ export const useNearbyDrivers = (
     const refreshInterval = setInterval(fetchNearbyDrivers, 30000);
 
     return () => clearInterval(refreshInterval);
-  }, [user, token, isActive, hasLocation, fetchNearbyDrivers]);
+  }, [user?.id, user?.role, token, isActive, hasLocation, fetchNearbyDrivers]);
 
   // Limpieza local independiente del currentLocation para que no se reinicie el intervalo
   useEffect(() => {

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button, Portal, Dialog, Paragraph } from "react-native-paper";
+import { Card, Text, Avatar, Divider, Switch, List, useTheme, Button } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import ReasonModal from "../../../shared/components/ReasonModal";
 import { createEcho } from "../../../core/services/echo";
 import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
+import AppModal from "../../../shared/components/AppModal";
 
 export default function PerfilScreen() {
     const { user, token, showAlert, isDarkTheme, toggleTheme, logout, setTabsLocked, setTabsLockCloseHandler } = useAppContext();
@@ -20,9 +21,12 @@ export default function PerfilScreen() {
     const [ratings, setRatings] = useState([]);
 
     useEffect(() => {
-        setTabsLocked(complaintModalVisible || isSendingComplaint);
-        if (complaintModalVisible || isSendingComplaint) {
+        const modalOpen = showLogoutDialog || disconnectModalVisible || complaintModalVisible || isSendingComplaint;
+        setTabsLocked(modalOpen);
+        if (modalOpen) {
             setTabsLockCloseHandler(() => {
+                setShowLogoutDialog(false);
+                setDisconnectModalVisible(false);
                 setComplaintModalVisible(false);
                 setIsSendingComplaint(false);
             });
@@ -46,7 +50,8 @@ export default function PerfilScreen() {
                 });
                 if (!response.ok) return;
                 const data = await response.json();
-                if (!cancelled && Array.isArray(data)) setRatings(data);
+                const pageItems = Array.isArray(data) ? data : (data.data || []);
+                if (!cancelled) setRatings(pageItems);
             } catch (error) {
                 console.warn("No se pudo cargar el resumen de calificaciones:", error);
             }
@@ -68,7 +73,7 @@ export default function PerfilScreen() {
                     key={star}
                     name={star <= Math.round(ratingAverage) ? "star" : "star-outline"}
                     size={20}
-                    color={star <= Math.round(ratingAverage) ? "#FBBF24" : theme.colors.outline}
+                    color={star <= Math.round(ratingAverage) ? theme.colors.warning : theme.colors.outline}
                 />
             ))}
         </View>
@@ -96,7 +101,7 @@ export default function PerfilScreen() {
             echo.leave(`driver.${user.id}`);
             echo.disconnect();
         };
-    }, [user, token]);
+    }, [user?.id, user?.role, token]);
 
     const handleLogout = () => {
         setShowLogoutDialog(false);
@@ -247,14 +252,14 @@ export default function PerfilScreen() {
                             <List.Item
                                 title={isWaitingDisconnect ? "Desconexión Solicitada..." : "Solicitar Desconexión"}
                                 description="Pide permiso al administrador para salir de línea"
-                                left={(props) => <MaterialCommunityIcons name="power-plug-off" size={24} color="#EF4444" style={styles.listIcon} />}
+                                left={(props) => <MaterialCommunityIcons name="power-plug-off" size={24} color={theme.colors.error} style={styles.listIcon} />}
                                 onPress={() => !isWaitingDisconnect && setDisconnectModalVisible(true)}
                             />
                         ) : (
                             <List.Item
                                 title={isSendingComplaint ? "Enviando queja..." : "Reportar una Queja"}
                                 description="Envía un reporte sobre tu experiencia"
-                                left={(props) => <MaterialCommunityIcons name="alert-octagon-outline" size={24} color="#F59E0B" style={styles.listIcon} />}
+                                left={(props) => <MaterialCommunityIcons name="alert-octagon-outline" size={24} color={theme.colors.warning} style={styles.listIcon} />}
                                 onPress={() => !isSendingComplaint && setComplaintModalVisible(true)}
                             />
                         )}
@@ -274,16 +279,18 @@ export default function PerfilScreen() {
                 </Button>
 
                 {/* Dialog Confirm */}
-                <Portal>
-                    <Dialog visible={showLogoutDialog} onDismiss={() => setShowLogoutDialog(false)} style={styles.dialog}>
-                        <Dialog.Icon icon="alert-circle-outline" color={theme.colors.error} size={40} />
-                        <Dialog.Title style={styles.dialogTitle}>¿Cerrar Sesión?</Dialog.Title>
-                        <Dialog.Content>
-                            <Paragraph style={styles.dialogText}>
+                <AppModal visible={showLogoutDialog} onDismiss={() => setShowLogoutDialog(false)}>
+                    <View style={[styles.dialog, { backgroundColor: theme.colors.surface }]}>
+                        <View style={[styles.dialogIcon, { backgroundColor: theme.colors.error + '18' }]}>
+                            <MaterialCommunityIcons name="alert-circle-outline" color={theme.colors.error} size={34} />
+                        </View>
+                        <Text style={[styles.dialogTitle, { color: theme.colors.onSurface }]}>¿Cerrar Sesión?</Text>
+                        <View style={styles.dialogContent}>
+                            <Text style={[styles.dialogText, { color: theme.colors.onSurfaceVariant }]}>
                                 ¿Estás seguro de que deseas cerrar sesión en el dispositivo? Tendrás que introducir tus credenciales la próxima vez.
-                            </Paragraph>
-                        </Dialog.Content>
-                        <Dialog.Actions>
+                            </Text>
+                        </View>
+                        <View style={styles.dialogActions}>
                             <Button
                                 onPress={() => setShowLogoutDialog(false)}
                                 textColor={theme.colors.onSurfaceVariant}
@@ -296,11 +303,11 @@ export default function PerfilScreen() {
                                 activeOpacity={0.8}
                                 style={[styles.logoutConfirmButton, { backgroundColor: theme.colors.error }]}
                             >
-                                <Text style={styles.logoutConfirmText}>Sí, Cerrar Sesión</Text>
+                            <Text style={[styles.logoutConfirmText, { color: theme.colors.onError }]}>Sí, Cerrar Sesión</Text>
                             </TouchableOpacity>
-                        </Dialog.Actions>
-                    </Dialog>
-                </Portal>
+                        </View>
+                    </View>
+                </AppModal>
 
                 <ReasonModal
                     visible={disconnectModalVisible}
@@ -411,7 +418,19 @@ const styles = StyleSheet.create({
         paddingVertical: 3,
     },
     dialog: {
+        width: '100%',
+        maxWidth: 340,
         borderRadius: BORDER_RADIUS.XL,
+        padding: 20,
+        alignItems: 'center',
+    },
+    dialogIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
     },
     dialogTitle: {
         textAlign: 'center',
@@ -420,6 +439,17 @@ const styles = StyleSheet.create({
     dialogText: {
         textAlign: 'center',
         opacity: 0.8,
+    },
+    dialogContent: {
+        marginTop: 10,
+        marginBottom: 16,
+    },
+    dialogActions: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 8,
     },
     dialogCancelText: {
         fontSize: 13,

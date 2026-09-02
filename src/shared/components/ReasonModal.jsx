@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, Button, useTheme, Dialog, Portal } from 'react-native-paper';
+import { Text, Button, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SHADOWS, BORDER_RADIUS } from '../../core/constants/theme';
+import { BORDER_RADIUS } from '../../core/constants/theme';
+import { MODAL_ANIMATION_MS } from '../../core/constants/timing';
 import { TextInput } from 'react-native';
+import AppModal from './AppModal';
 
 export default function ReasonModal({ visible, onDismiss, onConfirm, title, placeholder }) {
     const theme = useTheme();
     const [reason, setReason] = useState('');
+    const resetTimerRef = useRef(null);
+
+    useEffect(() => {
+        if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+        if (!visible) {
+            resetTimerRef.current = setTimeout(() => setReason(''), MODAL_ANIMATION_MS);
+        }
+        return () => {
+            if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+        };
+    }, [visible]);
 
     const handleConfirm = () => {
         if (!reason.trim()) return;
@@ -16,11 +29,11 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
     };
 
     return (
-        <Portal>
-            <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
-                <View style={styles.modalContent}>
+        <AppModal visible={visible} onDismiss={onDismiss}>
+                <View style={[styles.dialog, { backgroundColor: theme.colors.surface }]}>
+                  <View style={styles.modalContent}>
                     <View style={[styles.iconContainer, { backgroundColor: theme.colors.error + '15' }]}>
-                        <MaterialCommunityIcons name="alert-circle" size={32} color={theme.colors.error} />
+                        <MaterialCommunityIcons name="alert-circle-outline" size={32} color={theme.colors.error} />
                     </View>
                     
                     <Text style={[styles.title, { color: theme.colors.onSurface }]}>{title}</Text>
@@ -38,6 +51,7 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
                         multiline
                         numberOfLines={3}
                         textAlignVertical="top"
+                        scrollEnabled
                     />
 
                     <View style={styles.buttonRow}>
@@ -54,16 +68,19 @@ export default function ReasonModal({ visible, onDismiss, onConfirm, title, plac
                             Confirmar
                         </Button>
                     </View>
+                  </View>
                 </View>
-            </Dialog>
-        </Portal>
+        </AppModal>
     );
 }
 
 const styles = StyleSheet.create({
     dialog: {
+        width: '100%',
         maxWidth: 340,
         alignSelf: 'center',
+        borderRadius: BORDER_RADIUS.XL,
+        overflow: 'hidden',
     },
     modalContent: {
         width: '100%',
@@ -83,15 +100,16 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 12,
         textAlign: 'center',
-        color: '#333',
     },
     input: {
         width: '100%',
+        height: 88,
+        maxHeight: 88,
         borderWidth: 1,
         borderRadius: BORDER_RADIUS.MD,
         padding: 12,
         fontSize: 15,
-        minHeight: 64,
+        textAlignVertical: 'top',
         marginBottom: 12,
     },
     buttonRow: {

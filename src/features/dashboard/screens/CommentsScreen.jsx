@@ -1,23 +1,31 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from '@react-navigation/native';
-import { View, FlatList, StyleSheet } from "react-native";
+import { View, FlatList, StyleSheet, Platform } from "react-native";
 import { Text, Card, useTheme, ActivityIndicator, Avatar, Divider } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
-import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function CommentsScreen() {
     const { token } = useAppContext();
     const theme = useTheme();
     const [ratings, setRatings] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const pageRef = useRef(1);
+    const hasMoreRef = useRef(true);
+    const loadingRef = useRef(false);
 
-    const fetchRatings = useCallback(async () => {
+    const fetchRatings = useCallback(async (pageNumber = 1, append = false) => {
+        if (loadingRef.current || (append && !hasMoreRef.current)) return;
+
+        loadingRef.current = true;
+        if (append) setLoadingMore(true);
+        else setLoading(true);
         try {
-            setLoading(true);
-            const response = await fetch(`${API_ROUTES.BASE_URL}/ratings`, {
+            const response = await fetch(API_ROUTES.BASE_URL + '/ratings?page=' + pageNumber + '&per_page=12', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -25,19 +33,27 @@ export default function CommentsScreen() {
             });
             const data = await response.json();
             if (response.ok) {
-                setRatings(data);
+                const pageItems = Array.isArray(data) ? data : (data.data || []);
+                const lastPage = Array.isArray(data) ? pageNumber : Number(data.last_page || pageNumber);
+                setRatings((previousRatings) => append ? [...previousRatings, ...pageItems] : pageItems);
+                pageRef.current = pageNumber;
+                hasMoreRef.current = pageNumber < lastPage;
             }
         } catch (error) {
             console.error("Error fetching ratings", error);
         } finally {
+            loadingRef.current = false;
             setLoading(false);
+            setLoadingMore(false);
         }
     }, [token]);
 
     useFocusEffect(
-        useCallback(() => {
-            fetchRatings();
-        }, [fetchRatings])
+       useCallback(() => {
+            pageRef.current = 1;
+            hasMoreRef.current = true;
+            fetchRatings(1, false);
+       }, [fetchRatings])
     );
 
     const getInitials = (name) => {
@@ -122,8 +138,17 @@ export default function CommentsScreen() {
                     data={ratings}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderItem}
-                    contentContainerStyle={styles.list}
-                    showsVerticalScrollIndicator={false}
+                   contentContainerStyle={styles.list}
+                   showsVerticalScrollIndicator={false}
+                    initialNumToRender={6}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    onEndReached={() => fetchRatings(pageRef.current + 1, true)}
+                    onEndReachedThreshold={0.4}
+                    ListFooterComponent={loadingMore ? (
+                        <ActivityIndicator style={styles.loadingMore} color={theme.colors.primary} />
+                    ) : null}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <MaterialCommunityIcons name="comment-text-multiple-outline" size={48} color={theme.colors.onSurfaceVariant} />
@@ -222,10 +247,13 @@ const styles = StyleSheet.create({
         flex: 1,
         fontStyle: 'italic',
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+   loadingContainer: {
+       flex: 1,
+       justifyContent: 'center',
+       alignItems: 'center',
+   },
+    loadingMore: {
+        marginVertical: 12,
     },
     emptyContainer: {
         alignItems: 'center',

@@ -9,6 +9,13 @@ export const mapaHtml = `
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" />
     <style>
+        :root {
+            --map-primary: #1E88E5;
+            --map-primary-dark: #144985;
+            --map-pickup: #1976D2;
+            --map-destination: #d32f2f;
+            --map-marker-border: #ffffff;
+        }
         html, body, #map { height: 100%; margin: 0; padding: 0; }
         .user-marker-container {
             position: relative;
@@ -21,7 +28,7 @@ export const mapaHtml = `
             height: 40px;
             background-size: cover;
             border-radius: 50%;
-            border: 3px solid #1E88E5; /* Blue border */
+            border: 3px solid var(--map-primary);
             box-shadow: 0 0 5px rgba(0,0,0,0.7);
             position: absolute;
             top: 0;
@@ -33,7 +40,7 @@ export const mapaHtml = `
             height: 0;
             border-left: 8px solid transparent;
             border-right: 8px solid transparent;
-            border-top: 10px solid #1E88E5; /* Blue tail */
+            border-top: 10px solid var(--map-primary);
             position: absolute;
             bottom: 0;
             left: 50%;
@@ -43,8 +50,8 @@ export const mapaHtml = `
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            background: #1E88E5;
-            border: 3px solid #ffffff;
+            background: var(--map-primary);
+            border: 3px solid var(--map-marker-border);
             box-shadow: 0 0 8px rgba(0,0,0,0.35);
         }
         .destination-marker {
@@ -56,9 +63,9 @@ export const mapaHtml = `
         .simple-red-dot {
             width: 14px;
             height: 14px;
-            background-color: #d32f2f;
+            background-color: var(--map-destination);
             border-radius: 50%;
-            border: 2px solid #ffffff;
+            border: 2px solid var(--map-marker-border);
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
             position: relative;
             z-index: 1000;
@@ -67,9 +74,9 @@ export const mapaHtml = `
         .simple-blue-dot {
             width: 14px;
             height: 14px;
-            background-color: #1976D2;
+            background-color: var(--map-pickup);
             border-radius: 50%;
-            border: 2px solid #ffffff;
+            border: 2px solid var(--map-marker-border);
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
             position: relative;
             z-index: 1000;
@@ -78,7 +85,7 @@ export const mapaHtml = `
         .carrito-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 46px;
-            color: #1E88E5; /* Blue car icon */
+            color: var(--map-primary);
             text-align: center;
         }
         .car-icon-transition {
@@ -102,6 +109,31 @@ export const mapaHtml = `
     var destinationMarkers = [];
     var currentDestinationsStr = "";
     var routingControl;
+    var activeMapTheme = {
+        route: '#144985'
+    };
+
+    function setMapTheme(colors) {
+        if (!colors) return;
+
+        var root = document.documentElement;
+        var values = {
+            '--map-primary': colors.primary,
+            '--map-primary-dark': colors.primaryDark,
+            '--map-pickup': colors.pickup,
+            '--map-destination': colors.destination,
+            '--map-marker-border': colors.markerBorder
+        };
+
+        Object.keys(values).forEach(function(key) {
+            if (values[key]) root.style.setProperty(key, values[key]);
+        });
+
+        if (colors.route) {
+            activeMapTheme.route = colors.route;
+            if (customRouteLine) customRouteLine.setStyle({ color: colors.route });
+        }
+    }
 
     // Desabilitar zoom con doble tap
     map.doubleClickZoom.disable();
@@ -416,7 +448,7 @@ export const mapaHtml = `
                     fullRouteCoords = lineCoords;
 
                     if (!customRouteLine) {
-                        customRouteLine = L.polyline(lineCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                        customRouteLine = L.polyline(lineCoords, {color: activeMapTheme.route, opacity: 0.8, weight: 6}).addTo(map);
                     } else {
                         customRouteLine.setLatLngs(lineCoords);
                     }
@@ -532,7 +564,7 @@ export const mapaHtml = `
                     var lineCoords = [currentLatLng].concat(fullRouteCoords);
                     fullRouteCoords = lineCoords;
                     if (!customRouteLine) {
-                        customRouteLine = L.polyline(lineCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                        customRouteLine = L.polyline(lineCoords, {color: activeMapTheme.route, opacity: 0.8, weight: 6}).addTo(map);
                     } else {
                         customRouteLine.setLatLngs(lineCoords);
                     }

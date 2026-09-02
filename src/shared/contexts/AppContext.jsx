@@ -73,6 +73,9 @@ export function AppContextProvider({ children }) {
 
     const initializeSession = async () => {
         try {
+            const savedTheme = await AsyncStorage.getItem('isDarkTheme');
+            if (savedTheme !== null) setIsDarkTheme(savedTheme === 'true');
+
             const savedToken = await AsyncStorage.getItem('authToken');
             const savedUser = await AsyncStorage.getItem('userData');
             if (savedToken && savedUser) {
@@ -141,7 +144,13 @@ export function AppContextProvider({ children }) {
     };
 
     const toggleTheme = () => {
-        setIsDarkTheme(!isDarkTheme);
+        setIsDarkTheme((current) => {
+            const next = !current;
+            AsyncStorage.setItem('isDarkTheme', String(next)).catch((error) => {
+                console.warn('No se pudo guardar la preferencia de tema:', error);
+            });
+            return next;
+        });
     };
 
     const login = async (email, password) => {

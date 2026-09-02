@@ -5,8 +5,8 @@ import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
-import { SHADOWS, COLORS, BORDER_RADIUS } from '../../../core/constants/theme';
-import FastModal from '../../../shared/components/FastModal';
+import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
+import AppModal from '../../../shared/components/AppModal';
 
 export default function RateDriverModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();
@@ -34,11 +34,11 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
             case 2:
                 return { bg: `${theme.colors.error}18`, text: theme.colors.error, border: `${theme.colors.error}55` };
             case 3:
-                return { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B55' };
+                return { bg: `${theme.colors.warning}18`, text: theme.colors.warning, border: `${theme.colors.warning}55` };
             case 4:
             case 5:
             default:
-                return { bg: '#10B98118', text: '#10B981', border: '#10B98155' };
+                return { bg: `${theme.colors.success}18`, text: theme.colors.success, border: `${theme.colors.success}55` };
         }
     };
 
@@ -80,7 +80,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                     <FontAwesome
                         name={i <= rating ? "star" : "star-o"}
                         size={42}
-                        color={i <= rating ? "#FFD700" : theme.colors.outline}
+                        color={i <= rating ? "#FFC107" : theme.colors.outline}
                         style={{ marginHorizontal: 6 }}
                     />
                 </TouchableOpacity>
@@ -92,14 +92,13 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
     const statusConfig = getRatingStatusConfig(rating);
 
     return (
-        <FastModal visible={visible} onDismiss={onDismiss} animation="fade">
-            <View style={styles.modalOverlay}>
+        <AppModal visible={visible} onDismiss={onDismiss} animation="fade">
                 {/* Replaced Card with standard View to prevent double card layering on Web */}
                 <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.cardHeader}>
                         {/* Colorful header badge - Gold star inside solid corporate blue circle */}
-                        <View style={[styles.avatarBg, { backgroundColor: '#144985' }]}>
-                            <MaterialCommunityIcons name="star" size={30} color="#FFD700" />
+                        <View style={[styles.avatarBg, { backgroundColor: theme.colors.primary }]}>
+                            <MaterialCommunityIcons name="star" size={30} color={theme.colors.warning} />
                         </View>
                         <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica tu viaje</Text>
                         <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo calificarías el servicio del conductor?</Text>
@@ -117,7 +116,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                                 {getRatingLabel(rating)}
                             </Text>
                         </View>
-                        
+
                         {/* Custom native stable TextInput to prevent React 19 rendering crash on Web */}
                         <TextInput
                             placeholder="Comparte tu experiencia (Opcional)"
@@ -129,8 +128,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             style={[
-                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }],
-                                isFocused && styles.inputFocused
+                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: isFocused ? theme.colors.primary : theme.colors.outline, color: theme.colors.onSurface }]
                             ]}
                         />
                     </View>
@@ -154,32 +152,24 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                         >
                             {/* Rich corporate gradient for Enviar button! */}
                             <LinearGradient
-                                colors={['#144985', '#1E88E5']}
+                                colors={[theme.colors.primary, theme.colors.secondary]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.submitGradient}
                             >
-                                <MaterialCommunityIcons name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                                <Text style={styles.submitButtonText}>Enviar</Text>
+                                <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.onSuccess} style={{ marginRight: 6 }} />
+                                <Text style={[styles.submitButtonText, { color: theme.colors.onSuccess }]}>Enviar</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
-        </FastModal>
+        </AppModal>
     );
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(13, 52, 97, 0.45)', // Premium dark blue backdrop overlay
-        justifyContent: 'center',
-        alignItems: 'center', // Centers child horizontally perfectly!
-        padding: 20,
-    },
     card: {
-        width: '90%',
+        width: '100%',
         maxWidth: 340, // Limits maximum horizontal stretch on wide viewports
         borderRadius: BORDER_RADIUS.XL,
         overflow: 'hidden',
@@ -249,10 +239,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlignVertical: 'top',
         minHeight: 76,
-    },
-    inputFocused: {
-        borderColor: '#1E88E5',
-        ...SHADOWS.SMALL,
     },
     actions: {
         flexDirection: 'row',

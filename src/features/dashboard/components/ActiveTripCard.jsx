@@ -9,7 +9,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 export default function ActiveTripCard({
   activeTrip,
@@ -26,8 +26,8 @@ export default function ActiveTripCard({
   const theme = useTheme();
 
   // Find the specific passenger record if viewing as a passenger
-  const myPassengerRecord = isPasajero && user ? 
-    activeTrip?.passengers?.find(p => p.id === user.id) 
+  const myPassengerRecord = isPasajero && user ?
+    activeTrip?.passengers?.find(p => p.id === user.id)
     : null;
 
 
@@ -104,7 +104,7 @@ export default function ActiveTripCard({
                   { backgroundColor: theme.colors.primary },
                 ]}
               >
-                <Text style={styles.initials}>
+                <Text style={[styles.initials, { color: theme.colors.onPrimary }]}>
                   {getInitials(activeTrip.driver?.name)}
                 </Text>
               </View>
@@ -117,14 +117,14 @@ export default function ActiveTripCard({
               <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant }]}>Vehículo Asignado</Text>
 
               <View style={styles.metadataContainer}>
-                  <View style={[styles.ratingBadge, { backgroundColor: theme.dark ? '#4A3B10' : '#FFF9C4' }]}>
+                  <View style={[styles.ratingBadge, { backgroundColor: theme.colors.warning + '22' }]}>
                   <MaterialCommunityIcons
                     name="star"
                     size={12}
-                    color="#FFD700"
+                    color={theme.colors.warning}
                     style={{ marginRight: 2 }}
                   />
-                  <Text style={[styles.ratingText, { color: theme.dark ? '#FCD34D' : '#F57F17' }]}>
+                  <Text style={[styles.ratingText, { color: theme.colors.warning }]}>
                     {Number(
                       activeTrip.driver?.rating ||
                         activeTrip.driver?.score ||
@@ -160,7 +160,7 @@ export default function ActiveTripCard({
                           { backgroundColor: theme.colors.primary },
                         ]}
                       >
-                        <Text style={styles.initials}>
+                        <Text style={[styles.initials, { color: theme.colors.onPrimary }]}>
                           {getInitials(passenger.name || "Pasajero")}
                         </Text>
                       </View>
@@ -180,8 +180,8 @@ export default function ActiveTripCard({
                               <Button
                                 mode="contained"
                                 compact
-                                buttonColor="#2E7D32"
-                                textColor="#FFFFFF"
+                                buttonColor={theme.colors.success}
+                                textColor={theme.colors.onSuccess}
                                 style={styles.passengerActionButton}
                                 contentStyle={styles.passengerActionContent}
                                 labelStyle={styles.passengerActionLabel}
@@ -206,7 +206,7 @@ export default function ActiveTripCard({
                           )}
                       </View>
                       {!isPasajero && passenger.pickup_address && (
-                        <Text style={[styles.userSubtext, { color: theme.colors.outline, fontSize: 12 }]}>
+                        <Text style={[styles.userSubtext, { color: theme.colors.onSurfaceVariant, fontSize: 12 }]}>
                           📍 {passenger.pickup_address}
                         </Text>
                       )}
@@ -221,7 +221,7 @@ export default function ActiveTripCard({
         <View style={[styles.routeContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
           <View style={styles.routeBlock}>
             <View style={styles.routeBlockHeader}>
-              <View style={styles.dotOrigin} />
+              <View style={[styles.dotOrigin, { backgroundColor: theme.colors.secondary }]} />
               <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Origen</Text>
             </View>
               <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
@@ -235,7 +235,7 @@ export default function ActiveTripCard({
 
           <View style={styles.routeBlock}>
             <View style={styles.routeBlockHeader}>
-              <View style={styles.squareDestination} />
+              <View style={[styles.squareDestination, { backgroundColor: theme.colors.error }]} />
               <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>Destino</Text>
             </View>
               <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={1}>
@@ -299,7 +299,7 @@ export default function ActiveTripCard({
             {activeTrip.state_id != 4 && (
               <Button
                 mode="contained"
-                style={[styles.actionButton, { backgroundColor: "#1E88E5" }]}
+                style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
                 contentStyle={styles.actionButtonContent}
                 onPress={onStartTrip}
                 icon="play-circle"
@@ -311,12 +311,13 @@ export default function ActiveTripCard({
               <Button
                 mode="contained"
                 style={[
-                  styles.actionButton, 
-                  { backgroundColor: activeTrip.passengers?.some(p => p.status === 'accepted') ? "#888888" : "#2E7D32" }
+                  styles.actionButton,
+                  { backgroundColor: activeTrip.passengers?.some(p => p.status === 'accepted') ? theme.colors.surfaceVariant : theme.colors.success }
                 ]}
                 contentStyle={styles.actionButtonContent}
                 onPress={onFinishTrip}
                 icon="flag-checkered"
+                textColor={activeTrip.passengers?.some(p => p.status === 'accepted') ? theme.colors.onSurfaceVariant : theme.colors.onSuccess}
                 disabled={activeTrip.passengers?.some(p => p.status === 'accepted')}
               >
                 {activeTrip.passengers?.some(p => p.status === 'accepted') ? "Pasajeros pendientes" : "Finalizar Viaje Completo"}
@@ -332,13 +333,16 @@ export default function ActiveTripCard({
 const styles = StyleSheet.create({
   tripCard: {
     position: "absolute",
-    bottom: 0,
+    bottom: -2,
     left: 0,
     right: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     ...SHADOWS.LARGE,
     borderWidth: 0,
+    borderBottomWidth: 0,
     paddingTop: 8,
     zIndex: 500,
     elevation: 12,

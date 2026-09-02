@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Animated, Easing } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SHADOWS } from '../../core/constants/theme';
-import { MODAL_ANIMATION_MS } from '../../core/constants/timing';
+import AppModal from './AppModal';
 
 export default function GlobalAlertDialog({ config, onDismiss }) {
     const theme = useTheme();
@@ -18,29 +18,6 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
         onConfirm,
         onCancel
     } = config || {};
-
-    const scaleAnim = useRef(new Animated.Value(0.9)).current;
-    const opacityAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        if (config?.visible) {
-            scaleAnim.setValue(0.9);
-            opacityAnim.setValue(0);
-            Animated.parallel([
-                Animated.timing(scaleAnim, {
-                    toValue: 1,
-                    duration: MODAL_ANIMATION_MS,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true
-                }),
-                Animated.timing(opacityAnim, {
-                    toValue: 1,
-                    duration: MODAL_ANIMATION_MS,
-                    useNativeDriver: true
-                })
-            ]).start();
-        }
-    }, [config?.visible]);
 
     const handleConfirm = () => {
         if (onConfirm) onConfirm();
@@ -58,58 +35,44 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
             case 'success':
                 return {
                     icon: 'check-decagram',
-                    color: '#10B981',
-                    colors: ['#10B981', '#059669'],
-                    bg: '#10B98118'
+                    color: theme.colors.success,
+                    colors: [theme.colors.success, theme.colors.success],
+                    bg: `${theme.colors.success}18`,
+                    textColor: theme.colors.onSuccess
                 };
             case 'error':
                 return {
                     icon: 'alert-octagon',
-                    color: '#EF4444',
-                    colors: ['#EF4444', '#DC2626'],
-                    bg: '#EF444418'
+                    color: theme.colors.error,
+                    colors: [theme.colors.error, theme.colors.error],
+                    bg: `${theme.colors.error}18`,
+                    textColor: theme.colors.onError
                 };
             case 'warning':
                 return {
                     icon: 'alert',
-                    color: '#F59E0B',
-                    colors: ['#F59E0B', '#D97706'],
-                    bg: '#F59E0B18'
+                    color: theme.colors.warning,
+                    colors: [theme.colors.warning, theme.colors.warning],
+                    bg: `${theme.colors.warning}18`,
+                    textColor: theme.colors.onWarning
                 };
             case 'info':
             default:
                 return {
                     icon: 'information',
-                    color: '#1E88E5',
-                    colors: ['#144985', '#1E88E5'],
-                    bg: '#1E88E518'
+                    color: theme.colors.info,
+                    colors: [theme.colors.primary, theme.colors.info],
+                    bg: `${theme.colors.info}18`,
+                    textColor: theme.colors.onPrimary
                 };
         }
     };
 
     const typeConfig = getTypeConfig();
 
-    if (!config || !config.visible) return null;
-
     return (
-        <Modal
-            transparent
-            visible={config.visible}
-            animationType="none"
-            onRequestClose={handleCancel}
-        >
-            <View style={styles.overlay}>
-                <Animated.View 
-                    style={[
-                        styles.container,
-                        {
-                            backgroundColor: theme.colors.surface,
-                            borderColor: theme.colors.outline,
-                            opacity: opacityAnim,
-                            transform: [{ scale: scaleAnim }]
-                        }
-                    ]}
-                >
+        <AppModal visible={Boolean(config?.visible)} onDismiss={handleCancel}>
+                <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                     {/* Header Glowing Ring & Icon */}
                     <View style={styles.header}>
                         <View style={[styles.iconOuterRing, { backgroundColor: typeConfig.bg }]}>
@@ -156,28 +119,19 @@ export default function GlobalAlertDialog({ config, onDismiss }) {
                                 end={{ x: 1, y: 0 }}
                                 style={styles.confirmGradient}
                             >
-                                <Text style={styles.confirmButtonText}>{confirmText}</Text>
+                                <Text style={[styles.confirmButtonText, { color: typeConfig.textColor }]}>{confirmText}</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
-                </Animated.View>
-            </View>
-        </Modal>
+                </View>
+        </AppModal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(13, 52, 97, 0.45)', // Premium dark blue overlay
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
     container: {
         width: '100%',
         maxWidth: 320,
-        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 24,
         alignItems: 'center',

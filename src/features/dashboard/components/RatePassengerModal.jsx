@@ -5,8 +5,8 @@ import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
-import { SHADOWS, COLORS, BORDER_RADIUS } from '../../../core/constants/theme';
-import FastModal from '../../../shared/components/FastModal';
+import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
+import AppModal from '../../../shared/components/AppModal';
 
 export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();
@@ -33,17 +33,17 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
             case 2:
                 return { bg: `${theme.colors.error}18`, text: theme.colors.error, border: `${theme.colors.error}55` };
             case 3:
-                return { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B55' };
+                return { bg: `${theme.colors.warning}18`, text: theme.colors.warning, border: `${theme.colors.warning}55` };
             case 4:
             case 5:
             default:
-                return { bg: '#10B98118', text: '#10B981', border: '#10B98155' };
+                return { bg: `${theme.colors.success}18`, text: theme.colors.success, border: `${theme.colors.success}55` };
         }
     };
 
     const handleSubmit = async () => {
         if (!trip) return;
-        
+
         // Una sola evaluación se replica en todos los pasajeros que llegaron.
         if (!trip.passengers || trip.passengers.length === 0) {
             showAlert("Error", "No se encontró la información de los pasajeros para calificar.", "error");
@@ -60,8 +60,8 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ 
-                    score: rating, 
+                body: JSON.stringify({
+                    score: rating,
                     comment: comment
                 })
             });
@@ -90,7 +90,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                     <FontAwesome
                         name={i <= rating ? "star" : "star-o"}
                         size={42}
-                        color={i <= rating ? "#FFD700" : theme.colors.outline}
+                        color={i <= rating ? "#FFC107" : theme.colors.outline}
                         style={{ marginHorizontal: 6 }}
                     />
                 </TouchableOpacity>
@@ -102,12 +102,11 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
     const statusConfig = getRatingStatusConfig(rating);
 
     return (
-        <FastModal visible={visible} onDismiss={onDismiss} animation="fade">
-            <View style={styles.modalOverlay}>
+        <AppModal visible={visible} onDismiss={onDismiss} animation="fade">
                 <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.cardHeader}>
-                        <View style={[styles.avatarBg, { backgroundColor: '#10B981' }]}>
-                            <MaterialCommunityIcons name="account-star" size={30} color="#FFFFFF" />
+                        <View style={[styles.avatarBg, { backgroundColor: theme.colors.success }]}>
+                            <MaterialCommunityIcons name="account-star" size={30} color={theme.colors.onSuccess} />
                         </View>
                         <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica a tu pasajero</Text>
                         <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo se comportó el pasajero durante el viaje?</Text>
@@ -123,7 +122,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                                 {getRatingLabel(rating)}
                             </Text>
                         </View>
-                        
+
                         <TextInput
                             placeholder="Comparte tu experiencia (Opcional)"
                             placeholderTextColor={theme.colors.onSurfaceVariant}
@@ -134,8 +133,7 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             style={[
-                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }],
-                                isFocused && styles.inputFocused
+                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: isFocused ? theme.colors.success : theme.colors.outline, color: theme.colors.onSurface }]
                             ]}
                         />
                     </View>
@@ -157,32 +155,24 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                             activeOpacity={0.85}
                         >
                             <LinearGradient
-                                colors={['#10B981', '#059669']}
+                                colors={[theme.colors.success, theme.colors.success]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.submitGradient}
                             >
-                                <MaterialCommunityIcons name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                                <Text style={styles.submitButtonText}>Enviar</Text>
+                                <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.onSuccess} style={{ marginRight: 6 }} />
+                                <Text style={[styles.submitButtonText, { color: theme.colors.onSuccess }]}>Enviar</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
-        </FastModal>
+        </AppModal>
     );
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(6, 78, 59, 0.45)', 
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
     card: {
-        width: '90%',
+        width: '100%',
         maxWidth: 340,
         borderRadius: BORDER_RADIUS.XL,
         overflow: 'hidden',
@@ -252,10 +242,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlignVertical: 'top',
         minHeight: 76,
-    },
-    inputFocused: {
-        borderColor: '#10B981',
-        ...SHADOWS.SMALL,
     },
     actions: {
         flexDirection: 'row',

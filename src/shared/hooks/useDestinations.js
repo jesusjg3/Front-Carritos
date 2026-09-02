@@ -1,18 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_ROUTES } from '../../Config/Routes';
 
 export const useDestinations = (user, isPasajero) => {
     const [destinos, setDestinos] = useState([]);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
+    const loadedRef = useRef(false);
 
-    useEffect(() => {
-        if (user && isPasajero) {
-            cargarDestinos();
-        }
-    }, [user, isPasajero]);
+    const cargarDestinos = useCallback(async (force = true) => {
+        if (!force && loadedRef.current) return;
 
-    const cargarDestinos = async () => {
         try {
             setCargando(true);
             setError(null);
@@ -33,13 +30,18 @@ export const useDestinations = (user, isPasajero) => {
             }));
 
             setDestinos(destinosTransformados);
+            loadedRef.current = true;
         } catch (err) {
             console.error('Error cargando destinos:', err);
             setError(err.message || 'No se pudieron cargar los destinos disponibles');
         } finally {
             setCargando(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (user?.id && isPasajero) cargarDestinos(false);
+    }, [user?.id, isPasajero, cargarDestinos]);
 
     return {
         destinos,

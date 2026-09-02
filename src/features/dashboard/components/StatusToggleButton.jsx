@@ -1,17 +1,20 @@
 
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { COLORS, SHADOWS, SPACING, BORDER_RADIUS } from '../../../core/constants/theme';
+import { SHADOWS } from '../../../core/constants/theme';
 
 export default function StatusToggleButton({ isOnline, onToggle }) {
+    const theme = useTheme();
+
     return (
         <View style={styles.container}>
             <TouchableOpacity
                 style={[
                     styles.button,
                     isOnline ? styles.buttonOnline : styles.buttonOffline,
+                    { backgroundColor: isOnline ? theme.colors.success : theme.colors.primary },
                 ]}
                 onPress={onToggle}
                 activeOpacity={0.85}
@@ -19,16 +22,16 @@ export default function StatusToggleButton({ isOnline, onToggle }) {
                 <MaterialCommunityIcons 
                     name={isOnline ? "wifi" : "wifi-off"} 
                     size={18}
-                    color="#fff" 
+                    color={isOnline ? theme.colors.onSuccess : theme.colors.onPrimary}
                     style={{ marginRight: 6 }}
                 />
                 
-                <Text style={styles.text}>
+                <Text style={[styles.text, { color: isOnline ? theme.colors.onSuccess : theme.colors.onPrimary }]}>
                     {isOnline ? 'EN LÍNEA' : 'DESCONECTADO'}
                 </Text>
 
-                <View style={styles.switchContainer}>
-                    <View style={[styles.indicator, isOnline ? styles.indicatorOnline : styles.indicatorOffline]} />
+                <View style={[styles.switchContainer, { backgroundColor: isOnline ? theme.colors.onSuccess + '30' : theme.colors.onPrimary + '30' }]}>
+                    <View style={[styles.indicator, { backgroundColor: isOnline ? theme.colors.onSuccess : theme.colors.onPrimary }, isOnline ? styles.indicatorOnline : styles.indicatorOffline]} />
                 </View>
             </TouchableOpacity>
         </View>

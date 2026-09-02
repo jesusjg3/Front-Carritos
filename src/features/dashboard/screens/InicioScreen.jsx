@@ -12,7 +12,7 @@ import { Text, Button, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { mapaHtml } from "../../../Web/mapaCode";
@@ -20,7 +20,6 @@ import { CARRITO_MARKER_BASE64 } from "../../../Web/carritoMarkerBase64";
 
 // Components
 import RideRequestCard from "../components/RideRequestCard";
-import StatusToggleButton from "../components/StatusToggleButton";
 import ActiveTripCard from "../components/ActiveTripCard";
 import IncomingRequestCard from "../components/IncomingRequestCard";
 import DestinationModal from "../components/DestinationModal";
@@ -38,7 +37,7 @@ import { useDriverLocation } from "../../../shared/hooks/useDriverLocation";
 import { useNearbyDrivers } from "../../../shared/hooks/useNearbyDrivers";
 
 export default function InicioScreen() {
-  const { user, token, showAlert } = useAppContext();
+  const { user, token, showAlert, setTabsLocked, setTabsLockCloseHandler } = useAppContext();
   const theme = useTheme();
 
   // Local UI State
@@ -93,7 +92,29 @@ export default function InicioScreen() {
     handleExpirePassenger,
   } = useTripLifecycle(user, token, isOnline, isPasajero);
 
-  const { ubicacion, obtenerUbicacion } = useLocationLogic(user, isPasajero);
+  // Este efecto debe ejecutarse después de obtener tripToRate. Evaluar la
+  // dependencia antes de su declaración provocaba un ReferenceError en web.
+  useEffect(() => {
+    const modalOpen = modalVisible || cancelModalVisible || disconnectModalVisible || Boolean(tripToRate);
+    setTabsLocked(modalOpen);
+    if (modalOpen) {
+      setTabsLockCloseHandler(() => {
+        setModalVisible(false);
+        setCancelModalVisible(false);
+        setDisconnectModalVisible(false);
+        setTripToRate(null);
+      });
+    } else {
+      setTabsLockCloseHandler(null);
+    }
+
+    return () => {
+      setTabsLocked(false);
+      setTabsLockCloseHandler(null);
+    };
+  }, [cancelModalVisible, disconnectModalVisible, modalVisible, setTabsLockCloseHandler, setTabsLocked, tripToRate]);
+
+  const { ubicacion } = useLocationLogic(user, isPasajero);
 
   const { destinos, cargandoDestinos, errorDestinos, cargarDestinos } =
     useDestinations(user, isPasajero);
@@ -102,7 +123,7 @@ export default function InicioScreen() {
   useDriverLocation(user, token, isOnline, ubicacion);
 
   // Hook para obtener conductores cercanos (solo pasajeros)
-  const { nearbyDrivers, loading: loadingDrivers } = useNearbyDrivers(
+  const { nearbyDrivers } = useNearbyDrivers(
     user,
     token,
     ubicacion,
@@ -147,6 +168,29 @@ export default function InicioScreen() {
       trip.state_id === 4
     );
   };
+
+  const passengersSignature = useMemo(
+    () => (activeTrip?.passengers ? JSON.stringify(activeTrip.passengers) : null),
+    [activeTrip?.passengers],
+  );
+  const mapTheme = useMemo(
+    () => ({
+      primary: theme.colors.primary,
+      primaryDark: theme.colors.primaryContainer,
+      pickup: theme.colors.info,
+      destination: theme.colors.error,
+      markerBorder: theme.colors.surface,
+      route: theme.colors.primary,
+    }),
+    [
+      theme.colors.error,
+      theme.colors.info,
+      theme.colors.primary,
+      theme.colors.primaryContainer,
+      theme.colors.surface,
+    ],
+  );
+  const mapThemeSignature = useMemo(() => JSON.stringify(mapTheme), [mapTheme]);
 
   // ========== CEREBRO UNIFICADO DE MAPA ==========
   // Efecto para Cerebro Unificado de Mapa y Controladores de Estado Visual
@@ -204,7 +248,7 @@ export default function InicioScreen() {
         echo.disconnect();
       }
     };
-  }, [isConductor, token, user]);
+  }, [isConductor, token, user?.id]);
 
   useEffect(() => {
     if (!webViewRef.current) return;
@@ -216,6 +260,9 @@ export default function InicioScreen() {
     const isIdle = !isPhase1 && !isPhase2;
 
     let script = "";
+    if (Platform.OS !== "web") {
+      script += `if (typeof setMapTheme === 'function') setMapTheme(${mapThemeSignature});`;
+    }
 
     if (isIdle) {
       // 1. LIMPIEZA OBLIGATORIA
@@ -402,13 +449,16 @@ export default function InicioScreen() {
           activeTrip.passengers &&
           activeTrip.passengers.length > 0
         ) {
-          // Extract pickups that are still pending
+          // Solo los pasajeros aceptados forman parte de la ruta.
+          // Las solicitudes pendientes se muestran en IncomingRequestCard,
+          // pero no deben aparecer en el mapa antes de ser aceptadas.
           let waypoints = [
             { lat: start.lat, lng: start.lng, title: "Conductor" },
           ];
-          activeTrip.passengers.forEach((p, index) => {
+          activeTrip.passengers.forEach((p) => {
             let pLat = parseFloat(p.pickup_lat);
             let pLng = parseFloat(p.pickup_lng);
+            const passengerStatus = String(p.status || "").toLowerCase();
             
             if (isNaN(pLat) || isNaN(pLng)) {
               pLat = parseFloat(activeTrip.origin_lat);
@@ -416,7 +466,7 @@ export default function InicioScreen() {
             }
 
             if (
-              (p.status === "requested" || p.status === "accepted") &&
+              passengerStatus === "accepted" &&
               !isNaN(pLat) &&
               !isNaN(pLng)
             ) {
@@ -503,16 +553,15 @@ export default function InicioScreen() {
     activeTrip?.state_id,
     activeTrip?.driver?.latitude,
     activeTrip?.driver?.longitude,
-    activeTrip?.passengers ? JSON.stringify(activeTrip.passengers) : null,
+    passengersSignature,
     destinoSeleccionado,
     ubicacion,
     nearbyDrivers,
     isConductor,
     isPasajero,
     destinos,
+    mapThemeSignature,
   ]);
-
-  const handleToggleStatus = () => setIsOnline(!isOnline);
 
   const handleWebViewMessage = useCallback((event) => {
     try {
@@ -666,6 +715,7 @@ export default function InicioScreen() {
           confirmText: "Sí, cancelar",
           cancelText: "No",
           onConfirm: () => cancelTrip(),
+          onCancel: () => {},
         },
       );
     }
@@ -721,7 +771,7 @@ export default function InicioScreen() {
         edges={["top"]}
       >
         <LinearGradient
-          colors={["#14498518", theme.colors.background, theme.colors.background]}
+          colors={[theme.colors.primary + "18", theme.colors.background, theme.colors.background]}
           style={styles.searchingWrapper}
         >
           {/* Header: Title and connecting text */}
@@ -750,7 +800,7 @@ export default function InicioScreen() {
           <View style={[styles.searchingTicket, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
             {/* Ticket Header: Brand and Trip Title */}
             <LinearGradient
-              colors={["#144985", "#1E88E5"]}
+              colors={[theme.colors.primary, theme.colors.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.ticketHeader}
@@ -759,7 +809,7 @@ export default function InicioScreen() {
                 <MaterialCommunityIcons
                   name="ticket-confirmation"
                   size={18}
-                  color="#FFFFFF"
+                  color={theme.colors.onPrimary}
                   style={{ marginRight: 6 }}
                 />
                 <Text style={styles.ticketHeaderTitle}>
@@ -810,7 +860,7 @@ export default function InicioScreen() {
                   <MaterialCommunityIcons
                     name="clock-outline"
                     size={15}
-                    color="#1E88E5"
+                    color={theme.colors.secondary}
                     style={{ marginRight: 6 }}
                   />
                   <Text style={[styles.ticketInfoPillText, { color: theme.colors.onSurfaceVariant }]}>~2 min esp.</Text>
@@ -818,17 +868,17 @@ export default function InicioScreen() {
                 <View
                   style={[
                     styles.ticketInfoPill,
-                    { backgroundColor: "#10B98118", borderColor: "#10B98140" },
+                    { backgroundColor: theme.colors.success + "18", borderColor: theme.colors.success + "40" },
                   ]}
                 >
                   <MaterialCommunityIcons
                     name="sync"
                     size={15}
-                    color="#10B981"
+                    color={theme.colors.success}
                     style={{ marginRight: 6 }}
                   />
                   <Text
-                    style={[styles.ticketInfoPillText, { color: "#059669" }]}
+                    style={[styles.ticketInfoPillText, { color: theme.colors.success }]}
                   >
                     Conectando...
                   </Text>
@@ -850,7 +900,7 @@ export default function InicioScreen() {
               <MaterialCommunityIcons
                 name="close-circle"
                 size={16}
-                color="#EF4444"
+                color={theme.colors.error}
                 style={{ marginRight: 6 }}
               />
               <Text style={styles.cancelRequestPillText}>
@@ -989,7 +1039,7 @@ export default function InicioScreen() {
 
         {/* isConductor controls removed and moved to profile */}
 
-        {isPasajero && (
+        {isPasajero && !modalVisible && (
           <TouchableOpacity
             style={[
               styles.searchCardContainer,
@@ -1036,7 +1086,7 @@ export default function InicioScreen() {
                 <MaterialCommunityIcons
                   name="arrow-right"
                   size={18}
-                  color="#FFF"
+                  color={theme.colors.onSecondary}
                 />
               </View>
             </View>

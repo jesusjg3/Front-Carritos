@@ -46,7 +46,7 @@ export default function HistoryScreen() {
         else setLoading(true);
 
         try {
-            const response = await fetch(`${API_ROUTES.BASE_URL}/trips/history?page=${pageNumber}&per_page=15`, {
+            const response = await fetch(`${API_ROUTES.BASE_URL}/trips/history?page=${pageNumber}&per_page=12`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -159,8 +159,8 @@ export default function HistoryScreen() {
                         {/* Rating Display */}
                         {item.my_rating ? (
                             <View style={[styles.ratingBadge, { backgroundColor: theme.dark ? '#4A3B10' : '#FFF9C4' }]}>
-                                <MaterialCommunityIcons name="star" size={14} color="#FFD700" style={{ marginRight: 2 }} />
-                                <Text style={styles.ratingText}>{Number(item.my_rating.rating).toFixed(0)}</Text>
+                                <MaterialCommunityIcons name="star" size={14} color={theme.colors.warning} style={{ marginRight: 2 }} />
+                                <Text style={[styles.ratingText, { color: theme.colors.warning }]}>{Number(item.my_rating.rating).toFixed(0)}</Text>
                             </View>
                         ) : (
                             <View style={[styles.ratingBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
@@ -186,7 +186,7 @@ export default function HistoryScreen() {
                             setReportModalVisible(true);
                         }}
                     >
-                        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.ERROR} />
+                        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={theme.colors.error} />
                         <Text style={[styles.reportButtonText, { color: theme.colors.error }]}>Reportar Problema</Text>
                     </TouchableOpacity>
                 </Card.Content>

@@ -30,7 +30,7 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
             <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
                 {/* Upper Section: Premium Passenger Header with Corporate Gradient */}
                 <LinearGradient
-                    colors={['#144985', '#1E88E5']}
+                    colors={[theme.colors.primary, theme.colors.secondary]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.headerGradient}
@@ -38,27 +38,27 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                     <View style={styles.passengerProfile}>
                         <View style={styles.avatarOuterGlow}>
                             <View style={styles.avatarInner}>
-                                <Text style={styles.avatarText}>
+                                <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
                                     {getInitials(request.passenger?.name || request.passenger_name)}
                                 </Text>
                             </View>
                         </View>
                         <View style={styles.passengerMeta}>
-                            <Text style={styles.passengerRole}>PASAJERO SOLICITANTE</Text>
-                            <Text style={styles.passengerName} numberOfLines={1}>
+                            <Text style={[styles.passengerRole, { color: theme.colors.onPrimary + 'CC' }]}>PASAJERO SOLICITANTE</Text>
+                            <Text style={[styles.passengerName, { color: theme.colors.onPrimary }]} numberOfLines={1}>
                                 {request.passenger?.name || request.passenger_name || 'Estudiante'}
                             </Text>
                         </View>
                     </View>
                     
                     <LinearGradient
-                        colors={['#FFFFFF', '#F1F5F9']}
-                        style={styles.newBadge}
+                        colors={[theme.colors.surface, theme.colors.surfaceVariant]}
+                        style={[styles.newBadge, { borderColor: theme.colors.outline }]}
                     >
-                        <MaterialCommunityIcons name="flash" size={12} color="#144985" style={{ marginRight: 2 }} />
-                        <Text style={styles.newBadgeText}>NUEVO</Text>
+                        <MaterialCommunityIcons name="flash" size={12} color={theme.colors.primary} style={{ marginRight: 2 }} />
+                        <Text style={[styles.newBadgeText, { color: theme.colors.primary }]}>NUEVO</Text>
                     </LinearGradient>
-                    {secondsLeft > 0 && <Text style={styles.expiryText}>{secondsLeft}s</Text>}
+                    {secondsLeft > 0 && <Text style={[styles.expiryText, { color: theme.colors.onPrimary }]}>{secondsLeft}s</Text>}
                 </LinearGradient>
 
                 {/* Tactile Ticket Notches and Dashed Divider */}
@@ -95,14 +95,14 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                     {/* Stats pills side by side */}
                     <View style={styles.statsContainer}>
                         <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
-                            <MaterialCommunityIcons name="account-group" size={16} color="#144985" style={{ marginRight: 6 }} />
+                            <MaterialCommunityIcons name="account-group" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
                             <Text style={[styles.statText, { color: theme.colors.primary }]}>
                                 {request.passengers_count || 1} {(request.passengers_count || 1) === 1 ? 'Pasajero' : 'Pasajeros'}
                             </Text>
                         </View>
                         
                         <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
-                            <MaterialCommunityIcons name="map-marker-distance" size={16} color="#1E88E5" style={{ marginRight: 6 }} />
+                            <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.secondary} style={{ marginRight: 6 }} />
                             <Text style={[styles.statText, { color: theme.colors.primary }]}>
                                 {request.distance || '1.2 km'}
                             </Text>
@@ -117,23 +117,23 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                         onPress={onReject}
                         activeOpacity={0.85}
                     >
-                        <MaterialCommunityIcons name="close-circle" size={16} color="#EF4444" style={{ marginRight: 6 }} />
-                        <Text style={styles.rejectText}>RECHAZAR</Text>
+                        <MaterialCommunityIcons name="close-circle" size={16} color={theme.colors.error} style={{ marginRight: 6 }} />
+                        <Text style={[styles.rejectText, { color: theme.colors.error }]}>RECHAZAR</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.acceptPill]}
+                        style={[styles.actionButton, styles.acceptPill, { backgroundColor: theme.colors.success }]}
                         onPress={onAccept}
                         activeOpacity={0.85}
                     >
                         <LinearGradient
-                            colors={['#10B981', '#059669']}
+                            colors={[theme.colors.success, theme.colors.success]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={styles.acceptGradient}
                         >
-                            <MaterialCommunityIcons name="check-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                            <Text style={styles.acceptText}>ACEPTAR VIAJE</Text>
+                            <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.onSuccess} style={{ marginRight: 6 }} />
+                            <Text style={[styles.acceptText, { color: theme.colors.onSuccess }]}>ACEPTAR VIAJE</Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>

@@ -18,7 +18,7 @@ export const useLocationLogic = (user, isPasajero) => {
         return () => {
             stopWatchingLocation();
         };
-    }, [user, isPasajero]);
+    }, [user?.role, isPasajero]);
 
 
     const startWatchingLocation = async () => {

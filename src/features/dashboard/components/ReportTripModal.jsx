@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -6,16 +6,18 @@ import {
   TouchableOpacity, 
   TextInput,
   Keyboard,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  useWindowDimensions
 } from 'react-native';
-import { useTheme, Dialog, Portal } from 'react-native-paper';
+import { Button, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
+import { BORDER_RADIUS, SHADOWS } from '../../../core/constants/theme';
+import { MODAL_ANIMATION_MS } from '../../../core/constants/timing';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
+import AppModal from '../../../shared/components/AppModal';
 
 const PREDEFINED_SUBJECTS = [
   'Conducción peligrosa',
@@ -30,26 +32,45 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
   const [customSubject, setCustomSubject] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const resetTimerRef = useRef(null);
   const { token, showAlert } = useAppContext();
   const theme = useTheme();
+  const { height } = useWindowDimensions();
+  const dialogHeight = Math.min(height * 0.9, 560);
+  const formMaxHeight = Math.max(150, Math.min(310, height * 0.42));
+
+  useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (visible && resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  }, [visible]);
+
+  const finalSubject = subject === 'Otro problema' ? customSubject : subject;
+  const canSubmit = Boolean(finalSubject.trim() && description.trim());
 
   const handleClose = () => {
     Keyboard.dismiss();
     onClose?.();
 
-    // Limpia el formulario después de ocultarlo para que el cierre no espere
-    // el re-render de los TextInput controlados.
+    // Mantiene el formulario visible durante la salida y lo limpia después.
     const resetForm = () => {
       setSubject('');
       setCustomSubject('');
       setDescription('');
     };
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(resetForm);
-    else setTimeout(resetForm, 0);
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => {
+      resetForm();
+      resetTimerRef.current = null;
+    }, MODAL_ANIMATION_MS);
   };
 
   const handleSubmit = async () => {
-    const finalSubject = subject === 'Otro problema' ? customSubject : subject;
     if (!finalSubject.trim()) {
       showAlert('Error', 'Por favor, selecciona o ingresa el asunto del reporte.', 'warning');
       return;
@@ -93,237 +114,232 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
   };
 
   return (
-    <Portal>
-      <Dialog visible={visible} onDismiss={handleClose} style={styles.dialog}>
+    <AppModal
+      visible={visible}
+      onDismiss={handleClose}
+      animation="fade"
+    >
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={0}
           style={styles.keyboardView}
         >
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <View style={styles.iconContainer}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={32} color={COLORS.ERROR} />
-              </View>
-              <Text style={[styles.title, { color: theme.colors.onSurface }]}>Reportar Problema</Text>
-              <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-                La administración revisará tu caso y tomará las medidas correspondientes.
-              </Text>
-            </View>
-
-            <ScrollView
-              style={styles.formContainer}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Motivo del reporte</Text>
-              
-              <View style={styles.chipsContainer}>
-                {PREDEFINED_SUBJECTS.map((item) => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
-                      subject === item && styles.chipSelected
-                    ]}
-                    onPress={() => {
-                      setSubject(item);
-                      if (item !== 'Otro problema') setCustomSubject('');
-                    }}
-                  >
-                    <Text style={[
-                      styles.chipText,
-                      { color: theme.colors.onSurfaceVariant },
-                      subject === item && styles.chipTextSelected
-                    ]}>
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          <View style={[styles.dialog, { backgroundColor: theme.colors.surface, maxHeight: dialogHeight }]}>
+            <View style={styles.container}>
+              <View style={styles.header}>
+                <View style={[styles.iconContainer, { backgroundColor: theme.colors.error + '15' }]}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={32} color={theme.colors.error} />
+                </View>
+                <View style={styles.headerText}>
+                  <Text style={[styles.title, { color: theme.colors.onSurface }]}>Reportar Problema</Text>
+                  <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    La administración revisará tu caso y tomará las medidas correspondientes.
+                  </Text>
+                </View>
               </View>
 
-              {subject === 'Otro problema' && (
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
-                  placeholderTextColor={theme.colors.onSurfaceVariant}
-                  placeholder="Escribe el asunto..."
-                  value={customSubject}
-                  onChangeText={setCustomSubject}
-                  maxLength={100}
-                />
-              )}
-
-              <Text style={[styles.label, { color: theme.colors.onSurface }]}>Detalles de lo sucedido</Text>
-              <TextInput
-                style={[styles.textArea, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-                placeholder="Por favor explica qué ocurrió detalladamente..."
-                multiline
-                numberOfLines={5}
-                textAlignVertical="top"
-                value={description}
-                onChangeText={setDescription}
-                maxLength={500}
-              />
-              <Text style={[styles.characterCount, { color: theme.colors.onSurfaceVariant }]}>
-                {description.length}/500
-              </Text>
-
-            </ScrollView>
-
-            <View style={styles.footer}>
-              <TouchableOpacity 
-                style={[styles.cancelButton, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}
-                onPress={handleClose}
-                disabled={loading}
+              <ScrollView
+                style={[styles.formContainer, { maxHeight: formMaxHeight }]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                <Text style={[styles.cancelButtonText, { color: theme.colors.onSurfaceVariant }]}>Cancelar</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <Text style={styles.submitButtonText}>Enviar Reporte</Text>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Motivo del reporte</Text>
+
+                <View style={styles.chipsContainer}>
+                  {PREDEFINED_SUBJECTS.map((item) => (
+                    <TouchableOpacity
+                      key={item}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+                        subject === item && { backgroundColor: theme.colors.error + '15', borderColor: theme.colors.error }
+                      ]}
+                      onPress={() => {
+                        setSubject(item);
+                        if (item !== 'Otro problema') setCustomSubject('');
+                      }}
+                    >
+                      <Text style={[
+                        styles.chipText,
+                        { color: theme.colors.onSurfaceVariant },
+                        subject === item && { color: theme.colors.error, fontWeight: 'bold' }
+                      ]}>
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {subject === 'Otro problema' && (
+                  <TextInput
+                    style={[styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
+                    placeholder="Escribe el asunto..."
+                    value={customSubject}
+                    onChangeText={setCustomSubject}
+                    maxLength={100}
+                  />
                 )}
-              </TouchableOpacity>
+
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Detalles de lo sucedido</Text>
+                <TextInput
+                  style={[styles.textArea, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
+                  placeholder="Por favor explica qué ocurrió detalladamente..."
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                  value={description}
+                  onChangeText={setDescription}
+                  maxLength={500}
+                />
+                <Text style={[styles.characterCount, { color: theme.colors.onSurfaceVariant }]}>
+                  {description.length}/500
+                </Text>
+
+              </ScrollView>
+
+              <View style={styles.footer}>
+                <Button
+                  mode="outlined"
+                  onPress={handleClose}
+                  disabled={loading}
+                  textColor={theme.colors.onSurfaceVariant}
+                  buttonColor={theme.colors.surfaceVariant}
+                  style={[styles.footerButton, { borderColor: theme.colors.outline }]}
+                  contentStyle={styles.footerButtonContent}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleSubmit}
+                  disabled={loading || !canSubmit}
+                  loading={loading}
+                  buttonColor={canSubmit ? theme.colors.error : theme.colors.surfaceVariant}
+                  textColor={canSubmit ? theme.colors.onError : theme.colors.onSurfaceVariant}
+                  style={styles.footerButton}
+                  contentStyle={styles.footerButtonContent}
+                >
+                  Enviar Reporte
+                </Button>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Dialog>
-    </Portal>
+    </AppModal>
   );
 };
 
 const styles = StyleSheet.create({
   dialog: {
+    width: '100%',
     maxWidth: 380,
     alignSelf: 'center',
+    borderRadius: BORDER_RADIUS.XL,
+    borderWidth: 0,
+    overflow: 'hidden',
+    ...SHADOWS.LARGE,
   },
   keyboardView: {
     width: '100%',
   },
   container: {
     width: '100%',
-    borderRadius: BORDER_RADIUS.XL,
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    maxHeight: '94%',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: `${COLORS.ERROR}15`,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.BLACK,
-    marginBottom: 8,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
+    flexShrink: 1,
   },
   formContainer: {
-    maxHeight: 380,
+    minHeight: 0,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: COLORS.BLACK,
-    marginBottom: 12,
-    marginTop: 8,
+    marginBottom: 7,
+    marginTop: 5,
   },
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   chip: {
+    width: '48%',
+    minHeight: 36,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-  },
-  chipSelected: {
-    backgroundColor: `${COLORS.ERROR}15`,
-    borderColor: COLORS.ERROR,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  chipTextSelected: {
-    color: COLORS.ERROR,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
   input: {
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.MD,
     padding: 12,
     fontSize: 15,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   textArea: {
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.MD,
     padding: 12,
     fontSize: 15,
-    minHeight: 96,
+    minHeight: 82,
+    height: 82,
   },
   characterCount: {
     textAlign: 'right',
     fontSize: 12,
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 5,
   },
   footer: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 4,
+    marginTop: 7,
   },
-  cancelButton: {
+  footerButton: {
     flex: 1,
-    paddingVertical: 9,
     borderRadius: BORDER_RADIUS.LG,
-    alignItems: 'center',
-    borderWidth: 1,
   },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  submitButton: {
-    flex: 1.35,
-    height: 40,
-    borderRadius: BORDER_RADIUS.LG,
-    backgroundColor: COLORS.ERROR,
-    alignItems: 'center',
-    ...SHADOWS.SMALL,
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: 'bold',
+  footerButtonContent: {
+    minHeight: 38,
+    paddingHorizontal: 8,
   },
 });

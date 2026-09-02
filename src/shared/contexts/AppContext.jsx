@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
 import { API_ROUTES } from "../../Config/Routes";
@@ -10,8 +10,62 @@ export function AppContextProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+    const [tabsLocked, setTabsLocked] = useState(false);
+    const [tabLockCloseHandler, setTabLockCloseHandler] = useState(null);
+
+    const setTabsLockCloseHandler = useCallback((handler) => {
+        setTabLockCloseHandler(() => handler);
+    }, []);
+
+    const closeLockedModal = useCallback(() => {
+        tabLockCloseHandler?.();
+    }, [tabLockCloseHandler]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Global custom alert state
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: "",
+        message: "",
+        type: "info",
+        confirmText: "Aceptar",
+        cancelText: "Cancelar",
+        onConfirm: null,
+        onCancel: null,
+    });
+
+    const showAlert = (titleOrMsg, message = "", type = "info", options = {}) => {
+        let finalTitle = "";
+        let finalMsg = "";
+        
+        if (message === "" && typeof titleOrMsg === "string") {
+            finalMsg = titleOrMsg;
+        } else {
+            finalTitle = titleOrMsg;
+            finalMsg = message;
+        }
+
+        setAlertConfig({
+            visible: true,
+            title: finalTitle,
+            message: finalMsg,
+            type: type || "info",
+            confirmText: options.confirmText || "Aceptar",
+            cancelText: options.cancelText || "Cancelar",
+            onConfirm: () => {
+                if (options.onConfirm) options.onConfirm();
+                hideAlert();
+            },
+            onCancel: options.onCancel ? () => {
+                options.onCancel();
+                hideAlert();
+            } : null,
+        });
+    };
+
+    const hideAlert = () => {
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+    };
 
     useEffect(() => {
         initializeSession();
@@ -19,13 +73,21 @@ export function AppContextProvider({ children }) {
 
     const initializeSession = async () => {
         try {
+            const savedTheme = await AsyncStorage.getItem('isDarkTheme');
+            if (savedTheme !== null) setIsDarkTheme(savedTheme === 'true');
+
             const savedToken = await AsyncStorage.getItem('authToken');
             const savedUser = await AsyncStorage.getItem('userData');
             if (savedToken && savedUser) {
                 const parsedUser = JSON.parse(savedUser);
                 setToken(savedToken);
                 setUser(parsedUser);
-                await refreshTokenIfNeeded(savedToken);
+                const refreshed = await refreshTokenIfNeeded(savedToken);
+                if (!refreshed) {
+                    await clearSession();
+                    setToken(null);
+                    setUser(null);
+                }
             }
         } catch (error) {
             console.error('Error al inicializar sesión:', error);
@@ -72,18 +134,23 @@ export function AppContextProvider({ children }) {
                 };
                 setUser(userData);
                 await saveSession(data.access_token, userData);
+                return true;
             }
+            return false;
         } catch (error) {
             console.error('Error refrescando token:', error);
+            return false;
         }
     };
 
     const toggleTheme = () => {
-        setIsDarkTheme(!isDarkTheme);
-    };
-
-    const toggleNotifications = () => {
-        setNotificationsEnabled(!notificationsEnabled);
+        setIsDarkTheme((current) => {
+            const next = !current;
+            AsyncStorage.setItem('isDarkTheme', String(next)).catch((error) => {
+                console.warn('No se pudo guardar la preferencia de tema:', error);
+            });
+            return next;
+        });
     };
 
     const login = async (email, password) => {
@@ -100,12 +167,18 @@ export function AppContextProvider({ children }) {
             if (!response.ok) {
                 throw new Error(data.error || 'Error de autenticación');
             }
+
+            if (data.user?.role === 'admin') {
+                throw new Error('Los administradores deben iniciar sesión en el panel web.');
+            }
+
             setToken(data.access_token);
             const userData = {
                 ...data.user,
                 token: data.access_token,
             };
             setUser(userData);
+            await saveSession(data.access_token, userData);
             return { success: true, user: userData };
         } catch (error) {
             setUser(null);
@@ -126,8 +199,7 @@ export function AppContextProvider({ children }) {
                     name,
                     email,
                     password,
-                    password_confirmation: password,
-                    role_id: 2
+                    password_confirmation: password
                 })
             });
             const data = await response.json();
@@ -140,6 +212,7 @@ export function AppContextProvider({ children }) {
                 token: data.access_token,
             };
             setUser(userData);
+            await saveSession(data.access_token, userData);
             return { success: true, user: userData };
         } catch (error) {
             return { success: false, error: error.message };
@@ -147,9 +220,15 @@ export function AppContextProvider({ children }) {
     };
 
     const logout = async () => {
+        // Actualizar la interfaz primero; el borrado persistente no debe
+        // mantener visible el diálogo mientras AsyncStorage responde.
         setUser(null);
         setToken(null);
-        await clearSession();
+        try {
+            await clearSession();
+        } catch (error) {
+            console.error('Error al hacer logout:', error);
+        }
     };
 
     return (
@@ -162,10 +241,15 @@ export function AppContextProvider({ children }) {
                 logout,
                 isDarkTheme,
                 toggleTheme,
-                notificationsEnabled,
-                toggleNotifications,
+                tabsLocked,
+                setTabsLocked,
+                setTabsLockCloseHandler,
+                closeLockedModal,
                 isLoading,
                 paperTheme: isDarkTheme ? PaperDarkTheme : PaperLightTheme,
+                showAlert,
+                hideAlert,
+                alertConfig,
             }}
         >
             {children}

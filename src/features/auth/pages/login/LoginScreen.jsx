@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ROUTES } from "../../../../core/constants/routes";
 
 export default function LoginScreen({ navigation }) {
-    const { login, user } = useAppContext();
+    const { login } = useAppContext();
     const theme = useTheme();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -27,15 +27,8 @@ export default function LoginScreen({ navigation }) {
             setError(result.error || "Error de autenticación");
             return;
         }
-        if (result.user && result.user.rol && result.user.rol.toLowerCase() === 'admin') {
-            if (!result.user.is_active) {
-                setError('Tu cuenta ha sido desactivada. Contacta a un administrador.');
-                return;
-            }
-            navigation.reset({
-                index: 0,
-                routes: [{ name: ROUTES.ADMIN_DASHBOARD }],
-            });
+        if (result.user && result.user.vehicle_maintenance) {
+            alert(result.user.message || "Tu vehículo asignado está en mantenimiento.");
         }
     };
 
@@ -47,9 +40,9 @@ export default function LoginScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
                     <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-                        <FontAwesome name="user" size={40} color={theme.colors.primary} />
+                        <FontAwesome name="user" size={32} color={theme.colors.primary} />
                     </View>
-                    <Text variant="displaySmall" style={{ color: theme.colors.primary, fontWeight: 'bold', marginTop: 16 }}>Iniciar sesión</Text>
+                    <Text variant="displaySmall" style={[styles.title, { color: theme.colors.primary }]}>Iniciar sesión</Text>
                     <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>Accede a tu cuenta</Text>
                 </View>
 
@@ -119,23 +112,23 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         justifyContent: 'center',
-        padding: 24,
+        padding: 16,
     },
     headerContainer: {
-        marginBottom: 24,
+        marginBottom: 16,
         alignItems: 'center',
     },
     iconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
     },
     title: {
-        fontSize: 28,
+        fontSize: 26,
         fontWeight: 'bold',
-        marginBottom: 24,
+        marginBottom: 8,
         textAlign: 'center',
         color: '#144985',
     },
@@ -144,22 +137,22 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     input: {
-        marginBottom: 16,
+        marginBottom: 10,
     },
     button: {
         marginTop: 8,
         borderRadius: 8,
-        paddingVertical: 6,
+        paddingVertical: 2,
     },
     registerFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 24,
+        marginTop: 12,
     },
     backFooter: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 12,
+        marginTop: 4,
     }
 });

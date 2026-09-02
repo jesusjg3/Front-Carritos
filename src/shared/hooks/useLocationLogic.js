@@ -18,7 +18,7 @@ export const useLocationLogic = (user, isPasajero) => {
         return () => {
             stopWatchingLocation();
         };
-    }, [user, isPasajero]);
+    }, [user?.role, isPasajero]);
 
 
     const startWatchingLocation = async () => {
@@ -59,14 +59,20 @@ export const useLocationLogic = (user, isPasajero) => {
 
             // Comenzar seguimiento continuo
             if (watchSubscription.current) {
-                watchSubscription.current.remove();
+                try {
+                    if (typeof watchSubscription.current.remove === 'function') {
+                        watchSubscription.current.remove();
+                    }
+                } catch (e) {
+                    console.warn(e);
+                }
             }
 
             watchSubscription.current = await Location.watchPositionAsync(
                 {
                     accuracy: Location.Accuracy.High,
-                    timeInterval: 3000, // cada 3s
-                    distanceInterval: 5, // Aumentar a 5m para evitar "saltos" pequeños
+                    timeInterval: 5000,
+                    distanceInterval: 8,
                 },
                 (newLocation) => {
                     // Filtrar lecturas de baja precisión (> 15m) para evitar "teletransportes"
@@ -83,7 +89,13 @@ export const useLocationLogic = (user, isPasajero) => {
 
     const stopWatchingLocation = () => {
         if (watchSubscription.current) {
-            watchSubscription.current.remove();
+            try {
+                if (typeof watchSubscription.current.remove === 'function') {
+                    watchSubscription.current.remove();
+                }
+            } catch (e) {
+                console.warn(e);
+            }
             watchSubscription.current = null;
         }
     };

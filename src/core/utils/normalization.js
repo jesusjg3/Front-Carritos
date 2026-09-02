@@ -54,22 +54,11 @@ export const getUserRole = (user) => {
     role = user.role;
   }
   
-  // Degradar al Administrador para que tenga un uso y vista de Pasajero si ingresa desde su Celular (App nativa)
-  if (role === 'admin' && Platform.OS !== 'web') {
-      return 'pasajero';
-  }
+
 
   return role;
 };
 
-/**
- * Verifica si un usuario es admin
- * @param {Object} user - Objeto de usuario
- * @returns {boolean} true si el usuario es admin
- */
-export const isUserAdmin = (user) => {
-  return getUserRole(user) === 'admin';
-};
 
 /**
  * Verifica si un usuario es conductor

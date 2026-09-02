@@ -1,18 +1,17 @@
 /**
  * Utilidades de colores para la aplicación
- * Estas funciones pueden ser usadas en todo el frontend (admin, estudiantes, conductores)
+ * Estas funciones pueden ser usadas en todo el frontend (pasajeros, conductores)
  */
 
 import { COLORS } from '../constants/theme';
 
 /**
  * Obtiene el color asociado a un rol específico
- * @param {string} roleName - Nombre del rol (admin, pasajero, conductor)
+ * @param {string} roleName - Nombre del rol (pasajero, conductor)
  * @returns {string} Color hexadecimal
  */
 export const getRoleColor = (roleName) => {
   const roleColors = {
-    admin: COLORS.ADMIN,
     pasajero: COLORS.PASSENGER,
     conductor: COLORS.DRIVER,
   };

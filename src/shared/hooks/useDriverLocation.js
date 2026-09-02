@@ -1,124 +1,50 @@
-import { useState, useEffect, useRef } from 'react';
-import * as Location from 'expo-location';
+import { useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_ROUTES } from '../../Config/Routes';
 
 /**
- * Hook para gestionar la ubicación del conductor en tiempo real
- * Actualiza la ubicación periódicamente cuando el conductor está online
+ * Sincroniza la ubicación del conductor usando la ubicación que ya obtiene
+ * useLocationLogic. Mantener un segundo watcher GPS duplicaba el trabajo en
+ * Android y provocaba renders innecesarios en InicioScreen.
  */
-export const useDriverLocation = (user, token, isOnline) => {
-    const [location, setLocation] = useState(null);
-    const [locationError, setLocationError] = useState(null);
-    const watchSubscription = useRef(null);
-    const updateInterval = useRef(null);
+export const useDriverLocation = (user, token, isOnline, currentLocation) => {
+    const lastSentAt = useRef(0);
+    const sendingLocation = useRef(false);
+    const wasOnline = useRef(false);
+    const lastToken = useRef(token);
 
-    useEffect(() => {
-        if (!user || user.role !== 'conductor' || !token || !isOnline) {
-            // Si no es conductor o está offline, limpiar
-            stopLocationTracking();
-            return;
-        }
+    if (token) lastToken.current = token;
 
-        startLocationTracking();
+    const setDriverOffline = useCallback(async () => {
+        if (!lastToken.current) return;
 
-        return () => {
-            stopLocationTracking();
-        };
-    }, [user, token, isOnline]);
-
-    const startLocationTracking = async () => {
-        try {
-            // Solicitar permisos de ubicación
-            const { status } = await Location.requestForegroundPermissionsAsync();
-
-            if (status !== 'granted') {
-                setLocationError('Permiso de ubicación denegado');
-                console.error('Permiso de ubicación denegado');
-                return;
-            }
-
-            // Obtener ubicación inicial
-            let initialLocation = null;
-            try {
-                // Usar la última ubicación conocida evita timeouts de Expo
-                initialLocation = await Location.getLastKnownPositionAsync();
-            } catch (err) {
-                console.warn('Error al obtener última ubicación conocida (conductor):', err);
-            }
-
-            if (!initialLocation) {
-                try {
-                    initialLocation = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced, // Menores exigencias evitan error de timeout
-                    });
-                } catch (err) {
-                    console.error('Error fallback getCurrentPositionAsync:', err);
-                    setLocationError('Timeout al obtener la ubicación precisa.');
-                    return;
-                }
-            }
-
-            if (initialLocation && initialLocation.coords) {
-                const { latitude, longitude } = initialLocation.coords;
-                setLocation({ latitude, longitude });
-                // Enviamos sin detener la ejecución en caso de que la red local sufra de timeout
-                sendLocationToServer(latitude, longitude).catch(err => console.error('Error log catch:', err.message));
-            }
-
-            // Configurar seguimiento de ubicación en tiempo real
-            watchSubscription.current = await Location.watchPositionAsync(
-                {
-                    // Configuración equilibrada
-                    accuracy: Location.Accuracy.High,
-                    timeInterval: 3000, // Enviar cada 3 segundos (máximo)
-                    distanceInterval: 3, // Solo si se movió 3 metros
-                },
-                async (newLocation) => {
-                    const { latitude, longitude } = newLocation.coords;
-                    setLocation({ latitude, longitude });
-                    // Enviar al servidor SOLO de forma reactiva al movimiento
-                    await sendLocationToServer(latitude, longitude);
-                }
-            );
-
-        } catch (error) {
-            console.error('Error al iniciar seguimiento de ubicación:', error);
-            setLocationError(error.message);
-        }
-    };
-
-    const setDriverOffline = async () => {
-        if (!token) return;
         try {
             await axios.post(
                 API_ROUTES.SET_DRIVER_OFFLINE,
                 {},
                 {
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${lastToken.current}`,
                         'Content-Type': 'application/json',
                     },
-                }
+                },
             );
         } catch (error) {
             console.error('Error setting driver offline:', error);
         }
-    };
+    }, []);
 
-    const stopLocationTracking = () => {
-        if (watchSubscription.current) {
-            watchSubscription.current.remove();
-            watchSubscription.current = null;
-        }
+    const sendLocationToServer = useCallback(async (latitude, longitude) => {
+        if (!token || sendingLocation.current) return;
 
-        setLocation(null);
-        // Notificar al servidor que estamos offline
-        setDriverOffline();
-    };
+        // La ubicación local puede cambiar cada 5 s, pero el backend solo
+        // necesita una sincronización como máximo cada 10 s.
+        const now = Date.now();
+        if (now - lastSentAt.current < 10000) return;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
 
-    const sendLocationToServer = async (latitude, longitude) => {
-        if (!token) return;
+        sendingLocation.current = true;
+        lastSentAt.current = now;
 
         try {
             await axios.post(
@@ -129,15 +55,45 @@ export const useDriverLocation = (user, token, isOnline) => {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                }
+                },
             );
         } catch (error) {
             console.error('Error al enviar ubicación al servidor:', error.response?.data || error.message);
+        } finally {
+            sendingLocation.current = false;
         }
-    };
+    }, [token]);
+
+    useEffect(() => {
+        const isConductor = user?.role === 'conductor';
+        const canSync = isConductor && Boolean(token) && isOnline;
+
+        if (!canSync) {
+            lastSentAt.current = 0;
+            if (wasOnline.current) {
+                wasOnline.current = false;
+                setDriverOffline();
+            }
+            return;
+        }
+
+        wasOnline.current = true;
+        if (currentLocation) {
+            sendLocationToServer(currentLocation.latitude, currentLocation.longitude);
+        }
+    }, [currentLocation?.latitude, currentLocation?.longitude, isOnline, sendLocationToServer, setDriverOffline, token, user?.role]);
+
+    useEffect(() => () => {
+        if (wasOnline.current) {
+            wasOnline.current = false;
+            setDriverOffline();
+        }
+    }, [setDriverOffline]);
 
     return {
-        location,
-        locationError,
+        // Se conserva la salida para compatibilidad, pero ya no es estado
+        // propio: una actualización GPS no fuerza otro render adicional.
+        location: currentLocation,
+        locationError: null,
     };
 };

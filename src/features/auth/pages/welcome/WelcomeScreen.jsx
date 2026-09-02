@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Text, Button, Card, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
 import { useAppContext } from "../../../../shared/contexts/AppContext";
@@ -14,7 +14,7 @@ export default function WelcomeScreen({ navigation }) {
         <View style={styles.iconContainer}>
           <FontAwesome
             name="car"
-            size={80}
+            size={64}
             color={theme.colors.primary}
           />
         </View>
@@ -97,26 +97,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     alignItems: "center",
   },
   iconContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   title: {
     textAlign: "center",
     marginBottom: 8,
-    fontSize: 32,
+    fontSize: 27,
   },
   subtitle: {
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 20,
     fontWeight: "500",
     fontSize: 14,
   },
   buttonsContainer: {
     width: "100%",
-    gap: 12,
+    gap: 8,
   },
   primaryButton: {
     borderRadius: 8,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonContent: {
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   card: {
     elevation: 3,

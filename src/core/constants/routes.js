@@ -9,13 +9,7 @@ export const ROUTES = {
   LOGIN: 'Login',
   REGISTER: 'Register',
 
-  // Admin Routes
-  ADMIN_DASHBOARD: 'AdminDashboard',
-  USER_MANAGEMENT: 'UserManagement',
-  ADMIN_MANAGEMENT: 'AdminManagement',
-  DRIVER_MANAGEMENT: 'DriverManagement',
-  DESTINATION_MANAGEMENT: 'DestinationManagement',
-  TRIP_MANAGEMENT: 'TripManagement',
+
 
   // Dashboard Routes
   DASHBOARD: 'Dashboard',

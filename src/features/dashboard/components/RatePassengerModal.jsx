@@ -8,7 +8,7 @@ import { useAppContext } from '../../../shared/contexts/AppContext';
 import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 import AppModal from '../../../shared/components/AppModal';
 
-export default function RateDriverModal({ visible, trip, onDismiss, onRateSuccess }) {
+export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();
     const { token, showAlert } = useAppContext();
     const [rating, setRating] = useState(5);
@@ -18,16 +18,15 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
 
     const getRatingLabel = (score) => {
         switch(score) {
-            case 1: return "Muy malo";
+            case 1: return "Muy mal pasajero";
             case 2: return "Regular";
-            case 3: return "Bueno";
+            case 3: return "Buen pasajero";
             case 4: return "Muy bueno";
-            case 5: return "¡Excelente viaje!";
-            default: return "Califica el servicio";
+            case 5: return "¡Excelente pasajero!";
+            default: return "Califica al pasajero";
         }
     };
 
-    // Color mapping based on selected rating
     const getRatingStatusConfig = (score) => {
         switch(score) {
             case 1:
@@ -44,6 +43,14 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
 
     const handleSubmit = async () => {
         if (!trip) return;
+
+        // Una sola evaluación se replica en todos los pasajeros que llegaron.
+        if (!trip.passengers || trip.passengers.length === 0) {
+            showAlert("Error", "No se encontró la información de los pasajeros para calificar.", "error");
+            if (onDismiss) onDismiss();
+            return;
+        }
+
         setLoading(true);
         try {
             const response = await fetch(`${API_ROUTES.TRIPS}/${trip.id}/rate`, {
@@ -53,7 +60,10 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ score: rating, comment })
+                body: JSON.stringify({
+                    score: rating,
+                    comment: comment
+                })
             });
 
             if (response.ok) {
@@ -93,31 +103,26 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
 
     return (
         <AppModal visible={visible} onDismiss={onDismiss} animation="fade">
-                {/* Replaced Card with standard View to prevent double card layering on Web */}
                 <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.cardHeader}>
-                        {/* Colorful header badge - Gold star inside solid corporate blue circle */}
-                        <View style={[styles.avatarBg, { backgroundColor: theme.colors.primary }]}>
-                            <MaterialCommunityIcons name="star" size={30} color={theme.colors.warning} />
+                        <View style={[styles.avatarBg, { backgroundColor: theme.colors.success }]}>
+                            <MaterialCommunityIcons name="account-star" size={30} color={theme.colors.onSuccess} />
                         </View>
-                        <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica tu viaje</Text>
-                        <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo calificarías el servicio del conductor?</Text>
+                        <Text style={[styles.titleText, { color: theme.colors.primary }]}>Califica a tu pasajero</Text>
+                        <Text style={[styles.subtitleText, { color: theme.colors.onSurfaceVariant }]}>¿Cómo se comportó el pasajero durante el viaje?</Text>
                     </View>
 
                     <Divider style={styles.divider} />
 
-                    {/* Replaced Card.Content with standard View */}
                     <View style={styles.cardContent}>
                         {renderStars()}
 
-                        {/* Interactive dynamic color rating badge */}
                         <View style={[styles.ratingBadge, { backgroundColor: statusConfig.bg, borderColor: statusConfig.border }]}>
                             <Text style={[styles.ratingLabelText, { color: statusConfig.text }]}>
                                 {getRatingLabel(rating)}
                             </Text>
                         </View>
 
-                        {/* Custom native stable TextInput to prevent React 19 rendering crash on Web */}
                         <TextInput
                             placeholder="Comparte tu experiencia (Opcional)"
                             placeholderTextColor={theme.colors.onSurfaceVariant}
@@ -128,12 +133,11 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             style={[
-                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: isFocused ? theme.colors.primary : theme.colors.outline, color: theme.colors.onSurface }]
+                                [styles.input, { backgroundColor: theme.colors.surfaceVariant, borderColor: isFocused ? theme.colors.success : theme.colors.outline, color: theme.colors.onSurface }]
                             ]}
                         />
                     </View>
 
-                    {/* Spaced Action Buttons */}
                     <View style={styles.actions}>
                         <TouchableOpacity
                             onPress={onDismiss}
@@ -150,9 +154,8 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
                             style={styles.submitButton}
                             activeOpacity={0.85}
                         >
-                            {/* Rich corporate gradient for Enviar button! */}
                             <LinearGradient
-                                colors={[theme.colors.primary, theme.colors.secondary]}
+                                colors={[theme.colors.success, theme.colors.success]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.submitGradient}
@@ -170,7 +173,7 @@ export default function RateDriverModal({ visible, trip, onDismiss, onRateSucces
 const styles = StyleSheet.create({
     card: {
         width: '100%',
-        maxWidth: 340, // Limits maximum horizontal stretch on wide viewports
+        maxWidth: 340,
         borderRadius: BORDER_RADIUS.XL,
         overflow: 'hidden',
         padding: 16,

@@ -9,6 +9,13 @@ export const mapaHtml = `
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" />
     <style>
+        :root {
+            --map-primary: #1E88E5;
+            --map-primary-dark: #144985;
+            --map-pickup: #1976D2;
+            --map-destination: #d32f2f;
+            --map-marker-border: #ffffff;
+        }
         html, body, #map { height: 100%; margin: 0; padding: 0; }
         .user-marker-container {
             position: relative;
@@ -21,7 +28,7 @@ export const mapaHtml = `
             height: 40px;
             background-size: cover;
             border-radius: 50%;
-            border: 3px solid #1E88E5; /* Blue border */
+            border: 3px solid var(--map-primary);
             box-shadow: 0 0 5px rgba(0,0,0,0.7);
             position: absolute;
             top: 0;
@@ -33,7 +40,7 @@ export const mapaHtml = `
             height: 0;
             border-left: 8px solid transparent;
             border-right: 8px solid transparent;
-            border-top: 10px solid #1E88E5; /* Blue tail */
+            border-top: 10px solid var(--map-primary);
             position: absolute;
             bottom: 0;
             left: 50%;
@@ -43,8 +50,8 @@ export const mapaHtml = `
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            background: #1E88E5;
-            border: 3px solid #ffffff;
+            background: var(--map-primary);
+            border: 3px solid var(--map-marker-border);
             box-shadow: 0 0 8px rgba(0,0,0,0.35);
         }
         .destination-marker {
@@ -56,16 +63,29 @@ export const mapaHtml = `
         .simple-red-dot {
             width: 14px;
             height: 14px;
-            background-color: #d32f2f;
+            background-color: var(--map-destination);
             border-radius: 50%;
-            border: 2px solid #ffffff;
+            border: 2px solid var(--map-marker-border);
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .simple-blue-dot {
+            width: 14px;
+            height: 14px;
+            background-color: var(--map-pickup);
+            border-radius: 50%;
+            border: 2px solid var(--map-marker-border);
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1000;
         }
 
         .carrito-marker {
             font-family: 'Material Symbols Outlined';
             font-size: 46px;
-            color: #1E88E5; /* Blue car icon */
+            color: var(--map-primary);
             text-align: center;
         }
         .car-icon-transition {
@@ -83,17 +103,45 @@ export const mapaHtml = `
 <div id="map"></div>
 
 <script>
-    var map = L.map('map').setView([0, 0], 2);
+    var OSRM_URL = '${process.env.EXPO_PUBLIC_OSRM_URL || "http://router.project-osrm.org/route/v1"}';
+    var map = L.map('map').setView([-0.9676533, -80.737754], 14);
     var userMarker;
     var destinationMarkers = [];
+    var currentDestinationsStr = "";
     var routingControl;
+    var activeMapTheme = {
+        route: '#144985'
+    };
+
+    function setMapTheme(colors) {
+        if (!colors) return;
+
+        var root = document.documentElement;
+        var values = {
+            '--map-primary': colors.primary,
+            '--map-primary-dark': colors.primaryDark,
+            '--map-pickup': colors.pickup,
+            '--map-destination': colors.destination,
+            '--map-marker-border': colors.markerBorder
+        };
+
+        Object.keys(values).forEach(function(key) {
+            if (values[key]) root.style.setProperty(key, values[key]);
+        });
+
+        if (colors.route) {
+            activeMapTheme.route = colors.route;
+            if (customRouteLine) customRouteLine.setStyle({ color: colors.route });
+        }
+    }
 
     // Desabilitar zoom con doble tap
     map.doubleClickZoom.disable();
 
-    // Usamos CartoDB Voyager (Estilo limpio tipo Google Maps) que permite peticiones sin Referer desde WebViews
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB'
+    // Usamos OpenStreetMap para no depender de una API key de un proveedor
+    // comercial de mapas. La atribución es obligatoria para este servicio.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     function centerMap(lat, lon) {
@@ -102,8 +150,10 @@ export const mapaHtml = `
             if (map.getZoom() < 15) {
                 map.flyTo([lat, lon], 17, { animate: true, duration: 1.5 });
             } else {
-                // Empleamos panTo con duración extendida para deslizar la cámara suavemente
-                map.panTo([lat, lon], { animate: true, duration: 1.5, easeLinearity: 0.25 });
+                // En actualizaciones GPS no acumulamos animaciones de cámara.
+                // Las transiciones largas se solapaban y hacían que Android
+                // se sintiera atrasado respecto a la posición real.
+                map.panTo([lat, lon], { animate: false });
             }
         } else {
             console.error("Error: Mapa no inicializado o coordenadas no válidas.");
@@ -117,7 +167,8 @@ export const mapaHtml = `
             
             // CRÍTICO PARA ANIMACIONES: Leaflet destruye el NODO visual si usamos setIcon innecesariamente.
             // Solo creamos iconToUse si de verdad necesitamos cambiar el TIPO visual del usuario, sino solo re-usamos su div CSS
-            var demandsNewIcon = !userMarker || (userMarker._customIconType !== currentIconType);
+            var isFallback = userMarker && userMarker._isFallback;
+            var demandsNewIcon = !userMarker || (userMarker._customIconType !== currentIconType) || (isFallback && isDriver && carritoIconUrl);
 
             if (demandsNewIcon) {
                 if (isDriver && carritoIconUrl) {
@@ -146,6 +197,11 @@ export const mapaHtml = `
                         iconSize: [20, 20],
                         iconAnchor: [10, 10]
                     });
+                    
+                    // Mark as fallback if we wanted a car but iconUrl wasn't ready
+                    if (isDriver && !carritoIconUrl) {
+                        iconToUse._isFallback = true;
+                    }
                 }
             }
 
@@ -155,10 +211,12 @@ export const mapaHtml = `
                 if (demandsNewIcon && iconToUse) {
                     userMarker.setIcon(iconToUse);
                     userMarker._customIconType = currentIconType;
+                    userMarker._isFallback = iconToUse._isFallback || false;
                 }
             } else {
                 userMarker = L.marker([lat, lon], { icon: iconToUse }).addTo(map).bindPopup('Tu ubicación');
                 userMarker._customIconType = currentIconType;
+                userMarker._isFallback = iconToUse._isFallback || false;
             }
         } else {
             console.error("Error: Coordenadas no válidas para el marcador.");
@@ -173,34 +231,45 @@ export const mapaHtml = `
     }
 
     function addDestinationMarkers(destinations) {
-        clearDestinationMarkers();
-
-        if (map && destinations) {
-            destinations.forEach(dest => {
-                var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
-                var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
-                var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
-                
-                if (lat === undefined || lng === undefined) return;
-
-                var destinationIcon = L.divIcon({
-                    html: '<div class="simple-red-dot"></div>',
-                    className: '', // quitar clases de leaflet por defecto
-                    iconSize: [14, 14],
-                    iconAnchor: [7, 7], // Centro
-                    popupAnchor: [0, -7]
-                });
-
-                var marker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map)
-                    .bindPopup(title);
-                destinationMarkers.push(marker);
-            });
+        if (!map || !destinations) return;
+        
+        var newDestStr = JSON.stringify(destinations);
+        if (newDestStr === currentDestinationsStr && destinationMarkers.length > 0) {
+            return; // No need to redraw identical markers, prevents DOM thrashing
         }
+        
+        destinationMarkers.forEach(marker => map.removeLayer(marker));
+        destinationMarkers = [];
+        currentDestinationsStr = newDestStr;
+
+        destinations.forEach(dest => {
+            var lat = dest.lat !== undefined ? dest.lat : dest.latitude;
+            var lng = dest.lng !== undefined ? dest.lng : dest.longitude;
+            var title = dest.nombre || dest.title || dest.name || 'Punto de Interés';
+            var isPickup = dest.type === 'pickup';
+            
+            if (lat === undefined || lng === undefined) return;
+
+            var colorClass = isPickup ? 'simple-blue-dot' : 'simple-red-dot';
+
+            var destinationIcon = L.divIcon({
+                html: '<div class="' + colorClass + '"></div>',
+                className: '', 
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+                popupAnchor: [0, -7]
+            });
+
+            var marker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map)
+                .bindPopup(title);
+            destinationMarkers.push(marker);
+        });
     }
 
     function clearDestinationMarkers() {
         destinationMarkers.forEach(marker => map.removeLayer(marker));
         destinationMarkers = [];
+        currentDestinationsStr = "";
     }
 
     // --- GESTIÓN DE CONDUCTORES ---
@@ -289,29 +358,43 @@ export const mapaHtml = `
             
             if (destDistance < 5) {
                 var isOffRoute = false;
-
                 // El destino es el mismo.
-                if (fullRouteCoords && fullRouteCoords.length > 0 && customRouteLine) {
+                if (fullRouteCoords && fullRouteCoords.length > 1 && customRouteLine) {
                     var currentLatLng = L.latLng(startLat, startLng);
-                    var closestIndex = 0;
-                    var minDistance = Infinity;
+                    var currentPoint = map.project(currentLatLng, 18);
+                    
+                    var minDistancePx = Infinity;
+                    var closestSegmentIndex = 0;
 
-                    for (var i = 0; i < fullRouteCoords.length; i++) {
-                        var d = currentLatLng.distanceTo(fullRouteCoords[i]);
-                        if (d < minDistance) {
-                            minDistance = d;
-                            closestIndex = i;
+                    for (var i = 0; i < fullRouteCoords.length - 1; i++) {
+                        var p1 = map.project(fullRouteCoords[i], 18);
+                        var p2 = map.project(fullRouteCoords[i+1], 18);
+                        var dPx = L.LineUtil.pointToSegmentDistance(currentPoint, p1, p2);
+                        if (dPx < minDistancePx) {
+                            minDistancePx = dPx;
+                            closestSegmentIndex = i;
                         }
                     }
 
-                    // Detector Inteligente: Si la distancia al punto más cercano de la ruta supera 15m
-                    if (minDistance > 15) {
+                    // Convertir la distancia mínima a metros reales
+                    var cp1 = map.project(fullRouteCoords[closestSegmentIndex], 18);
+                    var cp2 = map.project(fullRouteCoords[closestSegmentIndex+1], 18);
+                    var closestPointPx = L.LineUtil.closestPointOnSegment(currentPoint, cp1, cp2);
+                    var closestLatLng = map.unproject(closestPointPx, 18);
+                    var distanceMeters = currentLatLng.distanceTo(closestLatLng);
+
+                    // Detector Inteligente: Si se aleja más de 50 metros del segmento más cercano
+                    if (distanceMeters > 50) {
                         isOffRoute = true;
                     } else {
-                        var slicedCoords = fullRouteCoords.slice(closestIndex);
-                        slicedCoords.unshift(currentLatLng);
+                        // El auto está en el segmento [closestSegmentIndex, closestSegmentIndex+1].
+                        // Eliminamos los puntos anteriores y reconstruimos la ruta desde la posición actual del auto.
+                        var remainingRoute = fullRouteCoords.slice(closestSegmentIndex + 1);
+                        var lineCoords = [currentLatLng].concat(remainingRoute);
                         
-                        customRouteLine.setLatLngs(slicedCoords);
+                        // Actualizamos permanentemente para que el próximo cálculo parta de aquí
+                        fullRouteCoords = lineCoords;
+                        customRouteLine.setLatLngs(lineCoords);
                     }
                 }
 
@@ -321,15 +404,19 @@ export const mapaHtml = `
                         doCameraFit([L.latLng(startLat, startLng), waypoints[1]], paddingBottom);
                     } else {
                         // En vez de congelar la cámara, deslizamos la vista lentamente hacia donde conduce el auto
-                        map.panTo([startLat, startLng], { animate: true, duration: 1.0, easeLinearity: 0.25 });
+                        map.panTo([startLat, startLng], { animate: false });
                     }
                     return;
                 }
             }
             routingControl.setWaypoints(waypoints);
+            clearDestinationMarkers();
             addDestinationMarkers([{lat: endLat, lng: endLng, title: 'Destino final'}]);
         } else {
             routingControl = L.Routing.control({
+                router: new L.Routing.OSRMv1({
+                    serviceUrl: OSRM_URL
+                }),
                 waypoints: waypoints,
                 routeWhileDragging: false, 
                 showAlternatives: false,
@@ -350,16 +437,142 @@ export const mapaHtml = `
                 var routes = e.routes;
                 if (routes && routes.length > 0) {
                     fullRouteCoords = routes[0].coordinates;
+                    
+                    // Asegurar que la línea visual SIEMPRE conecte con el carrito, 
+                    // incluso si OSRM hace "snap" a la calle más cercana.
+                    // Usamos e.waypoints para evitar el bug de closure con la variable waypoints original.
+                    var currentLatLng = L.latLng(e.waypoints[0].latLng.lat, e.waypoints[0].latLng.lng);
+                    var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                    
+                    // Aseguramos que fullRouteCoords tenga esta línea para futuros recálculos
+                    fullRouteCoords = lineCoords;
+
                     if (!customRouteLine) {
-                        customRouteLine = L.polyline(fullRouteCoords, {color: '#144985', opacity: 0.8, weight: 6}).addTo(map);
+                        customRouteLine = L.polyline(lineCoords, {color: activeMapTheme.route, opacity: 0.8, weight: 6}).addTo(map);
                     } else {
-                        customRouteLine.setLatLngs(fullRouteCoords);
+                        customRouteLine.setLatLngs(lineCoords);
                     }
                 }
             });
         }
 
         lastTargetDest = waypoints[1];
+        if (animateZoom !== false) doCameraFit(waypoints, paddingBottom);
+    }
+
+    function drawMultiRoute(waypointsJSON, paddingBottom, animateZoom) {
+        if (!map) return;
+        var points = JSON.parse(waypointsJSON);
+        if (!points || points.length < 2) return;
+
+        var waypoints = points.map(function(p) { return L.latLng(p.lat, p.lng); });
+
+        if (routingControl) {
+            var currentWps = routingControl.getWaypoints();
+            var wpChanged = false;
+            if (!currentWps || currentWps.length === 0 || currentWps.length !== waypoints.length) {
+                wpChanged = true;
+            } else {
+                // Check if any intermediate points changed (ignoring driver which is index 0)
+                for (var i = 1; i < waypoints.length; i++) {
+                    if (!currentWps[i].latLng || 
+                        currentWps[i].latLng.lat !== waypoints[i].lat || 
+                        currentWps[i].latLng.lng !== waypoints[i].lng) {
+                        wpChanged = true;
+                        break;
+                    }
+                }
+            }
+            var destDistance = lastTargetDest ? lastTargetDest.distanceTo(waypoints[waypoints.length - 1]) : Infinity;
+            
+            // Si el último destino no cambió, los waypoints intermedios son los mismos, verificamos si está en ruta
+            if (!wpChanged && destDistance < 5) {
+                var isOffRoute = false;
+                if (fullRouteCoords && fullRouteCoords.length > 1 && customRouteLine) {
+                    var currentLatLng = L.latLng(points[0].lat, points[0].lng);
+                    var currentPoint = map.project(currentLatLng, 18);
+                    
+                    var minDistancePx = Infinity;
+                    var closestSegmentIndex = 0;
+
+                    for (var i = 0; i < fullRouteCoords.length - 1; i++) {
+                        var p1 = map.project(fullRouteCoords[i], 18);
+                        var p2 = map.project(fullRouteCoords[i+1], 18);
+                        var dPx = L.LineUtil.pointToSegmentDistance(currentPoint, p1, p2);
+                        if (dPx < minDistancePx) {
+                            minDistancePx = dPx;
+                            closestSegmentIndex = i;
+                        }
+                    }
+
+                    var cp1 = map.project(fullRouteCoords[closestSegmentIndex], 18);
+                    var cp2 = map.project(fullRouteCoords[closestSegmentIndex+1], 18);
+                    var closestPointPx = L.LineUtil.closestPointOnSegment(currentPoint, cp1, cp2);
+                    var closestLatLng = map.unproject(closestPointPx, 18);
+                    var distanceMeters = currentLatLng.distanceTo(closestLatLng);
+
+                    if (distanceMeters > 50) {
+                        isOffRoute = true;
+                    } else {
+                        var remainingRoute = fullRouteCoords.slice(closestSegmentIndex + 1);
+                        var lineCoords = [currentLatLng].concat(remainingRoute);
+                        
+                        fullRouteCoords = lineCoords;
+                        customRouteLine.setLatLngs(lineCoords);
+                    }
+                }
+
+                if (!isOffRoute) {
+                    // Update markers if needed
+                    clearDestinationMarkers();
+                    addDestinationMarkers(points.slice(1));
+                    if (animateZoom !== false) {
+                        doCameraFit(waypoints, paddingBottom);
+                    } else {
+                        map.panTo([points[0].lat, points[0].lng], { animate: false });
+                    }
+                    return;
+                }
+            }
+
+            routingControl.setWaypoints(waypoints);
+            clearDestinationMarkers();
+            addDestinationMarkers(points.slice(1));
+        } else {
+            routingControl = L.Routing.control({
+                router: new L.Routing.OSRMv1({
+                    serviceUrl: OSRM_URL
+                }),
+                waypoints: waypoints,
+                routeWhileDragging: false, 
+                showAlternatives: false,
+                addWaypoints: false,
+                fitSelectedRoutes: false, 
+                createMarker: function() { return null; },
+                lineOptions: {
+                    styles: [{color: 'transparent', opacity: 0, weight: 0}]
+                }
+            }).addTo(map);
+
+            addDestinationMarkers(points.slice(1));
+
+            routingControl.on('routesfound', function(e) {
+                var routes = e.routes;
+                if (routes && routes.length > 0) {
+                    fullRouteCoords = routes[0].coordinates;
+                    var currentLatLng = L.latLng(e.waypoints[0].latLng.lat, e.waypoints[0].latLng.lng);
+                    var lineCoords = [currentLatLng].concat(fullRouteCoords);
+                    fullRouteCoords = lineCoords;
+                    if (!customRouteLine) {
+                        customRouteLine = L.polyline(lineCoords, {color: activeMapTheme.route, opacity: 0.8, weight: 6}).addTo(map);
+                    } else {
+                        customRouteLine.setLatLngs(lineCoords);
+                    }
+                }
+            });
+        }
+
+        lastTargetDest = waypoints[waypoints.length - 1];
         if (animateZoom !== false) doCameraFit(waypoints, paddingBottom);
     }
     
@@ -369,14 +582,18 @@ export const mapaHtml = `
             paddingTopLeft: [50, 50],
             paddingBottomRight: [50, padBottom],
             animate: true,
-            duration: 0.5
+            duration: 0.5,
+            maxZoom: 16
         });
     }
 
-    // Función para limpiar ruta
     function clearRoute() {
         if (routingControl) {
-            map.removeControl(routingControl);
+            try {
+                map.removeControl(routingControl);
+            } catch (e) {
+                console.warn('LRM removeControl error:', e);
+            }
             routingControl = null;
         }
         if (customRouteLine) {
@@ -384,6 +601,7 @@ export const mapaHtml = `
             customRouteLine = null;
         }
         fullRouteCoords = [];
+        lastTargetDest = null;
     }
 
     // Capturar doble clic para seleccionar destino personalizado

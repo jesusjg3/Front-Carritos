@@ -1,191 +1,87 @@
-# Estructura del Proyecto - Carritos App
+# Carritos — aplicación móvil
 
-## � Guía de Inicio Rápido
+Aplicación móvil para pasajeros y conductores, desarrollada con Expo, React Native y React Navigation.
 
-### Prerrequisitos
+## Requisitos
 
-- **Node.js**: [Descargar e instalar](https://nodejs.org/) (versión LTS recomendada).
-- **Expo Go**: Instala la aplicación en tu dispositivo ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/us/app/expo-go/id982107779)).
-- **Git**: [Descargar e instalar](https://git-scm.com/).
+- Node.js LTS y npm.
+- Expo Go para pruebas en dispositivo, o Android Studio para emulador.
+- Backend de Carritos ejecutándose y accesible desde la red del dispositivo.
 
-### 📦 Instalación y Configuración
+## Instalación
 
-1.  **Clonar el repositorio**
+```bash
+cd Front-Carritos
+npm install
+cp .env.example .env
+```
 
-    ```bash
-    git clone <URL_DEL_REPOSITORIO>
-    cd Front-Carritos
-    ```
+Edita `.env` y reemplaza `tu_ip_local` por la IP del equipo donde corre la API. Un teléfono físico no puede usar `localhost` para acceder al computador.
 
-2.  **Instalar dependencias**
-    ```bash
-    npm install
-    ```
+## Variables de entorno
 
-3.  **Configurar Variables de Entorno (.env)**
-    Crea un archivo `.env` en la raíz del proyecto (`Front-Carritos/`) y agrega las siguientes variables adaptándolas a tu entorno local (recuerda usar tu IP local en lugar de `192.168.x.x`):
+| Variable | Uso |
+| --- | --- |
+| `EXPO_PUBLIC_API_URL` | URL base de la API, incluyendo `/api`. |
+| `EXPO_PUBLIC_REVERB_APP_KEY` | Clave pública de Reverb. |
+| `EXPO_PUBLIC_REVERB_PORT` | Puerto de WebSockets. |
+| `EXPO_PUBLIC_CAMPUS_CENTER_LAT` / `LNG` | Centro visual de la geocerca. |
+| `EXPO_PUBLIC_CAMPUS_RADIUS_KM` | Radio visual permitido. La validación definitiva ocurre en el backend. |
+| `EXPO_PUBLIC_OSRM_URL` | Servicio OSRM para calcular rutas. |
 
-    ```env
-    # URL de tu Backend de Laravel
-    EXPO_PUBLIC_API_URL=http://192.168.x.x:8000/api
-    
-    # Configuración de Laravel Reverb (WebSockets)
-    EXPO_PUBLIC_REVERB_APP_KEY=app-key
-    EXPO_PUBLIC_REVERB_PORT=8080
-    
-    # Geofencing: Centro y Radio permitido del Campus
-    EXPO_PUBLIC_CAMPUS_CENTER_LAT=-0.9525
-    EXPO_PUBLIC_CAMPUS_CENTER_LNG=-80.7450
-    EXPO_PUBLIC_CAMPUS_RADIUS_KM=1.5
-    ```
+Los mapas usan mosaicos de OpenStreetMap y no requieren una API key de Google o CARTO. Debe conservarse la atribución visible del mapa.
 
-### ▶️ Ejecutar la aplicación
-
-Para iniciar el servidor de desarrollo:
+## Ejecución
 
 ```bash
 npx expo start
 ```
 
-**Comandos disponibles en la terminal interactiva:**
+En la consola de Expo:
 
-- Presiona `a` para correr en **Android Emulator**.
-- Presiona `i` para correr en **iOS Simulator** (solo macOS).
-- Presiona `w` para correr en **Web Browser**.
-- Escanea el código QR con la app **Expo Go** para probar en tu dispositivo físico.
+- `a`: emulador Android.
+- `i`: simulador iOS en macOS.
+- `w`: versión web.
+- Escanear el QR: dispositivo físico en la misma red.
 
----
+Para una compilación Android interna:
 
-## �📁 Arquitectura
-
-Este proyecto sigue una arquitectura profesional inspirada en Angular, adaptada para React Native/Expo. La estructura está diseñada para ser escalable, mantenible y fácil de entender a largo plazo.
-
-## 🏗️ Estructura de Carpetas
-
-```
-src/
-├── core/                    # Funcionalidad transversal a toda la aplicación
-│   ├── config/              # Configuraciones globales
-│   │   └── app.config.js    # Configuración de la app (API, tema, etc.)
-│   ├── constants/           # Constantes globales
-│   │   └── routes.js        # Nombres de rutas para navegación
-│   ├── hooks/               # Custom hooks reutilizables a nivel global
-│   ├── services/            # Servicios de infraestructura
-│   │   ├── api/             # Clientes HTTP y llamadas a API
-│   │   └── storage/         # Wrappers de AsyncStorage
-│   ├── types/               # Definiciones de tipos (TypeScript/JSDoc)
-│   └── utils/               # Funciones utilitarias puras
-│       ├── validators.js    # Validaciones (email, password, etc.)
-│       ├── format.js        # Formateadores (fechas, textos, etc.)
-│       └── index.js         # Barrel export
-│
-├── features/                # Módulos por dominio/funcionalidad
-│   ├── auth/                # Feature de autenticación
-│   │   ├── components/      # Componentes específicos de auth
-│   │   └── screens/         # Pantallas de auth
-│   │       ├── WelcomeScreen.jsx
-│   │       ├── LoginScreen.jsx
-│   │       ├── RegisterScreen.jsx
-│   │       └── index.js     # Barrel export
-│   │
-│   └── dashboard/           # Feature principal de la app
-│       ├── components/      # Componentes específicos del dashboard
-│       ├── screens/         # Pantallas del dashboard
-│       │   ├── InicioScreen.jsx
-│       │   ├── CarrerasScreen.jsx
-│       │   ├── PerfilScreen.jsx
-│       │   └── index.js     # Barrel export
-│       └── navigation/      # Navegación del dashboard
-│           └── DashboardTabs.jsx
-│
-├── shared/                  # Recursos compartidos entre features
-│   ├── components/          # Componentes UI reutilizables
-│   │   ├── buttons/         # Componentes de botones personalizados
-│   │   ├── cards/           # Componentes de tarjetas
-│   │   ├── inputs/          # Inputs personalizados
-│   │   └── layouts/         # Layouts compartidos
-│   ├── contexts/            # Contextos de React globales
-│   │   ├── AppContext.jsx   # Contexto principal (auth, theme)
-│   │   └── index.js         # Barrel export
-│   ├── hooks/               # Custom hooks compartidos
-│   └── styles/              # Estilos y temas compartidos
-│       ├── PaperTheme.jsx   # Configuración de temas Material Design
-│       └── index.js         # Barrel export
-│
-└── Web/                     # Recursos web específicos
-    ├── mapa.html            # HTML del mapa
-    └── mapaCode.js          # Código JavaScript del mapa
+```bash
+npx eas build --profile preview --platform android
 ```
 
-## 🎯 Principios de Organización
+## Estructura actual
 
-### 1. **Separación de Responsabilidades**
+- `App.js`: composición principal y navegación raíz.
+- `src/core`: configuración, constantes, servicios y utilidades transversales.
+- `src/features/auth`: bienvenida, inicio de sesión y registro.
+- `src/features/dashboard`: inicio, viajes, historial, perfil y componentes del ciclo de viaje.
+- `src/shared`: contexto global, hooks de ubicación/notificaciones y componentes compartidos.
+- `src/Web`: mapa basado en WebView y código JavaScript del mapa.
+- `assets`: iconos, splash y recursos gráficos.
 
-- **core/**: Código que puede ser usado en cualquier parte de la app
-- **features/**: Código específico de dominio, cada feature es independiente
-- **shared/**: Código reutilizable entre features
+> El punto de entrada real es `App.js`. Las pantallas administrativas heredadas
+> fueron retiradas porque no estaban conectadas a la navegación actual.
 
-### 2. **Escalabilidad**
+## Funcionalidades principales
 
-- Añadir nuevas features es simple: crear una nueva carpeta en `features/`
-- Cada feature contiene todo lo necesario: componentes, screens, navegación
-- No se contamina la carpeta raíz con cada nueva funcionalidad
+- Registro de pasajeros e inicio de sesión JWT.
+- Solicitud, aceptación, inicio, cancelación y finalización de viajes.
+- Viajes compartidos con control de pasajeros.
+- Ubicación del conductor y seguimiento en tiempo real mediante canales privados de Reverb.
+- Notificaciones push mediante Expo.
+- Historial, calificaciones, comentarios y reporte de incidencias.
 
-### 3. **Mantenibilidad**
+## Notificaciones Android
 
-- Los archivos están organizados por función y dominio
-- Fácil encontrar dónde hacer cambios
-- Barrel exports (`index.js`) simplifican las importaciones
+Para generar una aplicación Android con notificaciones push se requiere configurar el proyecto Firebase/Expo. `google-services.json` y las llaves de cuenta de servicio no deben subirse al repositorio. Consulta la configuración de credenciales de Expo y coloca únicamente los archivos locales ignorados por Git.
 
-### 4. **Convenciones de Importación**
+## Verificación
 
-```javascript
-// Bueno - Usando barrel exports
-import { useAppContext } from "../../../shared/contexts";
-import { isValidEmail, formatDate } from "../../core/utils";
-import { LoginScreen } from "../features/auth/screens";
+La exportación web permite comprobar que el bundle móvil compila:
 
-// Evitar - Importaciones directas largas
-import { useAppContext } from "../../../shared/contexts/AppContext";
+```bash
+npx expo export --platform web
 ```
 
-## 📝 Guía de Uso
-
-### Agregar una Nueva Feature
-
-1. Crear carpeta en `src/features/mi-nueva-feature/`
-2. Crear subcarpetas: `components/`, `screens/`, `hooks/`, etc.
-3. Crear `index.js` para barrel exports
-4. Importar donde sea necesario
-
-### Agregar un Nuevo Screen
-
-1. Crear el archivo en `src/features/{feature}/screens/NuevoScreen.jsx`
-2. Exportarlo en `src/features/{feature}/screens/index.js`
-3. Usarlo: `import { NuevoScreen } from '../features/{feature}/screens'`
-
-### Agregar Utilidades
-
-1. Crear función en `src/core/utils/`
-2. Exportarla en `src/core/utils/index.js`
-3. Usarla: `import { miFuncion } from '../../core/utils'`
-
-## 🚀 Próximos Pasos
-
-- [ ] Implementar servicio de API en `core/services/api/`
-- [ ] Crear componentes reutilizables en `shared/components/`
-- [ ] Agregar más utilidades de validación
-- [ ] Implementar manejo de estado global más robusto
-- [ ] Agregar tests unitarios por feature
-
-## 📚 Referencias
-
-Esta arquitectura está inspirada en:
-
-- **Angular**: Estructura modular por features
-- **Clean Architecture**: Separación de capas y responsabilidades
-- **React Best Practices**: Hooks, Context API, composition
-
----
-
-**Nota**: Esta estructura es flexible y puede adaptarse según las necesidades del proyecto. El objetivo es mantener el código organizado y fácil de escalar.
+Antes de probar un flujo completo, verifica que la API, Reverb, el worker de colas y OSRM estén disponibles.

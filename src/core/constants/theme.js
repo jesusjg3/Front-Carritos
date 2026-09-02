@@ -19,7 +19,6 @@ export const COLORS = {
   INFO: '#2196F3',
   
   // Roles
-  ADMIN: '#d32f2f',
   PASSENGER: '#144985',
   DRIVER: '#1E88E5',
   
@@ -75,18 +74,27 @@ export const BORDER_RADIUS = {
   ROUND: 50,
 };
 
-// Sombras
+// Sombras nativas premium tridimensionales con tinte corporativo
 export const SHADOWS = {
   SMALL: {
-    boxShadow: '0px 1px 1px rgba(0,0,0,0.18)',
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
     elevation: 1,
   },
   MEDIUM: {
-    boxShadow: '0px 2px 2.22px rgba(0,0,0,0.22)',
-    elevation: 3,
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 4,
+    elevation: 2,
   },
   LARGE: {
-    boxShadow: '0px 4px 4.65px rgba(0,0,0,0.30)',
-    elevation: 8,
+    shadowColor: '#144985',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.11,
+    shadowRadius: 8,
+    elevation: 4,
   },
 };

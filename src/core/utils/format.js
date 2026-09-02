@@ -70,7 +70,6 @@ export const getInitials = (name) => {
  */
 export const formatRoleName = (roleName) => {
   const roleNames = {
-    admin: 'Administrador',
     pasajero: 'Pasajero',
     conductor: 'Conductor',
   };

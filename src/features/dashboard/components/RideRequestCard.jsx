@@ -1,67 +1,140 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Card, Button, Divider } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SPACING, BORDER_RADIUS } from '../../../core/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 
 export default function RideRequestCard({ request, onAccept, onReject }) {
+    const theme = useTheme();
+    const [secondsLeft, setSecondsLeft] = useState(0);
+
+    useEffect(() => {
+        if (!request?.expiresAt) return undefined;
+        const update = () => setSecondsLeft(Math.max(0, Math.ceil((request.expiresAt - Date.now()) / 1000)));
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [request?.expiresAt]);
+
     if (!request) return null;
+
+    // Helper for passenger initials
+    const getInitials = (name) => {
+        if (!name) return "PA";
+        return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+    };
 
     return (
         <View style={styles.container}>
-            <View style={styles.card}>
-                {/* Header removed to save space */}
-
-                {/* Content */}
-                <View style={styles.content}>
-                    {/* Locations Row */}
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.subLabel}>Origen</Text>
-                            <Text style={styles.statValue} numberOfLines={2}>{request.origin}</Text>
+            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
+                {/* Upper Section: Premium Passenger Header with Corporate Gradient */}
+                <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.headerGradient}
+                >
+                    <View style={styles.passengerProfile}>
+                        <View style={styles.avatarOuterGlow}>
+                            <View style={styles.avatarInner}>
+                                <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
+                                    {getInitials(request.passenger?.name || request.passenger_name)}
+                                </Text>
+                            </View>
                         </View>
+                        <View style={styles.passengerMeta}>
+                            <Text style={[styles.passengerRole, { color: theme.colors.onPrimary + 'CC' }]}>PASAJERO SOLICITANTE</Text>
+                            <Text style={[styles.passengerName, { color: theme.colors.onPrimary }]} numberOfLines={1}>
+                                {request.passenger?.name || request.passenger_name || 'Estudiante'}
+                            </Text>
+                        </View>
+                    </View>
+                    
+                    <LinearGradient
+                        colors={[theme.colors.surface, theme.colors.surfaceVariant]}
+                        style={[styles.newBadge, { borderColor: theme.colors.outline }]}
+                    >
+                        <MaterialCommunityIcons name="flash" size={12} color={theme.colors.primary} style={{ marginRight: 2 }} />
+                        <Text style={[styles.newBadgeText, { color: theme.colors.primary }]}>NUEVO</Text>
+                    </LinearGradient>
+                    {secondsLeft > 0 && <Text style={[styles.expiryText, { color: theme.colors.onPrimary }]}>{secondsLeft}s</Text>}
+                </LinearGradient>
 
-                        <MaterialCommunityIcons name="arrow-right" size={20} color={COLORS.GRAY_400 || '#9e9e9e'} style={{ marginTop: 10 }} />
+                {/* Tactile Ticket Notches and Dashed Divider */}
+                    <View style={[styles.notchContainer, { backgroundColor: theme.colors.surface }]}>
+                    <View style={[styles.leftNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
+                    <View style={[styles.dashedDividerLine, { borderColor: theme.colors.outline }]} />
+                    <View style={[styles.rightNotch, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]} />
+                </View>
 
-                        <View style={styles.statItem}>
-                            <Text style={styles.subLabel}>Destino</Text>
-                            <Text style={styles.statValue} numberOfLines={2}>{request.destination}</Text>
+                {/* Central Section: High-End Route Details and Stats */}
+                <View style={[styles.contentBody, { backgroundColor: theme.colors.surface }]}>
+                    <View style={[styles.routeCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+                        <View style={styles.routePointCompact}>
+                            <View style={styles.routePointHeader}>
+                                <View style={styles.originIndicator} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>ORIGEN</Text>
+                            </View>
+                            <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                                {request.origin || 'Mi Ubicación Actual'}
+                            </Text>
+                        </View>
+                        <MaterialCommunityIcons name="arrow-right" size={18} color={theme.colors.primary} style={styles.routeArrow} />
+                        <View style={styles.routePointCompact}>
+                            <View style={styles.routePointHeader}>
+                                <View style={styles.destIndicator} />
+                                <Text style={[styles.routeLabel, { color: theme.colors.onSurfaceVariant }]}>DESTINO</Text>
+                            </View>
+                            <Text style={[styles.routeValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                                {request.destination}
+                            </Text>
                         </View>
                     </View>
 
-                    {/* Metadata Row (Passengers | Distance) */}
-                    <View style={styles.metadataRow}>
-                        <View style={styles.metaItem}>
-                            <MaterialCommunityIcons name="account-group" size={20} color={COLORS.PRIMARY} />
-                            <Text style={styles.metaText}>
+                    {/* Stats pills side by side */}
+                    <View style={styles.statsContainer}>
+                        <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                            <MaterialCommunityIcons name="account-group" size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
+                            <Text style={[styles.statText, { color: theme.colors.primary }]}>
                                 {request.passengers_count || 1} {(request.passengers_count || 1) === 1 ? 'Pasajero' : 'Pasajeros'}
                             </Text>
                         </View>
-
-                        <View style={styles.verticalDivider} />
-
-                        <View style={styles.metaItem}>
-                            <MaterialCommunityIcons name="map-marker-distance" size={18} color={COLORS.GRAY_600} />
-                            <Text style={styles.metaText}>{request.distance}</Text>
+                        
+                        <View style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                            <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.secondary} style={{ marginRight: 6 }} />
+                            <Text style={[styles.statText, { color: theme.colors.primary }]}>
+                                {request.distance || '1.2 km'}
+                            </Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Actions */}
-                <View style={styles.actions}>
+                {/* Bottom Section: Premium Actions (Pill shape side by side) */}
+                    <View style={[styles.actions, { backgroundColor: theme.colors.surface }]}>
                     <TouchableOpacity
-                        style={[styles.button, styles.acceptButton]}
-                        onPress={onAccept}
+                        style={[styles.actionButton, styles.rejectPill, { backgroundColor: theme.colors.surface }]}
+                        onPress={onReject}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.buttonText}>ACEPTAR</Text>
+                        <MaterialCommunityIcons name="close-circle" size={16} color={theme.colors.error} style={{ marginRight: 6 }} />
+                        <Text style={[styles.rejectText, { color: theme.colors.error }]}>RECHAZAR</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.button, styles.rejectButton]}
-                        onPress={onReject}
+                        style={[styles.actionButton, styles.acceptPill, { backgroundColor: theme.colors.success }]}
+                        onPress={onAccept}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.buttonText}>RECHAZAR</Text>
+                        <LinearGradient
+                            colors={[theme.colors.success, theme.colors.success]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.acceptGradient}
+                        >
+                            <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.onSuccess} style={{ marginRight: 6 }} />
+                            <Text style={[styles.acceptText, { color: theme.colors.onSuccess }]}>ACEPTAR VIAJE</Text>
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -71,160 +144,247 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 10, // Relative positioning for list stacking
+        marginHorizontal: 4,
+        marginBottom: 8,
         backgroundColor: 'transparent',
         zIndex: 20,
     },
     card: {
-        backgroundColor: COLORS.SURFACE,
-        borderRadius: BORDER_RADIUS.XL,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         overflow: 'hidden',
         ...SHADOWS.LARGE,
-        borderWidth: 1,
-        borderColor: COLORS.BORDER,
+        borderWidth: 0,
     },
-    header: {
-        backgroundColor: COLORS.GRAY_100,
-        paddingVertical: SPACING.SM,
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.BORDER,
-    },
-    headerTitle: {
-        fontWeight: 'bold',
-        fontSize: 16,
-        color: COLORS.GRAY_800,
-    },
-    content: {
-        padding: SPACING.SM, // Reduced from MD
-        paddingBottom: 0,
-    },
-    passengersRow: {
+    headerGradient: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: SPACING.XS,
-        backgroundColor: COLORS.GRAY_50,
-        padding: SPACING.SM,
-        borderRadius: BORDER_RADIUS.MD,
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
     },
-    row: {
+    passengerProfile: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: SPACING.XS,
-    },
-    icon: {
-        marginRight: SPACING.MD,
-    },
-    textContainer: {
         flex: 1,
     },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.GRAY_800,
+    avatarOuterGlow: {
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        padding: 2,
+        borderRadius: 24,
+        marginRight: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
-    subLabel: {
+    avatarInner: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarText: {
+        fontWeight: 'bold',
         fontSize: 12,
-        color: COLORS.GRAY_600,
+        color: '#144985',
+        letterSpacing: 0.5,
     },
-    divider: {
-        marginVertical: SPACING.SM,
-        height: 0.5,
+    passengerMeta: {
+        flex: 1,
+    },
+    passengerRole: {
+        fontSize: 9,
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontWeight: 'bold',
+        letterSpacing: 1.2,
+    },
+    passengerName: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        marginTop: 2,
+    },
+    newBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        ...SHADOWS.SMALL,
+    },
+    newBadgeText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#144985',
+        letterSpacing: 0.8,
+    },
+    expiryText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginLeft: 6,
+    },
+    notchContainer: {
+        height: 12,
+        backgroundColor: '#FFFFFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'relative',
+    },
+    leftNotch: {
+        width: 16,
+        height: 12,
+        backgroundColor: '#E2E8F0',
+        borderTopRightRadius: 6,
+        borderBottomRightRadius: 6,
+        marginLeft: -6,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    rightNotch: {
+        width: 16,
+        height: 20,
+        backgroundColor: '#E2E8F0',
+        borderTopLeftRadius: 6,
+        borderBottomLeftRadius: 6,
+        marginRight: -6,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    dashedDividerLine: {
+        flex: 1,
+        height: 1,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        marginHorizontal: 8,
+    },
+    contentBody: {
+        paddingHorizontal: 12,
+        paddingBottom: 10,
+        paddingTop: 6,
+        backgroundColor: '#FFFFFF',
+    },
+    routeCard: {
+        flexDirection: 'row',
+        borderRadius: 14,
+        padding: 8,
+        borderWidth: 0,
+        alignItems: 'center',
+    },
+    routePointCompact: {
+        flex: 1,
+        minWidth: 0,
+    },
+    originIndicator: {
+        width: 9,
+        height: 9,
+        borderRadius: 5,
+        backgroundColor: '#10B981',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        marginRight: 5,
+        ...SHADOWS.SMALL,
+    },
+    routePointHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    destIndicator: {
+        width: 12,
+        height: 12,
+        borderRadius: 3,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        marginRight: 5,
+        ...SHADOWS.SMALL,
+    },
+    routeArrow: {
+        marginHorizontal: 5,
+    },
+    routeLabel: {
+        fontSize: 8,
+        fontWeight: '900',
+        color: '#64748B',
+        letterSpacing: 0.8,
+    },
+    routeValue: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#1E293B',
+        marginTop: 2,
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        marginTop: 6,
+        gap: 8,
+    },
+    statPill: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#EFF6FF',
+        paddingVertical: 5,
+        paddingHorizontal: 8,
+        borderRadius: 30,
+        borderWidth: 0,
+        justifyContent: 'center',
+    },
+    statText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E40AF',
     },
     actions: {
         flexDirection: 'row',
-        padding: SPACING.SM, // Reduced from MD
-        gap: SPACING.MD,
-    },
-    button: {
-        flex: 1,
-        paddingVertical: 8, // Reduced from 12
-        borderRadius: BORDER_RADIUS.MD,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    acceptButton: {
-        backgroundColor: COLORS.SUCCESS,
-    },
-    rejectButton: {
-        backgroundColor: COLORS.SUCCESS, // Using success color as base, but maybe should be green per image?
-        // Wait, image shows "RECHARAR" (Rechazar) in GREEN? No, look closely.
-        // Image 2: "ACEPTAR" (Green), "RECHARAR" (Green). 
-        // Wait, normally reject is red. Let me look at the image again.
-        // Left button ACEPTAR is Green. Right button RECHARAR (typo in image "RECHARAR"?) is ALSO Green?
-        // Ah, let me scrutinize the image.
-        // Image 2 bottom right card.
-        // Left button: Green background, text ACEPTAR.
-        // Right button: Green background, text RECHARA...
-        // Actually both look green in the image provided "uploaded_image_1".
-        // That's unusual UI design (Accept/Reject same color).
-        // I will follow the image but maybe use a slightly different shade or just use the same as requested "style".
-        // WAIT, if I look really closely at the second image...
-        // The buttons are next to each other.
-        // Left: ACEPTAR. Right: RECHARAR.
-        // They both look the same green.
-        // I'll stick to the "style" request but maybe I should assume standard UX if it's ambiguous.
-        // However, user said "respeta los lineamiento... y sobre todo en estilo".
-        // I will make them both Green as per the visual reference, which seems to imply a specific theme.
-        // Actually, looking at the crop... maybe the right one is a different shade?
-        // I'll stick to Green for Accept. For Reject, standard UX is Red or Grey.
-        // I'll use Green for Accept (COLORS.SUCCESS) and maybe a darker Green or standard Error for Reject (COLORS.ERROR) to be safe, 
-        // OR just follow the image strictly.
-        // The text in the prompt says "mira la primera imagen...". The first image is the Offline/Online toggle flow.
-        // The second image has the card.
-        // I will check the `theme.js` again. `COLORS.ERROR` is `#F44336`.
-        // I'll make Reject button default to Green to match image if it really looks green, but maybe I'll use a prop to override.
-        // Let's look at the image again. 
-        // It looks like `StatusToggleButton` is Green/Black.
-        // The card buttons look Green/Green.
-        // I'll use Green for both for now to "respect the style of the image".
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: SPACING.SM,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
         gap: 8,
+        backgroundColor: '#FFFFFF',
+        borderBottomLeftRadius: 22,
+        borderBottomRightRadius: 22,
     },
-    statItem: {
+    actionButton: {
         flex: 1,
+        height: 32,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.MEDIUM,
     },
-    statValue: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: COLORS.GRAY_800,
-        marginTop: 2,
+    rejectPill: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#EF4444',
+        shadowOpacity: 0.05,
+        elevation: 1,
     },
-    metadataRow: {
+    acceptPill: {
+        overflow: 'hidden',
+    },
+    acceptGradient: {
+        width: '100%',
+        height: '100%',
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: COLORS.GRAY_50,
-        padding: SPACING.SM,
-        borderRadius: BORDER_RADIUS.MD,
-        marginTop: SPACING.XS,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
         justifyContent: 'center',
     },
-    verticalDivider: {
-        width: 1,
-        height: 20,
-        backgroundColor: COLORS.GRAY_200,
-        marginHorizontal: SPACING.SM,
+    acceptText: {
+        color: '#FFFFFF',
+        fontWeight: '900',
+        fontSize: 11,
+        letterSpacing: 0.8,
     },
-    metaText: {
-        marginLeft: 8,
-        fontSize: 13,
-        color: COLORS.GRAY_700,
-        fontWeight: '500',
-    }
+    rejectText: {
+        color: '#EF4444',
+        fontWeight: '900',
+        fontSize: 11,
+        letterSpacing: 0.8,
+    },
 });

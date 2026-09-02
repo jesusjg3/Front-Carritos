@@ -1,4 +1,3 @@
-import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { FontAwesome } from "@expo/vector-icons";
 import { useTheme } from "react-native-paper";
@@ -16,7 +15,13 @@ const Tab = createBottomTabNavigator();
 export default function DashboardTabs() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
-    const { user } = useAppContext();
+    const { user, tabsLocked, closeLockedModal } = useAppContext();
+
+    const handleLockedTabPress = (event) => {
+        if (!tabsLocked) return;
+        event.preventDefault();
+        closeLockedModal();
+    };
 
     const isPasajero = user?.role === 'pasajero';
 
@@ -24,18 +29,20 @@ export default function DashboardTabs() {
         <Tab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
+                freezeOnBlur: true,
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    marginBottom: 4,
+                    fontSize: 10,
+                    marginBottom: 2,
                 },
                 tabBarStyle: {
-                    height: 60 + insets.bottom,
-                    paddingBottom: insets.bottom + 6,
+                    height: 54 + insets.bottom,
+                    paddingBottom: insets.bottom + 2,
                     backgroundColor: theme.colors.elevation.level2,
                     borderTopWidth: 0,
                     elevation: 5,
+                    opacity: 1,
                 },
                 tabBarIcon: ({ color }) => {
                     let iconName = "home";
@@ -55,9 +62,9 @@ export default function DashboardTabs() {
                     return (
                         <FontAwesome
                             name={iconName}
-                            size={26}
+                            size={22}
                             color={color}
-                            style={{ marginTop: 4 }}
+                            style={{ marginTop: 2 }}
                         />
                     );
                 },
@@ -67,6 +74,10 @@ export default function DashboardTabs() {
                 name={ROUTES.INICIO}
                 component={InicioScreen}
                 options={{ tabBarLabel: "Inicio" }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
             <Tab.Screen
                 name={ROUTES.CARRERAS}
@@ -74,11 +85,19 @@ export default function DashboardTabs() {
                 options={{
                     tabBarLabel: isPasajero ? "Historial" : "Comentarios"
                 }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
             <Tab.Screen
                 name={ROUTES.PERFIL}
                 component={PerfilScreen}
                 options={{ tabBarLabel: "Perfil" }}
+                listeners={{
+                    tabPress: handleLockedTabPress,
+                    tabLongPress: handleLockedTabPress,
+                }}
             />
         </Tab.Navigator>
     );

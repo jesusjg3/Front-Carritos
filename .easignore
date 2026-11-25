@@ -1,0 +1,76 @@
+# EAS Ignore File
+# Uses this instead of .gitignore for packaging to EAS Build worker
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.ipa
+*.apk
+*.aab
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# macOS / Windows / Linux
+.DS_Store
+*.pem
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+
+# Environment Variables
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Allow google-services.json for Android build worker
+!google-services.json
+*firebase-adminsdk*.json
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# IDE
+.vscode/*
+.idea/
+*.iml
+
+# Testing / Temporary
+coverage/
+.nyc_output/
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+

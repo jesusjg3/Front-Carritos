@@ -1,13 +1,16 @@
+import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { NavigationContainer, DefaultTheme as NavigationLightTheme, DarkTheme as NavigationDarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { PaperProvider, ActivityIndicator } from "react-native-paper";
+import { PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View } from "react-native";
 
 import { AppContextProvider, useAppContext } from "./src/shared/contexts/AppContext";
 import { ROUTES } from "./src/core/constants/routes";
 import GlobalAlertDialog from "./src/shared/components/GlobalAlertDialog";
+import Spinner from "./src/shared/components/Spinner";
 import { usePushNotifications } from "./src/shared/hooks/usePushNotifications";
 
 import WelcomeScreen from "./src/features/auth/pages/welcome/WelcomeScreen";
@@ -37,10 +40,18 @@ function AppContent() {
   // Initialize Push Notifications when user is logged in
   usePushNotifications();
 
+  // La ventana nativa de Android tiene su propio fondo (blanco por defecto) y es lo
+  // que se ve detrás de los botones de navegación; el tema de Paper no la alcanza.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(paperTheme.colors.background).catch((error) => {
+      console.error('No se pudo aplicar el color de fondo de la ventana:', error);
+    });
+  }, [paperTheme.colors.background]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: paperTheme.colors.background }}>
-        <ActivityIndicator animating size="large" />
+        <Spinner size="large" color={paperTheme.colors.primary} />
       </View>
     );
   }

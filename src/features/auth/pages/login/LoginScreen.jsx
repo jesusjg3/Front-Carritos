@@ -4,6 +4,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useAppContext } from "../../../../shared/contexts/AppContext";
 import { useState } from "react";
 import { ROUTES } from "../../../../core/constants/routes";
+import { renderButtonSpinner } from "../../../../shared/components/ButtonSpinner";
 
 export default function LoginScreen({ navigation }) {
     const { login } = useAppContext();
@@ -74,7 +75,7 @@ export default function LoginScreen({ navigation }) {
                         />
                         <Button
                             mode="contained"
-                            loading={loading}
+                            icon={loading ? renderButtonSpinner : undefined}
                             onPress={handleLogin}
                             style={styles.button}
                         >

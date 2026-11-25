@@ -18,6 +18,7 @@ import { MODAL_ANIMATION_MS } from '../../../core/constants/timing';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
 import AppModal from '../../../shared/components/AppModal';
+import { renderButtonSpinner } from '../../../shared/components/ButtonSpinner';
 
 const PREDEFINED_SUBJECTS = [
   'Conducción peligrosa',
@@ -215,7 +216,7 @@ export const ReportTripModal = ({ visible, onClose, tripId }) => {
                   mode="contained"
                   onPress={handleSubmit}
                   disabled={loading || !canSubmit}
-                  loading={loading}
+                  icon={loading ? renderButtonSpinner : undefined}
                   buttonColor={canSubmit ? theme.colors.error : theme.colors.surfaceVariant}
                   textColor={canSubmit ? theme.colors.onError : theme.colors.onSurfaceVariant}
                   style={styles.footerButton}

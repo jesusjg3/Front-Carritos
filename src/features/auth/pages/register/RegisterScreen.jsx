@@ -3,6 +3,7 @@ import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from "re
 import { Button, Card, Snackbar, TextInput, Text, useTheme } from "react-native-paper";
 import { FontAwesome } from "@expo/vector-icons";
 import { ROUTES } from "../../../../core/constants/routes";
+import { renderButtonSpinner } from "../../../../shared/components/ButtonSpinner";
 import { useAppContext } from "../../../../shared/contexts";
 import { isValidEmail, isValidPassword, isValidName, passwordsMatch } from "../../../../core/utils/validators";
 
@@ -127,7 +128,7 @@ export default function RegisterScreen({ navigation }) {
 
                         <Button
                             mode="contained"
-                            loading={loading}
+                            icon={loading ? renderButtonSpinner : undefined}
                             onPress={handleRegister}
                             disabled={loading}
                             style={styles.button}

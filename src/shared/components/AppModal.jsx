@@ -7,6 +7,7 @@ import {
     Platform,
     Pressable,
     StyleSheet,
+    View,
 } from 'react-native';
 import { Portal, useTheme } from 'react-native-paper';
 import { MODAL_ANIMATION_MS } from '../../core/constants/timing';
@@ -129,15 +130,18 @@ export default function AppModal({
         : [{ scale: contentScale }];
     const shouldRender = visible || mounted;
 
+    // El fondo y el contenido animan opacidad por separado: anidarlas obliga a
+    // Android a crear dos capas offscreen sobre el árbol completo en cada frame.
     const modalContent = (
-        <Animated.View
-            style={[
-                styles.overlay,
-                placement === 'bottom' && styles.bottomOverlay,
-                { backgroundColor: theme.dark ? 'rgba(0, 0, 0, 0.62)' : 'rgba(13, 52, 97, 0.38)' },
-                { opacity: overlayOpacity },
-            ]}
-        >
+        <View style={[styles.overlay, placement === 'bottom' && styles.bottomOverlay]}>
+            <Animated.View
+                pointerEvents="none"
+                style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: theme.dark ? 'rgba(0, 0, 0, 0.62)' : 'rgba(13, 52, 97, 0.38)' },
+                    { opacity: overlayOpacity },
+                ]}
+            />
             <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
             <Animated.View
                 style={[
@@ -150,13 +154,13 @@ export default function AppModal({
             >
                 {children}
             </Animated.View>
-        </Animated.View>
+        </View>
     );
 
-    // En móvil, los bottom sheets deben estar sobre toda la aplicación,
-    // incluida la barra de tabs. Portal evita que el Modal nativo herede
-    // únicamente el alto del área activa de navegación.
-    if (placement === 'bottom' && Platform.OS !== 'web') {
+    // En móvil, los modales deben estar sobre toda la aplicación, incluida la barra
+    // de tabs. Portal evita la ventana aparte del Modal nativo, que en Android
+    // (edge-to-edge) hace parpadear u ocultar la barra de estado al abrirse.
+    if (Platform.OS !== 'web') {
         return shouldRender ? <Portal>{modalContent}</Portal> : null;
     }
 

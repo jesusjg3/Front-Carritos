@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from "react-native";
-import { Text, Button, Divider, ActivityIndicator, useTheme } from "react-native-paper";
+import { Text, Button, Divider, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
 import AppModal from "../../../shared/components/AppModal";
+import { calculateDistanceBetweenCoordinates } from "../utils/geoUtils";
+import Spinner from "../../../shared/components/Spinner";
 
 export default function DestinationModal({ 
     visible, 
@@ -24,15 +26,14 @@ export default function DestinationModal({
     const [passengersCount, setPassengersCount] = useState(1);
     const modalHeight = Math.min(height * 0.74, 500);
 
-    const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; 
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return parseFloat((R * c).toFixed(2));
+    const resolveDistanceInKm = (originLatitude, originLongitude, destinationLatitude, destinationLongitude) => {
+        const calculatedDistance = calculateDistanceBetweenCoordinates(
+            originLatitude,
+            originLongitude,
+            destinationLatitude,
+            destinationLongitude
+        );
+        return parseFloat(calculatedDistance.toFixed(2));
     };
 
     return (
@@ -58,7 +59,7 @@ export default function DestinationModal({
                     <ScrollView style={styles.destinosList} showsVerticalScrollIndicator={false}>
                         {cargando ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+                                <Spinner size="large" color={theme.colors.primary} />
                                 <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>Cargando destinos del campus...</Text>
                             </View>
                         ) : error ? (
@@ -76,7 +77,7 @@ export default function DestinationModal({
                             <View style={styles.listWrapper}>
                                 {destinos.map((destino) => {
                                     const distancia = ubicacionActual 
-                                        ? calculateDistance(ubicacionActual.latitude, ubicacionActual.longitude, destino.latitude, destino.longitude)
+                                        ? resolveDistanceInKm(ubicacionActual.latitude, ubicacionActual.longitude, destino.latitude, destino.longitude)
                                         : null;
                                     const isSelected = destinoSeleccionado?.id === destino.id;
 
@@ -319,3 +320,4 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
 });
+

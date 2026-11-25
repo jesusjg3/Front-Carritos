@@ -1,13 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, StyleSheet, TouchableOpacity, Platform } from "react-native";
-import { Text, Card, useTheme, ActivityIndicator, Divider } from "react-native-paper";
+import { Text, Card, useTheme, Divider } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, COLORS, BORDER_RADIUS } from "../../../core/constants/theme";
 import { ReportTripModal } from '../components/ReportTripModal';
+import Spinner from "../../../shared/components/Spinner";
 
 export default function HistoryScreen() {
     const { user, token, setTabsLocked, setTabsLockCloseHandler } = useAppContext();
@@ -79,13 +80,13 @@ export default function HistoryScreen() {
     );
 
     const getStatusColor = (state) => {
-        const s = (state || '').toLowerCase();
-        if (s === 'completado' || s === 'completed' || s === 'finished' || s === 'finalizado') {
+        const normalizedState = (state || '').toLowerCase();
+        if (normalizedState === 'completado' || normalizedState === 'completed' || normalizedState === 'finished' || normalizedState === 'finalizado') {
             return theme.dark
                 ? { bg: '#173B2A', text: '#86EFAC', label: 'Completado' }
                 : { bg: '#E8F5E9', text: '#2E7D32', label: 'Completado' };
         }
-        if (s === 'cancelado' || s === 'cancelled') {
+        if (normalizedState === 'cancelado' || normalizedState === 'cancelled') {
             return theme.dark
                 ? { bg: '#451A1A', text: '#FCA5A5', label: 'Cancelado' }
                 : { bg: '#FFEBEE', text: '#C62828', label: 'Cancelado' };
@@ -207,7 +208,7 @@ export default function HistoryScreen() {
             
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+                    <Spinner size="large" color={theme.colors.primary} />
                     <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>Cargando tus trayectos...</Text>
                 </View>
             ) : (
@@ -224,7 +225,7 @@ export default function HistoryScreen() {
                     onEndReached={() => fetchHistory(pageRef.current + 1, true)}
                     onEndReachedThreshold={0.4}
                     ListFooterComponent={loadingMore ? (
-                        <ActivityIndicator style={styles.loadingMore} color={theme.colors.primary} />
+                        <Spinner style={styles.loadingMore} color={theme.colors.primary} />
                     ) : null}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>

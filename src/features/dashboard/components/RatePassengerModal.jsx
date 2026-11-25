@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useTheme, Text, Divider } from 'react-native-paper';
-import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_ROUTES } from '../../../Config/Routes';
 import { useAppContext } from '../../../shared/contexts/AppContext';
 import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
 import AppModal from '../../../shared/components/AppModal';
+import StarRating from '../../../shared/components/StarRating';
 
 export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuccess }) {
     const theme = useTheme();
@@ -73,30 +74,13 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                 const data = await response.json();
                 showAlert("Error", "Error al enviar calificación: " + (data.error || "Desconocido"), "error");
             }
-        } catch (error) {
-            console.error(error);
+        } catch (errorObject) {
+            console.error("Error al enviar calificación de pasajero:", errorObject);
             showAlert("Error de Conexión", "No se pudo enviar la calificación por problemas de conexión.", "error");
         } finally {
             setLoading(false);
             if (onDismiss) onDismiss();
         }
-    };
-
-    const renderStars = () => {
-        const stars = [];
-        for (let i = 1; i <= 5; i++) {
-            stars.push(
-                <TouchableOpacity key={i} onPress={() => setRating(i)} activeOpacity={0.7}>
-                    <FontAwesome
-                        name={i <= rating ? "star" : "star-o"}
-                        size={42}
-                        color={i <= rating ? "#FFC107" : theme.colors.outline}
-                        style={{ marginHorizontal: 6 }}
-                    />
-                </TouchableOpacity>
-            );
-        }
-        return <View style={styles.starsContainer}>{stars}</View>;
     };
 
     const statusConfig = getRatingStatusConfig(rating);
@@ -115,7 +99,16 @@ export default function RatePassengerModal({ visible, trip, onDismiss, onRateSuc
                     <Divider style={styles.divider} />
 
                     <View style={styles.cardContent}>
-                        {renderStars()}
+                        <StarRating
+                            rating={rating}
+                            size={42}
+                            activeColor="#FFC107"
+                            inactiveColor={theme.colors.outline}
+                            onRateChange={(selectedRating) => setRating(selectedRating)}
+                            iconFamily="FontAwesome"
+                            starStyle={{ marginHorizontal: 6 }}
+                            containerStyle={styles.starsContainer}
+                        />
 
                         <View style={[styles.ratingBadge, { backgroundColor: statusConfig.bg, borderColor: statusConfig.border }]}>
                             <Text style={[styles.ratingLabelText, { color: statusConfig.text }]}>

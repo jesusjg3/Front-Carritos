@@ -8,6 +8,7 @@ import ReasonModal from "../../../shared/components/ReasonModal";
 import { createEcho } from "../../../core/services/echo";
 import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { getUserInitials } from "../../../core/utils/stringUtils";
 import AppModal from "../../../shared/components/AppModal";
 
 export default function PerfilScreen() {
@@ -130,7 +131,8 @@ export default function PerfilScreen() {
                 if (showAlert) showAlert("Enviado", "Solicitud de desconexión enviada al administrador.", "success");
                 else alert("Solicitud de desconexión enviada al administrador.");
             }
-        } catch (e) {
+        } catch (disconnectError) {
+            console.error("Error al desconectar:", disconnectError);
             setIsWaitingDisconnect(false);
             if (showAlert) showAlert("Error", "Error de conexión al servidor.", "error");
             else alert("Error de conexión al servidor.");
@@ -159,16 +161,12 @@ export default function PerfilScreen() {
                 if (showAlert) showAlert("Enviado", "Tu queja ha sido registrada con éxito.", "success");
                 else alert("Tu queja ha sido registrada con éxito.");
             }
-        } catch (e) {
+        } catch (complaintError) {
+            console.error("Error al enviar queja:", complaintError);
             setIsSendingComplaint(false);
             if (showAlert) showAlert("Error", "Error de conexión al servidor.", "error");
             else alert("Error de conexión al servidor.");
         }
-    };
-
-    const getInitials = (name) => {
-        if (!name) return "U";
-        return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
     };
 
     return (
@@ -179,7 +177,7 @@ export default function PerfilScreen() {
                     <View style={[styles.avatarGlow, { borderColor: theme.colors.primary }]}>
                         <Avatar.Text
                             size={68}
-                            label={getInitials(user?.name || user?.nombre)} 
+                            label={getUserInitials(user?.name || user?.nombre, "U")} 
                             style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
                             labelStyle={styles.avatarLabel}
                         />

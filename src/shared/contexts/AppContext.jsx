@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PaperDarkTheme, PaperLightTheme } from "../styles/PaperTheme";
 import { API_ROUTES } from "../../Config/Routes";
@@ -10,16 +10,23 @@ export function AppContextProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isDarkTheme, setIsDarkTheme] = useState(false);
-    const [tabsLocked, setTabsLocked] = useState(false);
-    const [tabLockCloseHandler, setTabLockCloseHandler] = useState(null);
+    const [tabsLocked, setTabsLockedState] = useState(false);
+    const tabLockCloseHandlerRef = useRef(null);
 
-    const setTabsLockCloseHandler = useCallback((handler) => {
-        setTabLockCloseHandler(() => handler);
+    const setTabsLocked = useCallback((lockedStatus) => {
+        setTabsLockedState(previousLockedStatus => {
+            const normalizedStatus = Boolean(lockedStatus);
+            return previousLockedStatus === normalizedStatus ? previousLockedStatus : normalizedStatus;
+        });
+    }, []);
+
+    const setTabsLockCloseHandler = useCallback((closeHandlerCallback) => {
+        tabLockCloseHandlerRef.current = typeof closeHandlerCallback === 'function' ? closeHandlerCallback : null;
     }, []);
 
     const closeLockedModal = useCallback(() => {
-        tabLockCloseHandler?.();
-    }, [tabLockCloseHandler]);
+        tabLockCloseHandlerRef.current?.();
+    }, []);
     const [isLoading, setIsLoading] = useState(true);
 
     // Global custom alert state

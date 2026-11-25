@@ -5,11 +5,13 @@ import {
   Text,
   Button,
   Divider,
-  ActivityIndicator,
   useTheme,
 } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { getUserInitials } from "../../../core/utils/stringUtils";
+import { TRIP_STATE_IDS } from "../constants/dashboardConstants";
+import Spinner from "../../../shared/components/Spinner";
 
 export default function ActiveTripCard({
   activeTrip,
@@ -27,7 +29,7 @@ export default function ActiveTripCard({
 
   // Find the specific passenger record if viewing as a passenger
   const myPassengerRecord = isPasajero && user ?
-    activeTrip?.passengers?.find(p => p.id === user.id)
+    activeTrip?.passengers?.find(passengerItem => passengerItem.id === user.id)
     : null;
 
 
@@ -36,40 +38,30 @@ export default function ActiveTripCard({
     if (isPasajero && myPassengerRecord) {
       return myPassengerRecord.status === 'boarded' ? "Viaje en curso" : "Conductor en camino";
     }
-    return activeTrip.state_id == 4 ? "Viaje en curso" : "Conductor en camino";
+    return activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS ? "Viaje en curso" : "Conductor en camino";
   };
 
   const getStateSubtitle = () => {
     if (isPasajero && myPassengerRecord) {
       return myPassengerRecord.status === 'boarded' ? "Disfruta tu viaje" : "Recogiéndote en breve";
     }
-    return activeTrip.state_id == 4 ? "Disfruta tu viaje" : "Tu viaje ha sido aceptado";
+    return activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS ? "Disfruta tu viaje" : "Tu viaje ha sido aceptado";
   };
 
   const getDriverIcon = () => (isPasajero ? "car" : "account");
 
   // Driver specific Titles
   const getDriverTitle = () =>
-    activeTrip.state_id == 4
+    activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS
       ? "En camino al destino"
       : "Recogiendo al pasajero";
   const getDriverSubtitle = () =>
-    activeTrip.state_id == 4
+    activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS
       ? "Rumbo al destino final"
       : "Dirígete al punto de partida";
 
   const title = isPasajero ? getStateTitle() : getDriverTitle();
   const subtitle = isPasajero ? getStateSubtitle() : getDriverSubtitle();
-
-  const getInitials = (name) => {
-    if (!name) return isPasajero ? "CH" : "PA";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
 
   return (
     <Card style={[styles.tripCard, { backgroundColor: theme.colors.surface }]}>
@@ -77,8 +69,7 @@ export default function ActiveTripCard({
 
       <View style={styles.headerRow}>
         <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '10' }]}>
-          <ActivityIndicator
-            animating={true}
+          <Spinner
             size="small"
             color={theme.colors.primary}
           />
@@ -105,7 +96,7 @@ export default function ActiveTripCard({
                 ]}
               >
                 <Text style={[styles.initials, { color: theme.colors.onPrimary }]}>
-                  {getInitials(activeTrip.driver?.name)}
+                  {getUserInitials(activeTrip.driver?.name, isPasajero ? "CH" : "PA")}
                 </Text>
               </View>
             </View>
@@ -140,10 +131,10 @@ export default function ActiveTripCard({
           <View>
             {(activeTrip.passengers || [])
               .filter(
-                (p) =>
-                  p.status !== "dropped_off" &&
-                  p.status !== "cancelled" &&
-                  p.status !== "requested",
+                (passengerItem) =>
+                  passengerItem.status !== "dropped_off" &&
+                  passengerItem.status !== "cancelled" &&
+                  passengerItem.status !== "requested",
               )
               .map((passenger) => {
                 return (
@@ -161,7 +152,7 @@ export default function ActiveTripCard({
                         ]}
                       >
                         <Text style={[styles.initials, { color: theme.colors.onPrimary }]}>
-                          {getInitials(passenger.name || "Pasajero")}
+                          {getUserInitials(passenger.name, "PA")}
                         </Text>
                       </View>
                     </View>
@@ -263,7 +254,7 @@ export default function ActiveTripCard({
             >
               Contactar
             </Button>
-            {![3, 5].includes(activeTrip.state_id) && (
+            {![TRIP_STATE_IDS.ARRIVED, TRIP_STATE_IDS.COMPLETED].includes(activeTrip.state_id) && (
               <Button
                 mode="outlined"
                 textColor={theme.colors.error}
@@ -281,7 +272,7 @@ export default function ActiveTripCard({
           </View>
         ) : (
           <View style={styles.buttonRow}>
-            {![3, 5].includes(activeTrip.state_id) && (
+            {![TRIP_STATE_IDS.ARRIVED, TRIP_STATE_IDS.COMPLETED].includes(activeTrip.state_id) && (
               <Button
                 mode="outlined"
                 textColor={theme.colors.error}
@@ -290,13 +281,13 @@ export default function ActiveTripCard({
                   { borderColor: theme.colors.error + "50" },
                 ]}
                 contentStyle={styles.actionButtonContent}
-                onPress={() => onCancel(activeTrip.state_id != 4)}
+                onPress={() => onCancel(activeTrip.state_id !== TRIP_STATE_IDS.IN_PROGRESS)}
                 icon="close"
               >
-                {activeTrip.state_id == 4 ? "Cancelar" : "No llegó"}
+                {activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS ? "Cancelar" : "No llegó"}
               </Button>
             )}
-            {activeTrip.state_id != 4 && (
+            {activeTrip.state_id !== TRIP_STATE_IDS.IN_PROGRESS && (
               <Button
                 mode="contained"
                 style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
@@ -307,20 +298,20 @@ export default function ActiveTripCard({
                 Iniciar Ruta
               </Button>
             )}
-            {activeTrip.state_id == 4 && (
+            {activeTrip.state_id === TRIP_STATE_IDS.IN_PROGRESS && (
               <Button
                 mode="contained"
                 style={[
                   styles.actionButton,
-                  { backgroundColor: activeTrip.passengers?.some(p => p.status === 'accepted') ? theme.colors.surfaceVariant : theme.colors.success }
+                  { backgroundColor: activeTrip.passengers?.some(passengerItem => passengerItem.status === 'accepted') ? theme.colors.surfaceVariant : theme.colors.success }
                 ]}
                 contentStyle={styles.actionButtonContent}
                 onPress={onFinishTrip}
                 icon="flag-checkered"
-                textColor={activeTrip.passengers?.some(p => p.status === 'accepted') ? theme.colors.onSurfaceVariant : theme.colors.onSuccess}
-                disabled={activeTrip.passengers?.some(p => p.status === 'accepted')}
+                textColor={activeTrip.passengers?.some(passengerItem => passengerItem.status === 'accepted') ? theme.colors.onSurfaceVariant : theme.colors.onSuccess}
+                disabled={activeTrip.passengers?.some(passengerItem => passengerItem.status === 'accepted')}
               >
-                {activeTrip.passengers?.some(p => p.status === 'accepted') ? "Pasajeros pendientes" : "Finalizar Viaje Completo"}
+                {activeTrip.passengers?.some(passengerItem => passengerItem.status === 'accepted') ? "Pasajeros pendientes" : "Finalizar Viaje Completo"}
               </Button>
             )}
           </View>

@@ -2,23 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { API_ROUTES } from "../../Config/Routes";
 import { createEcho } from "../../core/services/echo";
+import { DEFAULT_RADAR_RADIUS_KM } from "../../features/dashboard/constants/dashboardConstants";
+import { calculateDistanceBetweenCoordinates } from "../../features/dashboard/utils/geoUtils";
 
-const RADAR_RADIUS_KM = 10;
-
-const distanceInKm = (from, to) => {
-  if (!from || !to) return Infinity;
-
-  const earthRadiusKm = 6371;
-  const dLat = ((to.latitude - from.latitude) * Math.PI) / 180;
-  const dLng = ((to.longitude - from.longitude) * Math.PI) / 180;
-  const latitudeOne = (from.latitude * Math.PI) / 180;
-  const latitudeTwo = (to.latitude * Math.PI) / 180;
-  const value =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(latitudeOne) * Math.cos(latitudeTwo) * Math.sin(dLng / 2) ** 2;
-
-  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(value)));
-};
+const RADAR_RADIUS_KM =
+  Number(process.env.EXPO_PUBLIC_RADAR_RADIUS_KM) || DEFAULT_RADAR_RADIUS_KM;
 
 /**
  * Hook para obtener conductores cercanos en tiempo real
@@ -46,71 +34,94 @@ export const useNearbyDrivers = (
     }
 
     // Esta suscripción no debe reiniciarse cada vez que cambia el GPS.
-    const echo = createEcho(token);
-    const channel = echo.private("drivers.live");
+    const echoInstance = createEcho(token);
+    const driversChannel = echoInstance.private("drivers.live");
 
-    channel.listen(".DriverGlobalLocationUpdated", (event) => {
-      setNearbyDrivers((prev) => {
-        const driverId = Number(event.driver_id);
-        const latitude = Number(event.latitude);
-        const longitude = Number(event.longitude);
-        const current = latestLocation.current;
-        const isWithinRadar = distanceInKm(current, { latitude, longitude }) <= RADAR_RADIUS_KM;
+    driversChannel.listen(".DriverGlobalLocationUpdated", (eventPayload) => {
+      setNearbyDrivers((previousDrivers) => {
+        const driverId = Number(eventPayload.driver_id);
+        const driverLatitude = Number(eventPayload.latitude);
+        const driverLongitude = Number(eventPayload.longitude);
+        const currentLocationValue = latestLocation.current;
+
+        const isWithinRadar =
+          currentLocationValue?.latitude != null &&
+          currentLocationValue?.longitude != null
+            ? calculateDistanceBetweenCoordinates(
+                currentLocationValue.latitude,
+                currentLocationValue.longitude,
+                driverLatitude,
+                driverLongitude,
+              ) <= RADAR_RADIUS_KM
+            : false;
 
         if (
-          !Number.isFinite(latitude) ||
-          !Number.isFinite(longitude) ||
-          event.vehicle_status === 'maintenance' ||
-          event.is_in_event === true ||
-          event.is_available === false ||
+          !Number.isFinite(driverLatitude) ||
+          !Number.isFinite(driverLongitude) ||
+          eventPayload.vehicle_status === "maintenance" ||
+          eventPayload.is_in_event === true ||
+          eventPayload.is_available === false ||
           !isWithinRadar
         ) {
-          return prev.filter((d) => d.id !== driverId);
-        }
-
-        const driverExists = prev.find((d) => d.id === driverId);
-        if (driverExists) {
-          return prev.map((d) =>
-            d.id === driverId
-              ? {
-                  ...d,
-                  lat: latitude,
-                  lng: longitude,
-                  name: event.name || d.name,
-                  vehicle: event.vehicle || d.vehicle,
-                  last_update: Date.now(),
-                }
-              : d,
+          return previousDrivers.filter(
+            (driverItem) => driverItem.id !== driverId,
           );
         }
-        // Si preferimos agregarlo porque entró a la zona:
+
+        const driverExists = previousDrivers.find(
+          (driverItem) => driverItem.id === driverId,
+        );
+        if (driverExists) {
+          return previousDrivers.map((driverItem) =>
+            driverItem.id === driverId
+              ? {
+                  ...driverItem,
+                  lat: driverLatitude,
+                  lng: driverLongitude,
+                  name: eventPayload.name || driverItem.name,
+                  vehicle: eventPayload.vehicle || driverItem.vehicle,
+                  last_update: Date.now(),
+                }
+              : driverItem,
+          );
+        }
+
+        // Si el conductor acaba de ingresar al rango de cobertura del radar
         return [
-          ...prev,
+          ...previousDrivers,
           {
             id: driverId,
-            lat: latitude,
-            lng: longitude,
-            name: event.name || "Conductor " + driverId,
-            vehicle: event.vehicle || null,
+            lat: driverLatitude,
+            lng: driverLongitude,
+            name: eventPayload.name || "Conductor " + driverId,
+            vehicle: eventPayload.vehicle || null,
             last_update: Date.now(),
           },
         ];
       });
     });
 
-    channel.listen(".DriverOffline", (event) => {
+    driversChannel.listen(".DriverOffline", (eventPayload) => {
       // Eliminar al conductor del radar inmediatamente cuando se desconecta
-      setNearbyDrivers((prev) => prev.filter((d) => d.id !== event.driver_id));
+      setNearbyDrivers((previousDrivers) =>
+        previousDrivers.filter(
+          (driverItem) => driverItem.id !== eventPayload.driver_id,
+        ),
+      );
     });
 
     return () => {
-      if (echo) echo.disconnect();
+      if (echoInstance) echoInstance.disconnect();
     };
   }, [user?.id, user?.role, token, isActive]);
 
   const fetchNearbyDrivers = useCallback(async () => {
-    const location = latestLocation.current;
-    if (!location?.latitude || !location?.longitude || !token) {
+    const locationCoordinates = latestLocation.current;
+    if (
+      !locationCoordinates?.latitude ||
+      !locationCoordinates?.longitude ||
+      !token
+    ) {
       return;
     }
 
@@ -120,8 +131,8 @@ export const useNearbyDrivers = (
 
       const response = await axios.get(API_ROUTES.NEARBY_DRIVERS, {
         params: {
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: locationCoordinates.latitude,
+          longitude: locationCoordinates.longitude,
           radius: 10,
         },
         headers: {
@@ -131,36 +142,44 @@ export const useNearbyDrivers = (
       });
 
       if (response.data && Array.isArray(response.data.drivers)) {
-        const mappedDrivers = response.data.drivers.map((d) => ({
-          ...d,
-          last_update: d.updated_at
-            ? new Date(d.updated_at).getTime()
+        const mappedDrivers = response.data.drivers.map((driverCandidate) => ({
+          ...driverCandidate,
+          last_update: driverCandidate.updated_at
+            ? new Date(driverCandidate.updated_at).getTime()
             : Date.now(),
         }));
+
         setNearbyDrivers((previousDrivers) => {
           const unchanged =
             previousDrivers.length === mappedDrivers.length &&
-            mappedDrivers.every((driver) => {
-              const previous = previousDrivers.find((item) => item.id === driver.id);
-              return previous &&
-                previous.latitude === driver.latitude &&
-                previous.longitude === driver.longitude &&
-                previous.lat === driver.lat &&
-                previous.lng === driver.lng &&
-                previous.last_update === driver.last_update;
+            mappedDrivers.every((driverCandidate) => {
+              const previousMatchedDriver = previousDrivers.find(
+                (matchedItem) => matchedItem.id === driverCandidate.id,
+              );
+              return (
+                previousMatchedDriver &&
+                previousMatchedDriver.latitude === driverCandidate.latitude &&
+                previousMatchedDriver.longitude === driverCandidate.longitude &&
+                previousMatchedDriver.lat === driverCandidate.lat &&
+                previousMatchedDriver.lng === driverCandidate.lng &&
+                previousMatchedDriver.last_update ===
+                  driverCandidate.last_update
+              );
             });
 
           return unchanged ? previousDrivers : mappedDrivers;
         });
       } else {
-        setNearbyDrivers((previousDrivers) => previousDrivers.length ? [] : previousDrivers);
+        setNearbyDrivers((previousDrivers) =>
+          previousDrivers.length ? [] : previousDrivers,
+        );
       }
-    } catch (err) {
+    } catch (errorObject) {
       console.error(
         "Error al obtener conductores cercanos:",
-        err.response?.data || err.message,
+        errorObject.response?.data || errorObject.message,
       );
-      setError(err.message);
+      setError(errorObject.message);
     } finally {
       setLoading(false);
     }
@@ -171,7 +190,13 @@ export const useNearbyDrivers = (
   );
 
   useEffect(() => {
-    if (!user?.id || user.role !== "pasajero" || !token || !isActive || !hasLocation) {
+    if (
+      !user?.id ||
+      user.role !== "pasajero" ||
+      !token ||
+      !isActive ||
+      !hasLocation
+    ) {
       return;
     }
 
@@ -186,14 +211,16 @@ export const useNearbyDrivers = (
     if (!isActive) return;
 
     const cleanupInterval = setInterval(() => {
-      setNearbyDrivers((prev) => {
-        const next = prev.filter((d) => {
+      setNearbyDrivers((previousDrivers) => {
+        const nextDrivers = previousDrivers.filter((driverItem) => {
           // Si no tiene last_update (vino del fetch inicial), lo conservamos momentaneamente
-          const lastUpdate = d.last_update || Date.now();
+          const lastUpdateTimestamp = driverItem.last_update || Date.now();
           // Aumentamos a 10 minutos (600000ms) para que no desaparezca si minimiza la app
-          return Date.now() - lastUpdate < 600000;
+          return Date.now() - lastUpdateTimestamp < 600000;
         });
-        return next.length === prev.length ? prev : next;
+        return nextDrivers.length === previousDrivers.length
+          ? previousDrivers
+          : nextDrivers;
       });
     }, 15000);
 

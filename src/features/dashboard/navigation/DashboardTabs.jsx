@@ -9,6 +9,7 @@ import HistoryScreen from "../screens/HistoryScreen";
 import CommentsScreen from "../screens/CommentsScreen";
 import { ROUTES } from "../../../core/constants/routes";
 import { useAppContext } from "../../../shared/contexts/AppContext";
+import { USER_ROLES } from "../constants/dashboardConstants";
 
 const Tab = createBottomTabNavigator();
 
@@ -23,7 +24,7 @@ export default function DashboardTabs() {
         closeLockedModal();
     };
 
-    const isPasajero = user?.role === 'pasajero';
+    const isPasajero = user?.role === USER_ROLES.PASAJERO;
 
     return (
         <Tab.Navigator

@@ -4,6 +4,7 @@ import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SHADOWS, BORDER_RADIUS } from '../../../core/constants/theme';
+import { getUserInitials } from '../../../core/utils/stringUtils';
 
 export default function RideRequestCard({ request, onAccept, onReject }) {
     const theme = useTheme();
@@ -19,12 +20,6 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
 
     if (!request) return null;
 
-    // Helper for passenger initials
-    const getInitials = (name) => {
-        if (!name) return "PA";
-        return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
-    };
-
     return (
         <View style={styles.container}>
             <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
@@ -39,7 +34,7 @@ export default function RideRequestCard({ request, onAccept, onReject }) {
                         <View style={styles.avatarOuterGlow}>
                             <View style={styles.avatarInner}>
                                 <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
-                                    {getInitials(request.passenger?.name || request.passenger_name)}
+                                    {getUserInitials(request.passenger?.name || request.passenger_name, "PA")}
                                 </Text>
                             </View>
                         </View>

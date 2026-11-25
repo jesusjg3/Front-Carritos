@@ -1,12 +1,15 @@
 import React, { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from '@react-navigation/native';
 import { View, FlatList, StyleSheet, Platform } from "react-native";
-import { Text, Card, useTheme, ActivityIndicator, Avatar, Divider } from "react-native-paper";
+import { Text, Card, useTheme, Avatar, Divider } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../../shared/contexts/AppContext";
 import { API_ROUTES } from "../../../Config/Routes";
 import { SHADOWS, BORDER_RADIUS } from "../../../core/constants/theme";
+import { getUserInitials } from "../../../core/utils/stringUtils";
+import StarRating from "../../../shared/components/StarRating";
+import Spinner from "../../../shared/components/Spinner";
 
 export default function CommentsScreen() {
     const { token } = useAppContext();
@@ -56,28 +59,6 @@ export default function CommentsScreen() {
        }, [fetchRatings])
     );
 
-    const getInitials = (name) => {
-        if (!name) return "U";
-        return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
-    };
-
-    const renderStars = (score) => {
-        const ratingVal = Math.round(Number(score || 5));
-        const stars = [];
-        for (let i = 1; i <= 5; i++) {
-            stars.push(
-                <MaterialCommunityIcons 
-                    key={i}
-                    name={i <= ratingVal ? "star" : "star-outline"} 
-                    size={16} 
-                    color={i <= ratingVal ? "#FFD700" : theme.colors.outline}
-                    style={{ marginRight: 2 }}
-                />
-            );
-        }
-        return <View style={styles.starsContainer}>{stars}</View>;
-    };
-
     const renderItem = ({ item }) => {
         const reviewDate = new Date(item.created_at);
         const dateStr = reviewDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -89,7 +70,7 @@ export default function CommentsScreen() {
                     <View style={styles.cardHeader}>
                         <Avatar.Text 
                             size={40} 
-                            label={getInitials(item.emitter?.name)} 
+                            label={getUserInitials(item.emitter?.name, "U")} 
                             style={[styles.avatar, { backgroundColor: theme.colors.primary + '15' }]} 
                             labelStyle={[styles.avatarText, { color: theme.colors.primary }]}
                         />
@@ -98,8 +79,15 @@ export default function CommentsScreen() {
                             <Text style={[styles.reviewDate, { color: theme.colors.onSurfaceVariant }]}>{dateStr}</Text>
                         </View>
                         <View style={styles.ratingSection}>
-                            {renderStars(item.rating)}
-                        <Text style={[styles.ratingNumber, { color: theme.colors.tertiary || theme.colors.primary }]}>{item.rating}.0</Text>
+                            <StarRating
+                                rating={item.rating}
+                                size={16}
+                                activeColor="#FFD700"
+                                inactiveColor={theme.colors.outline}
+                                starStyle={{ marginRight: 2 }}
+                                containerStyle={styles.starsContainer}
+                            />
+                            <Text style={[styles.ratingNumber, { color: theme.colors.tertiary || theme.colors.primary }]}>{item.rating}.0</Text>
                         </View>
                     </View>
 
@@ -130,7 +118,7 @@ export default function CommentsScreen() {
 
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+                    <Spinner size="large" color={theme.colors.primary} />
                     <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>Cargando opiniones...</Text>
                 </View>
             ) : (
@@ -147,7 +135,7 @@ export default function CommentsScreen() {
                     onEndReached={() => fetchRatings(pageRef.current + 1, true)}
                     onEndReachedThreshold={0.4}
                     ListFooterComponent={loadingMore ? (
-                        <ActivityIndicator style={styles.loadingMore} color={theme.colors.primary} />
+                        <Spinner style={styles.loadingMore} color={theme.colors.primary} />
                     ) : null}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
